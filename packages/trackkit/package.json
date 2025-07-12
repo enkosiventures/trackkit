@@ -41,8 +41,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup",
-    "build:watch": "tsup --watch",
+    "build": "tsup --tsconfig tsconfig.build.json",
+    "build:watch": "tsup --watch --tsconfig tsconfig.build.json",
     "clean": "rimraf dist coverage",
     "lint": "eslint src test --fix",
     "test": "vitest run",
