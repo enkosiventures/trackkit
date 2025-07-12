@@ -40,3 +40,36 @@ jobs:
 
       - name: Build
         run: pnpm run build
+
+  test-trackkit:
+    name: Test Trackkit Core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v2
+        
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
+      - name: Lint
+        run: pnpm --filter trackkit lint
+        
+      - name: Type check
+        run: pnpm --filter trackkit typecheck
+        
+      - name: Test
+        run: pnpm --filter trackkit test:coverage
+        
+      - name: Build
+        run: pnpm --filter trackkit build
+        
+      - name: Check bundle size
+        run: pnpm --filter trackkit size

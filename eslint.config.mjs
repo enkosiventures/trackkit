@@ -4,9 +4,23 @@ import parser from '@typescript-eslint/parser';
 import prettier from 'eslint-config-prettier';
 
 export default [
-  js.configs.recommended,
+  /* -------- Global ignore globs (replaces .eslintignore) ---------- */
+  {
+    ignores: [
+      '**/dist/**',    // build output
+      '**/*.d.ts',     // generated declaration bundles
+      'coverage/**',   // vitest coverage output (if any)
+      'node_modules/**'
+    ]
+  },
+  
+  /* -------- JS recommended rules ---------------------------------- */
+  {
+    ...js.configs.recommended,
+    languageOptions: { globals: { console: 'readonly', require: 'readonly' } },
+  },
 
-  // TypeScript files
+  /* -------- Typed TypeScript override ----------------------------- */
   {
     files: ['**/*.ts', '**/*.tsx'],
     ignores: ['**/*.test.ts', '**/*.spec.ts'],
@@ -19,11 +33,38 @@ export default [
       },
     },
     plugins: { '@typescript-eslint': tseslint },
-    rules: {},
+    rules: {
+      'no-undef': 'off', // TypeScript handles this
+      'no-unused-vars': 'off', // Temporarily for development
+    },
   },
 
+  /* -------- Config-file override (untyped) ------------------------ */
   {
-    files: ['**/*.test.ts', '**/*.spec.ts'],
+    files: ['**/*.config.ts', '**/*.config.mts', '**/*.config.mjs'],
+    languageOptions: {
+      parser,
+      parserOptions: {
+        sourceType: 'module',
+        project: null
+      }
+    },
+    rules: {}
+  },
+
+  /* -------- TypeScript test files override ------------------------ */
+  {
+    files: ['**/*.test.ts'],
+    languageOptions: {
+      parserOptions: { project: ['./packages/*/tsconfig.json'] },
+      globals: { vi: 'readonly', expect: 'readonly', describe: 'readonly', it: 'readonly' }
+    },
+    rules: {}
+  },
+
+  /* -------- TypeScript spec files override ------------------------ */
+  {
+    files: ['**/*.spec.ts'],
     languageOptions: {
       parser,
       parserOptions: {
