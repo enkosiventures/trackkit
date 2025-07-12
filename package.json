@@ -1,18 +1,13 @@
 {
-  "name": "trackkit",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "trackkit-monorepo",
+  "packageManager": "pnpm@10.13.1",
+  "private": true,
   "scripts": {
     "test": "pnpm -r run test",
     "build": "pnpm -r run build",
-    "lint": "eslint . --ext .ts,.tsx --cache"
+    "lint": "eslint . --ext .ts,.tsx --cache",
+    "size": "pnpm -r run size"
   },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
-  "packageManager": "pnpm@10.13.1",
-  "private": true,
   "devDependencies": {
     "@eslint/js": "^9.31.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
