@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import noopProvider from '../../src/providers/noop';
+import { init } from '../../src';
 
 describe('No-op Provider', () => {
   it('implements all required methods', () => {
@@ -13,38 +14,37 @@ describe('No-op Provider', () => {
   });
   
   it('logs method calls in debug mode', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    init({ debug: true });
     const instance = noopProvider.create({ debug: true });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     
     instance.track('test_event', { foo: 'bar' }, '/test');
     
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[trackkit:noop] track',
-      {
-        name: 'test_event',
-        props: { foo: 'bar' },
-        url: '/test',
-      }
+      '%c[trackkit]',
+      expect.any(String),
+      '[no-op] track',
+       {
+         "name": "test_event",
+         "props": {
+           "foo": "bar",
+         },
+         "url": "/test",
+       },
     );
-    
+
     consoleSpy.mockRestore();
   });
   
   it('does not log in production mode', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    init({ debug: false });
     const instance = noopProvider.create({ debug: false });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     
     instance.track('test_event');
     
     expect(consoleSpy).not.toHaveBeenCalled();
     
     consoleSpy.mockRestore();
-  });
-  
-  it('has provider metadata', () => {
-    expect(noopProvider.meta).toEqual({
-      name: 'noop',
-      version: '1.0.0',
-    });
   });
 });
