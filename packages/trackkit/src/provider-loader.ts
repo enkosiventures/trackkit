@@ -3,6 +3,8 @@ import type { AnalyticsInstance, AnalyticsOptions, ProviderType } from './types'
 import { AnalyticsError } from './errors';
 import { logger } from './util/logger';
 
+// Temporary sync import, will be replaced with dynamic import in future stages
+import noopAdapter from './providers/noop';
 
 /**
  * Map of provider names to their factory functions
@@ -19,13 +21,13 @@ const providerMap: Record<string, () => ProviderFactory> = {
  * Provider loading strategy that supports both sync (Stage 1) 
  * and async (future stages) imports
  */
-type ProviderLoader = () => ProviderFactory | Promise<ProviderFactory>;
+type ProviderLoader = () => ProviderFactory;
+// type ProviderLoader = () => ProviderFactory | Promise<ProviderFactory>;
 
 /**
  * Registry of available providers
  * @internal
  */
-import noopAdapter from './providers/noop';
 const providerRegistry = new Map<ProviderType, ProviderLoader>([
   ['noop', () =>  noopAdapter],
   // ['noop', () =>  require('./providers/noop').default], // Synchronous for Stage 1
@@ -39,10 +41,10 @@ const providerRegistry = new Map<ProviderType, ProviderLoader>([
  * @returns Provider factory function
  * @throws {AnalyticsError} if provider is unknown or fails to load
  */
-export function loadProvider(name: string): ProviderFactory {
+export function loadProvider(name: ProviderType): ProviderFactory {
   logger.debug(`Loading provider: ${name}`);
   
-  const loader = providerMap[name];
+  const loader = providerRegistry.get(name);
   if (!loader) {
     throw new AnalyticsError(
       `Unknown provider: ${name}`,

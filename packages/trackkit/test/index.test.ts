@@ -35,13 +35,20 @@ describe('Trackkit Core API', () => {
       });
       
       expect(consoleSpy).toHaveBeenCalledWith(
-        '[trackkit] Analytics initialized',
+        '%c[trackkit]',
+        expect.any(String),
+        'Initializing analytics',
         expect.objectContaining({
           provider: 'noop',
-          siteId: 'test-site',
         })
       );
       
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '%c[trackkit]',
+        expect.any(String),
+        'Analytics initialized successfully'
+      );
+
       consoleSpy.mockRestore();
     });
 
@@ -49,31 +56,6 @@ describe('Trackkit Core API', () => {
       const analytics = init();
       expect(analytics).toBeDefined();
     });
-
-    // it('handles initialization errors gracefully', async () => {
-    //   const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-      
-    //   // Force an error by monkey-patching the loader
-    //   const loader = await import('../src/provider-loader');
-    //   const original = loader.loadProviderSync;
-    //   loader.loadProviderSync = () => {
-    //     throw new Error('Provider load failed');
-    //   };
-    //   // const spy = vi
-    //   //   .spyOn(loader, 'loadProviderSync')
-    //   //   .mockImplementation(() => {
-    //   //     throw new Error('Provider load failed');
-    //   //   });
-      
-    //   const analytics = init();
-    //   expect(analytics).toBeDefined(); // Should fallback to no-op
-    //   expect(consoleError).toHaveBeenCalled();
-      
-    //   // Restore
-    //   loader.loadProviderSync = original;
-    //   // spy.mockRestore();
-    //   consoleError.mockRestore();
-    // });
   });
   
   describe('getInstance()', () => {
@@ -109,7 +91,7 @@ describe('Trackkit Core API', () => {
       await track('test_event', { value: 42 });
       await pageview('/test-page');
 
-      expect(trackSpy).toHaveBeenCalledWith('test_event', { value: 42 }, undefined);
+      expect(trackSpy).toHaveBeenCalledWith('test_event', { value: 42 });
       expect(pageviewSpy).toHaveBeenCalledWith('/test-page');
     });
   });
