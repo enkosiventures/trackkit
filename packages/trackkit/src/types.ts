@@ -1,3 +1,5 @@
+import type { AnalyticsError } from './errors';
+
 /**
  * Event properties - can be any JSON-serializable data
  */
@@ -10,9 +12,8 @@ export type ConsentState = 'granted' | 'denied';
 
 /**
  * Analytics provider types
- * @remarks Will be extended with 'umami' | 'plausible' | 'ga' in future stages
  */
-export type ProviderType = 'noop';
+export type ProviderType = 'noop' | 'umami' | 'plausible' | 'ga';
 
 /**
  * Configuration options for analytics initialization
@@ -59,6 +60,12 @@ export interface AnalyticsOptions {
    * @default 1000
    */
   batchTimeout?: number;
+
+  /**
+   * Custom error handler for analytics errors
+   * @default console.error
+   */
+  onError?: (error: AnalyticsError) => void;
 }
 
 /**

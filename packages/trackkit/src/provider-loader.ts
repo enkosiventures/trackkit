@@ -1,17 +1,33 @@
 import type { ProviderFactory } from './providers/types';
-import type { ProviderType } from './types';
+import type { AnalyticsInstance, AnalyticsOptions, ProviderType } from './types';
+import { AnalyticsError } from './errors';
+import { logger } from './util/logger';
+
+// Temporary sync import, will be replaced with dynamic import in future stages
+import noopAdapter from './providers/noop';
+
+/**
+ * Map of provider names to their factory functions
+ * This allows for dynamic loading of providers in the future
+ * @internal
+ */
+const providerMap: Record<string, () => ProviderFactory> = {
+  noop: () => require('./providers/noop').default,
+  // Future providers will use dynamic imports
+};
+
 
 /**
  * Provider loading strategy that supports both sync (Stage 1) 
  * and async (future stages) imports
  */
-type ProviderLoader = () => ProviderFactory | Promise<ProviderFactory>;
+type ProviderLoader = () => ProviderFactory;
+// type ProviderLoader = () => ProviderFactory | Promise<ProviderFactory>;
 
 /**
  * Registry of available providers
  * @internal
  */
-import noopAdapter from './providers/noop';
 const providerRegistry = new Map<ProviderType, ProviderLoader>([
   ['noop', () =>  noopAdapter],
   // ['noop', () =>  require('./providers/noop').default], // Synchronous for Stage 1
@@ -21,22 +37,32 @@ const providerRegistry = new Map<ProviderType, ProviderLoader>([
 
 /**
  * Load a provider by name
- * @internal
+ * @param name - Provider name
+ * @returns Provider factory function
+ * @throws {AnalyticsError} if provider is unknown or fails to load
  */
-export async function loadProvider(name: ProviderType): Promise<ProviderFactory> {
+export function loadProvider(name: ProviderType): ProviderFactory {
+  logger.debug(`Loading provider: ${name}`);
+  
   const loader = providerRegistry.get(name);
-  
   if (!loader) {
-    throw new Error(`Unknown analytics provider: ${name}`);
+    throw new AnalyticsError(
+      `Unknown provider: ${name}`,
+      'INIT_FAILED',
+      name
+    );
   }
   
-  const factory = await loader();
-  
-  if (!factory || typeof factory.create !== 'function') {
-    throw new Error(`Invalid provider factory for: ${name}`);
+  try {
+    return loader();
+  } catch (error) {
+    throw new AnalyticsError(
+      `Failed to load provider: ${name}`,
+      'INIT_FAILED',
+      name,
+      error
+    );
   }
-  
-  return factory;
 }
 
 /**
