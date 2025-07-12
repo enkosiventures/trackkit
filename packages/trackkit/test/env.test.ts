@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readEnvConfig, parseEnvBoolean, parseEnvNumber } from '../src/util/env';
 
 describe('Environment configuration', () => {

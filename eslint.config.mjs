@@ -56,8 +56,20 @@ export default [
   {
     files: ['**/*.test.ts'],
     languageOptions: {
-      parserOptions: { project: ['./packages/*/tsconfig.json'] },
-      globals: { vi: 'readonly', expect: 'readonly', describe: 'readonly', it: 'readonly' }
+      parser,
+      parserOptions: {
+        project: ['./packages/*/tsconfig.test.json'],
+        tsconfigRootDir: import.meta.dirname,
+        sourceType: 'module',
+      },
+      globals: {
+        vi: 'readonly',
+        expect: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
+        process: 'readonly',
+        global: 'readonly', 
+      },
     },
     rules: {}
   },
