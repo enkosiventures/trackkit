@@ -18,7 +18,6 @@ const STYLES = {
 export function createLogger(enabled: boolean): Logger {
   if (!enabled || typeof console === 'undefined') {
     // No-op logger
-    console.warn('[trackkit] Logger is disabled or console is not available');
     const noop = () => undefined;
     return { debug: noop, info: noop, warn: noop, error: noop };
   }
