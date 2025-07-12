@@ -1,5 +1,19 @@
 import type { ProviderFactory } from './providers/types';
-import type { ProviderType } from './types';
+import type { AnalyticsInstance, AnalyticsOptions, ProviderType } from './types';
+import { AnalyticsError } from './errors';
+import { logger } from './util/logger';
+
+
+/**
+ * Map of provider names to their factory functions
+ * This allows for dynamic loading of providers in the future
+ * @internal
+ */
+const providerMap: Record<string, () => ProviderFactory> = {
+  noop: () => require('./providers/noop').default,
+  // Future providers will use dynamic imports
+};
+
 
 /**
  * Provider loading strategy that supports both sync (Stage 1) 
@@ -21,22 +35,32 @@ const providerRegistry = new Map<ProviderType, ProviderLoader>([
 
 /**
  * Load a provider by name
- * @internal
+ * @param name - Provider name
+ * @returns Provider factory function
+ * @throws {AnalyticsError} if provider is unknown or fails to load
  */
-export async function loadProvider(name: ProviderType): Promise<ProviderFactory> {
-  const loader = providerRegistry.get(name);
+export function loadProvider(name: string): ProviderFactory {
+  logger.debug(`Loading provider: ${name}`);
   
+  const loader = providerMap[name];
   if (!loader) {
-    throw new Error(`Unknown analytics provider: ${name}`);
+    throw new AnalyticsError(
+      `Unknown provider: ${name}`,
+      'INIT_FAILED',
+      name
+    );
   }
   
-  const factory = await loader();
-  
-  if (!factory || typeof factory.create !== 'function') {
-    throw new Error(`Invalid provider factory for: ${name}`);
+  try {
+    return loader();
+  } catch (error) {
+    throw new AnalyticsError(
+      `Failed to load provider: ${name}`,
+      'INIT_FAILED',
+      name,
+      error
+    );
   }
-  
-  return factory;
 }
 
 /**
