@@ -1,8 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import noopProvider from '../../src/providers/noop';
-import { init } from '../../src';
+import { track, destroy, init, waitForReady } from '../../src';
 
 describe('No-op Provider', () => {
+  beforeEach(() => {
+    destroy();
+  });
+
   it('implements all required methods', () => {
     const instance = noopProvider.create({ debug: false });
     
@@ -12,13 +16,14 @@ describe('No-op Provider', () => {
     expect(instance).toHaveProperty('setConsent');
     expect(instance).toHaveProperty('destroy');
   });
-  
-  it('logs method calls in debug mode', () => {
+
+  it('logs method calls in debug mode', async () => {
     init({ debug: true });
-    const instance = noopProvider.create({ debug: true });
+    await waitForReady();
+
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     
-    instance.track('test_event', { foo: 'bar' }, '/test');
+    track('test_event', { foo: 'bar' }, '/test');
     
     expect(consoleSpy).toHaveBeenCalledWith(
       '%c[trackkit]',
@@ -36,12 +41,13 @@ describe('No-op Provider', () => {
     consoleSpy.mockRestore();
   });
   
-  it('does not log in production mode', () => {
+  it('does not log in production mode', async () => {
     init({ debug: false });
-    const instance = noopProvider.create({ debug: false });
+    await waitForReady();
+
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     
-    instance.track('test_event');
+    track('test_event');
     
     expect(consoleSpy).not.toHaveBeenCalled();
     

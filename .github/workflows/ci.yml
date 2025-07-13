@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Type check
+        run: pnpm run typecheck
+
       - name: Lint
         run: pnpm run lint
 
@@ -40,6 +43,9 @@ jobs:
 
       - name: Build
         run: pnpm run build
+
+      - name: Check bundle size
+        run: pnpm run size
 
   test-trackkit:
     name: Test Trackkit Core

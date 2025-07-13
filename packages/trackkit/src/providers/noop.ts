@@ -7,13 +7,12 @@ import { logger } from '../util/logger';
  * Used as default provider and fallback for errors
  */
 function create(options: AnalyticsOptions): AnalyticsInstance {
-  logger.debug('Creating no-op provider instance');
+  logger.debug('Creating no-op provider instance', options);
 
   /**
    * Log method call in debug mode
    */
   const log = (method: string, ...args: unknown[]) => {
-    console.warn('Options debug mode:', options.debug);
     if (options.debug) {
       logger.debug(`[no-op] ${method}`, ...args);
     }

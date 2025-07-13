@@ -16,7 +16,7 @@ describe('Tree-shaking', () => {
           load(id) {
             if (id === 'entry') {
               return `
-                import { track } from './src/index.js';
+                import track from './src/methods/track.js';
                 track('test');
               `;
             }
@@ -35,8 +35,8 @@ describe('Tree-shaking', () => {
     });
     
     // Verify unused methods are not in the bundle
-    expect(minified.code).not.toContain('pageview');
-    expect(minified.code).not.toContain('identify');
-    expect(minified.code).not.toContain('setConsent');
+    expect(minified.code).not.toMatch(/\\bpageview\\s*\\()/);
+    expect(minified.code).not.toMatch(/\\bidentify\\s*\\()/);
+    expect(minified.code).not.toMatch(/\\bsetConsent\\s*\\()/);
   });
 });

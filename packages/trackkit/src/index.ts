@@ -1,26 +1,34 @@
-import { loadProvider } from './provider-loader';
-import { readEnvConfig, parseEnvBoolean, parseEnvNumber } from './util/env';
-import { AnalyticsError, isAnalyticsError } from './errors';
-import { createLogger, setGlobalLogger, logger } from './util/logger';
-import type {
-  AnalyticsInstance,
-  AnalyticsOptions,
-  ConsentState,
+import { loadProvider, preloadProvider } from './provider-loader';
+import type { 
+  AnalyticsInstance, 
+  AnalyticsOptions, 
+  ConsentState, 
   Props,
-  ProviderType,
+  ProviderType 
 } from './types';
+import { AnalyticsError } from './errors';
+import { createLogger, logger, setGlobalLogger } from './util/logger';
+import { StatefulProvider } from './providers/stateful-wrapper';
+import { hydrateSSRQueue, isSSR, getSSRQueue } from './util/ssr-queue';
+import type { QueuedEventUnion } from './util/queue';
 
 /**
  * Global singleton instance
  * @internal
  */
-let instance: AnalyticsInstance | null = null;
+let instance: StatefulProvider | null = null;
 
-/** 
- * Global error handler 
+/**
+ * Initialization promise for async loading
  * @internal
  */
-let errorHandler: ((error: AnalyticsError) => void) | undefined;
+let initPromise: Promise<StatefulProvider> | null = null;
+
+/**
+ * Pre-init queue for calls before init()
+ * @internal
+ */
+const preInitQueue: QueuedEventUnion[] = [];
 
 /**
  * Default options
@@ -36,7 +44,7 @@ const DEFAULT_OPTIONS: Partial<AnalyticsOptions> = {
 
 /**
  * Initialize analytics with the specified options
- * Merges environment variables with provided options
+ * 
  * @param options - Configuration options
  * @returns Analytics instance (singleton)
  * 
@@ -50,67 +58,166 @@ const DEFAULT_OPTIONS: Partial<AnalyticsOptions> = {
  * ```
  */
 export function init(options: AnalyticsOptions = {}): AnalyticsInstance {
-  try {
-    // Return existing instance if already initialized
-    if (instance) {
-      if (options.debug) {
-        console.warn('[trackkit] Analytics already initialized, returning existing instance');
-      }
-      return instance;
-    }
-    
-    // Merge environment config with options (options take precedence)
-    const envConfig = readEnvConfig();
-    const config: AnalyticsOptions = {
-      provider: (options.provider ?? envConfig.provider ?? 'noop') as ProviderType,
-      siteId: options.siteId ?? envConfig.siteId,
-      host: options.host ?? envConfig.host,
-      queueSize: options.queueSize ?? parseEnvNumber(envConfig.queueSize, 50),
-      debug: options.debug ?? parseEnvBoolean(envConfig.debug, false),
-      onError: options.onError,
-      ...options, // Ensure any additional options override
-    };
 
-    // Configure debug logging
-    const debugLogger = createLogger(config.debug || false);
-    setGlobalLogger(debugLogger);
-    
-    // Store error handler
-    errorHandler = config.onError;
-    
-    // Log initialization
+  // Return existing instance if already initialized
+  if (instance) {
+    logger.warn('Analytics already initialized, returning existing instance');
+    return instance;
+  }
+  
+  // If initialization is in progress, return a proxy
+  if (initPromise) {
+    return createInitProxy();
+  }
+
+  // Merge options with defaults
+  const config: AnalyticsOptions = {
+    ...DEFAULT_OPTIONS,
+    ...options,
+  };
+
+  // Configure debug logging
+  const debugLogger = createLogger(config.debug || false);
+  setGlobalLogger(debugLogger);
+
+  // Start async initialization
+  initPromise = initializeAsync(config);
+  
+  // Return a proxy that queues calls until ready
+  return createInitProxy();
+}
+
+/**
+ * Async initialization logic
+ */
+async function initializeAsync(config: AnalyticsOptions): Promise<StatefulProvider> {
+  try {
     logger.info('Initializing analytics', {
       provider: config.provider,
       debug: config.debug,
       queueSize: config.queueSize,
     });
     
-    // Validate configuration
-    validateConfig(config);
+    // Load and initialize provider
+    instance = await loadProvider(config.provider as ProviderType, config);
     
-    // Load provider
-    const provider = loadProvider(config.provider as any);
-    instance = provider.create(config);
+    // Process SSR queue if in browser
+    if (!isSSR()) {
+      const ssrQueue = hydrateSSRQueue();
+      if (ssrQueue.length > 0) {
+        logger.info(`Processing ${ssrQueue.length} SSR events`);
+        processEventQueue(ssrQueue);
+      }
+    }
+    
+    // Process pre-init queue
+    if (preInitQueue.length > 0) {
+      logger.info(`Processing ${preInitQueue.length} pre-init events`);
+      processEventQueue(preInitQueue);
+      preInitQueue.length = 0; // Clear queue
+    }
     
     logger.info('Analytics initialized successfully');
     return instance;
-
+    
   } catch (error) {
-    const analyticsError = isAnalyticsError(error) 
-      ? error 
+    const analyticsError = error instanceof AnalyticsError
+      ? error
       : new AnalyticsError(
           'Failed to initialize analytics',
           'INIT_FAILED',
-          options.provider,
+          config.provider,
           error
         );
     
-    handleError(analyticsError);
+    logger.error('Analytics initialization failed', analyticsError);
+    config.onError?.(analyticsError);
     
-    // Return no-op instance to prevent app crashes
-    const noop = loadProvider('noop');
-    instance = noop.create(options);
-    return instance;
+    // Fall back to no-op
+    try {
+      instance = await loadProvider('noop', config);
+      return instance;
+    } catch (fallbackError) {
+      // This should never happen, but just in case
+      throw new AnalyticsError(
+        'Failed to load fallback provider',
+        'INIT_FAILED',
+        'noop',
+        fallbackError
+      );
+    }
+  } finally {
+    initPromise = null;
+  }
+}
+
+/**
+ * Create a proxy that queues method calls until initialization
+ */
+function createInitProxy(): AnalyticsInstance {
+  const queueCall = (type: QueuedEventUnion['type'], args: unknown[]) => {
+    if (isSSR()) {
+      // In SSR, add to global queue
+      const ssrQueue = getSSRQueue();
+      ssrQueue.push({
+        id: `ssr_${Date.now()}_${Math.random()}`,
+        type,
+        timestamp: Date.now(),
+        args,
+      } as QueuedEventUnion);
+    } else if (instance) {
+      // If instance exists, delegate directly
+      (instance as any)[type](...args);
+    } else {
+      // Otherwise queue for later
+      preInitQueue.push({
+        id: `pre_${Date.now()}_${Math.random()}`,
+        type,
+        timestamp: Date.now(),
+        args,
+      } as QueuedEventUnion);
+    }
+  };
+  
+  return {
+    track: (...args) => queueCall('track', args),
+    pageview: (...args) => queueCall('pageview', args),
+    identify: (...args) => queueCall('identify', args),
+    setConsent: (...args) => queueCall('setConsent', args),
+    destroy: () => {
+      if (instance) {
+        instance.destroy();
+        instance = null;
+      }
+    },
+  };
+}
+
+/**
+ * Process a queue of events
+ */
+function processEventQueue(events: QueuedEventUnion[]): void {
+  if (!instance) return;
+  
+  for (const event of events) {
+    try {
+      switch (event.type) {
+        case 'track':
+          instance.track(...event.args);
+          break;
+        case 'pageview':
+          instance.pageview(...event.args);
+          break;
+        case 'identify':
+          instance.identify(...event.args);
+          break;
+        case 'setConsent':
+          instance.setConsent(...event.args);
+          break;
+      }
+    } catch (error) {
+      logger.error('Error processing queued event', { event, error });
+    }
   }
 }
 
@@ -118,158 +225,85 @@ export function init(options: AnalyticsOptions = {}): AnalyticsInstance {
  * Get the current analytics instance
  * 
  * @returns Current instance or null if not initialized
- * 
- * @example
- * ```typescript
- * const analytics = getInstance();
- * if (analytics) {
- *   analytics.track('event');
- * }
- * ```
  */
 export function getInstance(): AnalyticsInstance | null {
   return instance;
 }
 
 /**
- * Validate configuration options
+ * Wait for analytics to be ready
+ * 
+ * @param timeoutMs - Maximum time to wait in milliseconds
+ * @returns Promise that resolves when ready
  */
-function validateConfig(config: AnalyticsOptions): void {
-  if (config.queueSize && config.queueSize < 1) {
-    throw new AnalyticsError(
-      'Queue size must be at least 1',
-      'INVALID_CONFIG'
-    );
+export async function waitForReady(timeoutMs = 5000): Promise<AnalyticsInstance> {
+  if (instance) {
+    return instance;
   }
   
-  if (config.batchSize && config.batchSize < 1) {
-    throw new AnalyticsError(
-      'Batch size must be at least 1',
-      'INVALID_CONFIG'
-    );
+  if (!initPromise) {
+    throw new Error('Analytics not initialized. Call init() first.');
   }
   
-  // Provider-specific validation will be added in Stage 4
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('Timeout waiting for analytics')), timeoutMs);
+  });
+  
+  return Promise.race([initPromise, timeoutPromise]);
 }
 
 /**
- * Global error handler
- * Handles errors from analytics operations
- * @param error - The error to handle
- * @internal
+ * Preload a provider for faster initialization
+ * 
+ * @param provider - Provider to preload
  */
-function handleError(error: AnalyticsError): void {
-  logger.error('Analytics error:', error);
-  
-  if (errorHandler) {
-    try {
-      errorHandler(error);
-    } catch (callbackError) {
-      logger.error('Error in error handler callback:', callbackError);
-    }
-  }
+export function preload(provider: ProviderType): Promise<void> {
+  return preloadProvider(provider);
 }
 
-/**
- * Wrap method calls with error handling
- * 
- * @param fn - Function to call
- * @param methodName - Name of the method for logging
- * @returns Wrapped function that handles errors gracefully
- */
-function safeCall<T extends unknown[], R>(
-  fn: (...args: T) => R,
-  methodName: string
-): (...args: T) => R | undefined {
-  return (...args: T) => {
-    try {
-      if (!instance) {
-        logger.warn(`${methodName} called before initialization`);
-        return undefined;
-      }
-      return fn.apply(instance, args);
-    } catch (error) {
-      handleError(
-        new AnalyticsError(
-          `Error in ${methodName}`,
-          'PROVIDER_ERROR',
-          undefined,
-          error
-        )
-      );
-      return undefined;
-    }
-  };
-}
-
-/**
- * Track a custom event
- * 
- * @param name - Event name
- * @param props - Event properties
- * @param url - Optional URL override
- * 
- * @remarks
- * Calls to track() before init() will be silently ignored
- */
-export const track = safeCall(
-  (...args: Parameters<AnalyticsInstance['track']>) => instance!.track(...args),
-  'track'
-);
-
-/**
- * Track a page view
- * 
- * @param url - Optional URL override
- */
-export const pageview = safeCall(
-  (...args: Parameters<AnalyticsInstance['pageview']>) => instance!.pageview(...args),
-  'pageview'
-);
-
-/**
- * Identify the current user
- * 
- * @param userId - User identifier or null to clear
- */
-export const identify = safeCall(
-  (...args: Parameters<AnalyticsInstance['identify']>) => instance!.identify(...args),
-  'identify'
-);
-
-/**
- * Update user consent state
- * 
- * @param state - 'granted' or 'denied'
- */
-export const setConsent = safeCall(
-  (...args: Parameters<AnalyticsInstance['setConsent']>) => instance!.setConsent(...args),
-  'setConsent'
-);
-
-/**
- * Destroy the analytics instance and clean up
- */
-export const destroy = () => {
-  try {
-    logger.info('Destroying analytics instance');
-    instance?.destroy();
-    instance = null;
-    errorHandler = undefined;
-    setGlobalLogger(createLogger(false));
-  } catch (error) {
-    handleError(
-      new AnalyticsError(
-        'Error destroying analytics',
-        'PROVIDER_ERROR',
-        undefined,
-        error
-      )
-    );
+// Module-level convenience methods
+export const track = (name: string, props?: Props, url?: string): void => {
+  if (instance) {
+    instance.track(name, props, url);
+  } else {
+    init().track(name, props, url);
   }
 };
 
-// Re-export types for consumer convenience
+export const pageview = (url?: string): void => {
+  if (instance) {
+    instance.pageview(url);
+  } else {
+    init().pageview(url);
+  }
+};
+
+export const identify = (userId: string | null): void => {
+  if (instance) {
+    instance.identify(userId);
+  } else {
+    init().identify(userId);
+  }
+};
+
+export const setConsent = (state: ConsentState): void => {
+  if (instance) {
+    instance.setConsent(state);
+  } else {
+    init().setConsent(state);
+  }
+};
+
+export const destroy = (): void => {
+  if (instance) {
+    instance.destroy();
+    instance = null;
+  }
+  initPromise = null;
+  preInitQueue.length = 0;
+};
+
+// Re-export types
 export type { 
   AnalyticsInstance, 
   AnalyticsOptions, 
@@ -277,8 +311,7 @@ export type {
   Props,
   ProviderType 
 } from './types';
-export {
-  AnalyticsError,
-  isAnalyticsError,
-  type ErrorCode
-} from './errors';
+export { AnalyticsError, isAnalyticsError, type ErrorCode } from './errors';
+
+// Export queue utilities for advanced usage
+export { hydrateSSRQueue, serializeSSRQueue } from './util/ssr-queue';
