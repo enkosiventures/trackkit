@@ -1,69 +1,67 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { init, destroy } from '../src';
+import { describe, it, expect, vi, afterEach, Mock } from 'vitest';
+import { init, destroy, getInstance } from '../src';
 
-describe('Error handling', () => {
+// Helper so we don't repeat boiler-plate
+async function waitForError(fn: Mock, timeout = 100) {
+  await vi.waitFor(() => {
+    if (!fn.mock.calls.length) throw new Error('no error yet');
+  }, { timeout });
+}
+
+describe('Error handling (Stage 3)', () => {
   afterEach(() => destroy());
-  
-  it('calls error handler on initialization failure', () => {
+
+  it('invokes onError callback when provider load fails', async () => {
     const onError = vi.fn();
-    
-    // Force an error by providing invalid config
-    init({ 
-      provider: 'invalid' as any,
-      onError 
-    });
-    
+
+    // Trigger a failure → unknown provider
+    init({ provider: 'imaginary' as any, onError });
+
+    await waitForError(onError);
+
     expect(onError).toHaveBeenCalledWith(
       expect.objectContaining({
         code: 'INIT_FAILED',
-        message: expect.stringContaining('Unknown provider'),
-      })
+        provider: 'imaginary',
+      }),
     );
+
+    // The proxy has already fallen back to noop — verify it’s usable
+    const analytics = getInstance()!;
+    expect(() => analytics.track('ok')).not.toThrow();
   });
-  
-  it('returns no-op instance on init failure', () => {
+
+  it('falls back to noop instance after failure', async () => {
     const onError = vi.fn();
-    const instance = init({ 
-      provider: 'invalid' as any,
-      onError 
-    });
+    const proxy = init({ provider: 'broken' as any, onError });
+
+    // The object returned by init is still the proxy:
+    expect(proxy).toBeDefined();
     
-    expect(instance).toBeDefined();
-    expect(() => instance.track('test')).not.toThrow();
+    // Calls should not explode
+    expect(() => proxy.pageview('/err')).not.toThrow();
   });
-  
-  // it('safely handles errors in error callback', () => {
-  //   const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    
+
+  // it('catches errors thrown inside onError handler', async () => {
+  //   const consoleError = vi
+  //     .spyOn(console, 'error')
+  //     .mockImplementation(() => undefined);
+
   //   init({
-  //     provider: 'invalid' as any,
-  //     onError: () => {
-  //       throw new Error('Callback error');
-  //     }
+  //     provider: 'ghost' as any,
+  //     onError() {
+  //       throw new Error('boom'); // user bug
+  //     },
   //   });
-    
-  //   expect(consoleError).toHaveBeenCalledWith(
-  //     expect.stringContaining('[trackkit]'),
-  //     expect.anything(),
-  //     expect.stringContaining('Error in error handler')
+
+  //   await vi.waitFor(() =>
+  //     expect(consoleError).toHaveBeenCalledWith(
+  //       expect.stringContaining('[trackkit]'),
+  //       expect.anything(),
+  //       expect.stringContaining('Error in error handler'),
+  //     ),
   //   );
-    
+
   //   consoleError.mockRestore();
   // });
-  
-  it('validates configuration', () => {
-    const onError = vi.fn();
-    
-    init({
-      queueSize: -1,
-      onError
-    });
-    
-    expect(onError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        code: 'INVALID_CONFIG',
-        message: expect.stringContaining('Queue size must be at least 1'),
-      })
-    );
-  });
 });

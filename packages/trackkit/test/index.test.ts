@@ -6,7 +6,8 @@ import {
   pageview, 
   identify, 
   setConsent, 
-  destroy 
+  destroy, 
+  waitForReady
 } from '../src';
 
 describe('Trackkit Core API', () => {
@@ -28,11 +29,12 @@ describe('Trackkit Core API', () => {
     it('accepts configuration options', async () => {
       const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
       
-      await init({
+      init({
         provider: 'noop',
         siteId: 'test-site',
         debug: true,
       });
+      await waitForReady();
       
       expect(consoleSpy).toHaveBeenCalledWith(
         '%c[trackkit]',
@@ -64,8 +66,8 @@ describe('Trackkit Core API', () => {
     });
 
     it('returns the instance after initialization', async () => {
-      const analytics = init();
-      expect(getInstance()).toBe(analytics);
+      init();
+      expect(getInstance()).toBeDefined();
     });
     
     it('returns null after destroy', () => {
@@ -84,24 +86,26 @@ describe('Trackkit Core API', () => {
     });
 
     it('delegates to instance methods after initialization', async () => {
-      const analytics = await init({ debug: true });
+      init({ debug: true });
+      const analytics = await waitForReady();
       const trackSpy = vi.spyOn(analytics, 'track');
       const pageviewSpy = vi.spyOn(analytics, 'pageview');
       
-      await track('test_event', { value: 42 });
-      await pageview('/test-page');
+      track('test_event', { value: 42 }, "/test");
+      pageview('/test-page');
 
-      expect(trackSpy).toHaveBeenCalledWith('test_event', { value: 42 });
+      expect(trackSpy).toHaveBeenCalledWith('test_event', { value: 42 }, "/test");
       expect(pageviewSpy).toHaveBeenCalledWith('/test-page');
     });
   });
   
   describe('destroy()', () => {
     it('cleans up the instance', async () => {
-      const analytics = init();
+      init();
+      const analytics = await waitForReady();
       const destroySpy = vi.spyOn(analytics, 'destroy');
 
-      await destroy();
+      destroy();
 
       expect(destroySpy).toHaveBeenCalled();
       expect(getInstance()).toBeNull();

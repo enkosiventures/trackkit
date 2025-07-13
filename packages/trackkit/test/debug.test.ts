@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { init, track, destroy } from '../src';
+import { init, track, destroy, waitForReady } from '../src';
 
 describe('Debug mode', () => {
   let consoleLog: any;
@@ -17,9 +17,10 @@ describe('Debug mode', () => {
     consoleInfo.mockRestore();
   });
   
-  it('logs initialization in debug mode', () => {
+  it('logs initialization in debug mode', async () => {
     init({ debug: true });
-    
+    await waitForReady();
+
     expect(consoleInfo).toHaveBeenCalledWith(
       expect.stringContaining('[trackkit]'),
       expect.anything(),
@@ -31,10 +32,12 @@ describe('Debug mode', () => {
     );
   });
   
-  it('logs method calls in debug mode', () => {
+  it('logs method calls in debug mode', async () => {
     init({ debug: true });
+    await waitForReady();
+
     track('test_event', { value: 42 });
-    
+
     expect(consoleLog).toHaveBeenCalledWith(
       expect.stringContaining('[trackkit]'),
       expect.anything(),
@@ -46,10 +49,12 @@ describe('Debug mode', () => {
     );
   });
   
-  it('does not log in production mode', () => {
+  it('does not log in production mode', async () => {
     init({ debug: false });
+    await waitForReady();
+
     track('test_event');
-    
+
     expect(consoleLog).not.toHaveBeenCalled();
   });
 });

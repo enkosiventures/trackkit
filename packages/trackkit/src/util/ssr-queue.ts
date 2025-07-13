@@ -4,7 +4,6 @@ import type { QueuedEventUnion } from './queue';
  * Global queue for SSR environments
  */
 declare global {
-  // eslint-disable-next-line no-var
   var __TRACKKIT_SSR_QUEUE__: QueuedEventUnion[] | undefined;
 }
 

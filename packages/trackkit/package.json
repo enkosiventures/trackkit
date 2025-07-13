@@ -30,7 +30,11 @@
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
       }
-    }
+    },
+    "./track": { "import": "./dist/methods/track.js" },
+    "./pageview": { "import": "./dist/methods/pageview.js" },
+    "./identify": { "import": "./dist/methods/identify.js" },
+    "./setConsent": { "import": "./dist/methods/setConsent.js" }
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
