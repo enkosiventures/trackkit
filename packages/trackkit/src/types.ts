@@ -13,7 +13,7 @@ export type ConsentState = 'granted' | 'denied';
 /**
  * Analytics provider types
  */
-export type ProviderType = 'noop' | 'umami' | 'plausible' | 'ga';
+export type ProviderType = 'noop' | 'umami';  // | 'plausible' | 'ga';
 
 /**
  * Configuration options for analytics initialization

@@ -19,6 +19,13 @@ export interface ProviderFactory {
 }
 
 /**
+ * Provider loading strategies
+ */
+export type SyncLoader = () => ProviderFactory;
+export type AsyncLoader = () => Promise<ProviderFactory>;
+export type ProviderLoader = SyncLoader | AsyncLoader;
+
+/**
  * Extended analytics instance with provider internals
  */
 export interface ProviderInstance extends AnalyticsInstance {

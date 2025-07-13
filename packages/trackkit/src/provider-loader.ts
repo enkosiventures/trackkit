@@ -1,33 +1,27 @@
-import type { ProviderFactory } from './providers/types';
+import type { AsyncLoader, ProviderLoader } from './providers/types';
 import type { ProviderType, AnalyticsOptions } from './types';
 import { StatefulProvider } from './providers/stateful-wrapper';
+import { providers } from './provider-registry';
 import { logger } from './util/logger';
-
-/**
- * Provider loading strategies
- */
-type SyncLoader = () => ProviderFactory;
-type AsyncLoader = () => Promise<ProviderFactory>;
-type ProviderLoader = SyncLoader | AsyncLoader;
 
 /**
  * Check if loader is async
  */
 function isAsyncLoader(loader: ProviderLoader): loader is AsyncLoader {
-  return loader.constructor.name === 'AsyncFunction' || 
-         loader.toString().includes('import(');
+  try {
+    return loader() instanceof Promise;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Registry of available providers
  * @internal
  */
-import noopAdapter from './providers/noop';  // Temporary synchronous import for noop provider
-const providerRegistry = new Map<ProviderType, ProviderLoader>([
-  ['noop', () => noopAdapter],
-  // Future providers will use dynamic imports:
-  // ['umami', () => import('./providers/umami').then(m => m.default)],
-]);
+const providerRegistry = new Map(
+  Object.entries(providers).map(([name, loader]) => [name as ProviderType, loader])
+);
 
 /**
  * Load and wrap provider with state management
@@ -50,11 +44,13 @@ export async function loadProvider(
       ? await loader() 
       : loader();
     
+    // @ts-ignore: factory is loaded whether sync or async
     if (!factory || typeof factory.create !== 'function') {
       throw new Error(`Invalid provider factory for: ${name}`);
     }
     
     // Create provider instance
+    // @ts-ignore: factory is loaded whether sync or async
     const provider = factory.create(options);
     
     // Wrap with state management

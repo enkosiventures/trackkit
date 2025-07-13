@@ -41,5 +41,11 @@ function create(options: AnalyticsOptions): AnalyticsInstance {
   };
 }
 
-const factory: ProviderFactory = { create };
+const factory: ProviderFactory = {
+  create,
+  meta: {
+    name: 'noop',
+    version: '1.0.0',
+  },
+};
 export default factory;
