@@ -91,13 +91,13 @@ export class EventQueue {
   /**
    * Add event to queue
    */
-  enqueue<T extends EventType>(
+  enqueue<T extends QueuedEventUnion['type']>(
     type: T,
-    args: QueuedEventUnion['args']
-  ): string {
+    args: Extract<QueuedEventUnion, { type: T }>['args']
+  ): string | undefined {
     if (this.isPaused) {
       logger.debug('Queue is paused, dropping event', { type });
-      return '';
+      return undefined;
     }
     
     const event: QueuedEvent = {

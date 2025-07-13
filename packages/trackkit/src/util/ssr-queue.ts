@@ -4,6 +4,7 @@ import type { QueuedEventUnion } from './queue';
  * Global queue for SSR environments
  */
 declare global {
+  // eslint-disable-next-line no-var
   var __TRACKKIT_SSR_QUEUE__: QueuedEventUnion[] | undefined;
 }
 
@@ -11,9 +12,10 @@ declare global {
  * Check if running in SSR environment
  */
 export function isSSR(): boolean {
-  return typeof window === 'undefined' && 
-         typeof global !== 'undefined' &&
-         !global.window;
+  return typeof window === 'undefined';
+  // return typeof window === 'undefined' && 
+  //        typeof global !== 'undefined' &&
+  //        !global.window;
 }
 
 /**
@@ -23,12 +25,12 @@ export function getSSRQueue(): QueuedEventUnion[] {
   if (!isSSR()) {
     throw new Error('SSR queue should only be used in server environment');
   }
-  
-  if (!global.__TRACKKIT_SSR_QUEUE__) {
-    global.__TRACKKIT_SSR_QUEUE__ = [];
+
+  if (!globalThis.__TRACKKIT_SSR_QUEUE__) {
+    globalThis.__TRACKKIT_SSR_QUEUE__ = [];
   }
-  
-  return global.__TRACKKIT_SSR_QUEUE__;
+
+  return globalThis.__TRACKKIT_SSR_QUEUE__;
 }
 
 /**
@@ -53,5 +55,9 @@ export function hydrateSSRQueue(): QueuedEventUnion[] {
  * Serialize queue for SSR HTML injection
  */
 export function serializeSSRQueue(queue: QueuedEventUnion[]): string {
-  return `<script>window.__TRACKKIT_SSR_QUEUE__=${JSON.stringify(queue)};</script>`;
+  // return `<script>window.__TRACKKIT_SSR_QUEUE__=${JSON.stringify(queue)};</script>`;
+  const json = JSON.stringify(queue)
+    .replace(/</g, '\\u003C') // prevent </script> break-out
+    .replace(/>/g, '\\u003E');
+  return `<script>window.__TRACKKIT_SSR_QUEUE__=${json};</script>`;
 }
