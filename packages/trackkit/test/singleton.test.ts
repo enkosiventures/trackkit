@@ -1,40 +1,46 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { init, getInstance, destroy } from '../src';
+import { init, getInstance, destroy, waitForReady } from '../src';
 
 describe('Singleton behavior', () => {
   beforeEach(() => {
     destroy();
   });
 
-  it('returns the same instance on multiple init calls', async () => {
-    const first = init();
-    const second = init();
-    const third = init({ debug: true });
-    
-    expect(first).toBe(second);
-    expect(second).toBe(third);
-    expect(getInstance()).toBe(first);
+  it('reuses the same internal instance after multiple init calls', async () => {
+    init({ provider: 'noop' });
+    const instance1 = await waitForReady();
+
+    init(); // should not trigger re-init
+    const instance2 = await waitForReady();
+
+    expect(instance1).toBe(instance2);
   });
 
   it('warns about repeated initialization in debug mode', async () => {
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
     init({ debug: true });
+    await waitForReady();
     init({ debug: true });
+    await waitForReady();
 
     expect(consoleWarn).toHaveBeenCalledWith(
-      '[trackkit] Analytics already initialized, returning existing instance'
+      expect.stringContaining('[trackkit]'),
+      expect.anything(),
+      'Analytics already initialized, returning existing instance',
     );
     
     consoleWarn.mockRestore();
   });
 
   it('creates new instance after destroy', async () => {
-    const first = init();
+    init();
+    const firstInstance = await waitForReady();
     destroy();
-    const second = init();
-    
-    expect(first).not.toBe(second);
+    init();
+    const secondInstance = await waitForReady();
+
+    expect(firstInstance).not.toBe(secondInstance);
   });
   
   it('maintains instance across imports', async () => {

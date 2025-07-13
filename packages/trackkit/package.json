@@ -30,7 +30,21 @@
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
       }
-    }
+    },
+    "./ssr": {
+      "import": {
+        "types": "./dist/ssr.d.ts",
+        "default": "./dist/ssr.js"
+      },
+      "require": {
+        "types": "./dist/ssr.d.cts",
+        "default": "./dist/ssr.cjs"
+      }
+    },
+    "./track": { "import": "./dist/methods/track.js" },
+    "./pageview": { "import": "./dist/methods/pageview.js" },
+    "./identify": { "import": "./dist/methods/identify.js" },
+    "./setConsent": { "import": "./dist/methods/setConsent.js" }
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

@@ -3,6 +3,8 @@
  * Supports build-time (process.env) and runtime (window) access
  */
 
+import { ProviderType } from "../types";
+
 export interface EnvConfig {
   provider?: string;
   siteId?: string;

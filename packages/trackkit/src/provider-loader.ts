@@ -1,83 +1,94 @@
 import type { ProviderFactory } from './providers/types';
-import type { AnalyticsInstance, AnalyticsOptions, ProviderType } from './types';
-import { AnalyticsError } from './errors';
+import type { ProviderType, AnalyticsOptions } from './types';
+import { StatefulProvider } from './providers/stateful-wrapper';
 import { logger } from './util/logger';
 
-// Temporary sync import, will be replaced with dynamic import in future stages
-import noopAdapter from './providers/noop';
+/**
+ * Provider loading strategies
+ */
+type SyncLoader = () => ProviderFactory;
+type AsyncLoader = () => Promise<ProviderFactory>;
+type ProviderLoader = SyncLoader | AsyncLoader;
 
 /**
- * Map of provider names to their factory functions
- * This allows for dynamic loading of providers in the future
- * @internal
+ * Check if loader is async
  */
-const providerMap: Record<string, () => ProviderFactory> = {
-  noop: () => require('./providers/noop').default,
-  // Future providers will use dynamic imports
-};
-
-
-/**
- * Provider loading strategy that supports both sync (Stage 1) 
- * and async (future stages) imports
- */
-type ProviderLoader = () => ProviderFactory;
-// type ProviderLoader = () => ProviderFactory | Promise<ProviderFactory>;
+function isAsyncLoader(loader: ProviderLoader): loader is AsyncLoader {
+  return loader.constructor.name === 'AsyncFunction' || 
+         loader.toString().includes('import(');
+}
 
 /**
  * Registry of available providers
  * @internal
  */
+import noopAdapter from './providers/noop';  // Temporary synchronous import for noop provider
 const providerRegistry = new Map<ProviderType, ProviderLoader>([
-  ['noop', () =>  noopAdapter],
-  // ['noop', () =>  require('./providers/noop').default], // Synchronous for Stage 1
+  ['noop', () => noopAdapter],
   // Future providers will use dynamic imports:
   // ['umami', () => import('./providers/umami').then(m => m.default)],
 ]);
 
 /**
- * Load a provider by name
- * @param name - Provider name
- * @returns Provider factory function
- * @throws {AnalyticsError} if provider is unknown or fails to load
+ * Load and wrap provider with state management
  */
-export function loadProvider(name: ProviderType): ProviderFactory {
+export async function loadProvider(
+  name: ProviderType,
+  options: AnalyticsOptions
+): Promise<StatefulProvider> {
   logger.debug(`Loading provider: ${name}`);
   
   const loader = providerRegistry.get(name);
-  if (!loader) {
-    throw new AnalyticsError(
-      `Unknown provider: ${name}`,
-      'INIT_FAILED',
-      name
-    );
-  }
   
-  try {
-    return loader();
-  } catch (error) {
-    throw new AnalyticsError(
-      `Failed to load provider: ${name}`,
-      'INIT_FAILED',
-      name,
-      error
-    );
-  }
-}
-
-/**
- * Synchronous provider loading for Stage 1
- * @internal
- */
-export function loadProviderSync(name: ProviderType): ProviderFactory {
-  if (name !== 'noop') {
-    throw new Error(`Sync loading only supported for 'noop' provider`);
-  }
-  
-  const loader = providerRegistry.get(name);
   if (!loader) {
     throw new Error(`Unknown analytics provider: ${name}`);
   }
   
-  return loader() as ProviderFactory;
+  try {
+    // Load the provider factory
+    const factory = isAsyncLoader(loader) 
+      ? await loader() 
+      : loader();
+    
+    if (!factory || typeof factory.create !== 'function') {
+      throw new Error(`Invalid provider factory for: ${name}`);
+    }
+    
+    // Create provider instance
+    const provider = factory.create(options);
+    
+    // Wrap with state management
+    const statefulProvider = new StatefulProvider(provider, options);
+    
+    // Initialize asynchronously
+    statefulProvider.init().catch(error => {
+      logger.error('Provider initialization failed', error);
+      options.onError?.(error);
+    });
+    
+    return statefulProvider;
+    
+  } catch (error) {
+    logger.error(`Failed to load provider: ${name}`, error);
+    throw error;
+  }
+}
+
+/**
+ * Preload a provider without initializing
+ * Useful for warming up dynamic imports
+ */
+export async function preloadProvider(name: ProviderType): Promise<void> {
+  const loader = providerRegistry.get(name);
+  
+  if (!loader || !isAsyncLoader(loader)) {
+    return;
+  }
+  
+  try {
+    await loader();
+    logger.debug(`Provider preloaded: ${name}`);
+  } catch (error) {
+    logger.warn(`Failed to preload provider: ${name}`, error);
+  }
 }
