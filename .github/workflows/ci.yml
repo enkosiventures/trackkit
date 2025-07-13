@@ -41,6 +41,9 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Check bundle size
+        run: pnpm run size
+
   test-trackkit:
     name: Test Trackkit Core
     runs-on: ubuntu-latest

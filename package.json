@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "test": "pnpm -r run test",
+    "test:coverage": "pnpm -r run test:coverage",
+    "prebuild": "pnpm -r run prebuild",
     "build": "pnpm -r run build",
     "lint": "eslint . --ext .ts,.tsx --cache",
     "size": "pnpm -r run size"
