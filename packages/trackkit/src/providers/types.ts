@@ -29,6 +29,8 @@ export type ProviderLoader = SyncLoader | AsyncLoader;
  * Extended analytics instance with provider internals
  */
 export interface ProviderInstance extends AnalyticsInstance {
+  name: string;
+  
   /**
    * Provider-specific initialization (optional)
    */

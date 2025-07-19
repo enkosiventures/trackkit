@@ -23,7 +23,7 @@ export class UmamiClient {
       autoTrack: config.autoTrack ?? true,
       doNotTrack: config.doNotTrack ?? true,
       domains: config.domains || [],
-      cache: config.cache ?? false,
+      cache: config.cache ?? true,
     };
     
     this.browserData = getBrowserData();

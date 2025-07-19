@@ -68,8 +68,8 @@ export function getBrowserData(): BrowserData {
 /**
  * Generate cache buster parameter
  */
-export function getCacheBuster(cache?: boolean): string {
-  return cache ? '' : `?cache=${Date.now()}`;
+export function getCache(cache?: boolean): string {
+  return cache ? `?cache=${Date.now()}` : '';
 }
 
 /**
@@ -77,8 +77,8 @@ export function getCacheBuster(cache?: boolean): string {
  */
 export function getApiEndpoint(hostUrl: string, path: string, cache?: boolean): string {
   const base = hostUrl.replace(/\/$/, '');
-  const cacheBuster = getCacheBuster(cache);
-  return `${base}${path}${cacheBuster}`;
+  const cacheParam = getCache(cache);
+  return `${base}${path}${cacheParam}`;
 }
 
 /**

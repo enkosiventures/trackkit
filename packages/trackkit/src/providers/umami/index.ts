@@ -4,6 +4,7 @@ import { UmamiClient } from './client';
 import { parseWebsiteId, isBrowser } from './utils';
 import { logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';
+import { getInstance } from '../..';
 
 /**
  * Track page visibility for accurate time-on-page
@@ -78,6 +79,7 @@ function create(options: AnalyticsOptions): ProviderInstance {
     logger.warn('Umami browser adapter requires a browser environment');
     // Return no-op implementation for SSR
     return {
+      name: 'umami-noop',
       track: () => {},
       pageview: () => {},
       identify: () => {},
@@ -93,7 +95,7 @@ function create(options: AnalyticsOptions): ProviderInstance {
     autoTrack: options.autoTrack ?? true,
     doNotTrack: options.doNotTrack ?? true,
     domains: options.domains,
-    cache: options.cache ?? false,
+    cache: options.cache ?? true,
   });
   
   // Track consent state
@@ -106,6 +108,7 @@ function create(options: AnalyticsOptions): ProviderInstance {
   const allowWhenHidden = options.allowWhenHidden ?? false;
   
   return {
+    name: 'umami-browser',
     /**
      * Initialize provider
      */
@@ -126,13 +129,19 @@ function create(options: AnalyticsOptions): ProviderInstance {
      * Track custom event
      */
     track(name: string, props?: Props, url?: string) {
+      // console.warn("[UMAMI] Track called with:", name, props);
+      // console.warn("[UMAMI] Current instance:", getInstance());
+      // console.warn("[UMAMI] Consent state:", consentGranted);
+
       if (!consentGranted) {
+        // console.warn("[UMAMI] Event not sent: consent not granted", { name });
         logger.debug('Event not sent: consent not granted', { name });
         return;
       }
       
       // Don't track if page is hidden (user switched tabs)
       if (isPageHidden) {
+        // console.warn("[UMAMI] Event not sent: page is hidden", { name });
         logger.debug('Event not sent: page is hidden', { name });
         return;
       }

@@ -35,6 +35,7 @@ export async function loadProvider(
   const loader = providerRegistry.get(name);
   
   if (!loader) {
+    logger.error(`Unknown analytics provider: ${name}`);
     throw new Error(`Unknown analytics provider: ${name}`);
   }
   
@@ -46,6 +47,7 @@ export async function loadProvider(
     
     // @ts-ignore: factory is loaded whether sync or async
     if (!factory || typeof factory.create !== 'function') {
+      logger.error(`Invalid provider factory for: ${name}`);
       throw new Error(`Invalid provider factory for: ${name}`);
     }
     
@@ -55,13 +57,16 @@ export async function loadProvider(
     
     // Wrap with state management
     const statefulProvider = new StatefulProvider(provider, options);
-    
+
     // Initialize asynchronously
     statefulProvider.init().catch(error => {
       logger.error('Provider initialization failed', error);
       options.onError?.(error);
     });
     
+    logger.info(`Provider loaded: ${name}`, {
+      version: factory.meta?.version || 'unknown',
+    });
     return statefulProvider;
     
   } catch (error) {

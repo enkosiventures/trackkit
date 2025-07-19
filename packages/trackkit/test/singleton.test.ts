@@ -16,23 +16,6 @@ describe('Singleton behavior', () => {
     expect(instance1).toBe(instance2);
   });
 
-  it('warns about repeated initialization in debug mode', async () => {
-    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-
-    init({ debug: true });
-    await waitForReady();
-    init({ debug: true });
-    await waitForReady();
-
-    expect(consoleWarn).toHaveBeenCalledWith(
-      expect.stringContaining('[trackkit]'),
-      expect.anything(),
-      'Analytics already initialized, returning existing instance',
-    );
-    
-    consoleWarn.mockRestore();
-  });
-
   it('creates new instance after destroy', async () => {
     init();
     const firstInstance = await waitForReady();

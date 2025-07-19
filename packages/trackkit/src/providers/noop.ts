@@ -19,6 +19,7 @@ function create(options: AnalyticsOptions): AnalyticsInstance {
   };
   
   return {
+    name: 'noop',
     track(name: string, props?: Props, url?: string): void {
       log('track', { name, props, url });
     },
