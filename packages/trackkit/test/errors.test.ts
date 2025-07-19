@@ -79,12 +79,12 @@ describe('Error handling (Facade)', () => {
     const onError = vi.fn();
 
     init({
-      provider: 'noop', // valid
+      provider: 'noop',  // valid
       debug: true,
       onError,
     });
 
-    await waitForReady(); // noop always loads, so craft a different scenario if you have a failing provider stub
+    await waitForReady();  // noop always loads, so craft a different scenario if you have a failing provider stub
 
     // This test is illustrative; if you add a fake provider that throws in loadProvider
     // assert INIT_FAILED here. Otherwise you can remove or adapt it once a "failing" provider exists.

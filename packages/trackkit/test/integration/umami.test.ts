@@ -1,8 +1,8 @@
 /// <reference types="vitest" />
-import { describe, it, expect, beforeAll, afterAll, afterEach, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { server } from '../setup-msw';
 import { http, HttpResponse } from 'msw';
-import { init, track, pageview, setConsent, destroy, waitForReady } from '../../src';
+import { init, track, setConsent, destroy, waitForReady } from '../../src';
 
 // @vitest-environment jsdom
 

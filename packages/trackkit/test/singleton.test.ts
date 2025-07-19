@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { init, getInstance, destroy, waitForReady } from '../src';
 
 describe('Singleton behavior', () => {
