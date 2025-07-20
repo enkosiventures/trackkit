@@ -8,6 +8,8 @@ on:
 
 jobs:
   build-test-lint:
+    name: Test Packages
+
     runs-on: ubuntu-latest
 
     permissions:

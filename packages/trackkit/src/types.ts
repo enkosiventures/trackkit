@@ -13,7 +13,7 @@ export type ConsentState = 'granted' | 'denied';
 /**
  * Analytics provider types
  */
-export type ProviderType = 'noop' | 'umami' | 'plausible' | 'ga';
+export type ProviderType = 'noop' | 'umami';  // | 'plausible' | 'ga';
 
 /**
  * Configuration options for analytics initialization
@@ -62,6 +62,35 @@ export interface AnalyticsOptions {
   batchTimeout?: number;
 
   /**
+   * Automatically track page views
+   * @default true
+   */
+  autoTrack?: boolean;
+
+  /**
+   * Honor Do Not Track browser setting
+   * @default true
+   */
+  doNotTrack?: boolean;
+
+  /**
+   * Whitelist of domains to track
+   */
+  domains?: string[];
+
+  /**
+   * Enable caching for requests
+   * @default true
+   */
+  cache?: boolean;
+
+  /**
+   * Enable page tracking when the page is hidden
+   * @default false
+   */
+  allowWhenHidden?: boolean;
+
+  /**
    * Custom error handler for analytics errors
    * @default console.error
    */
@@ -72,6 +101,7 @@ export interface AnalyticsOptions {
  * Analytics instance methods
  */
 export interface AnalyticsInstance {
+  name: string;
   /**
    * Track a custom event
    * @param name - Event name (e.g., 'button_click')
