@@ -19,6 +19,7 @@ function create(options: AnalyticsOptions): AnalyticsInstance {
   };
   
   return {
+    name: 'noop',
     track(name: string, props?: Props, url?: string): void {
       log('track', { name, props, url });
     },
@@ -41,5 +42,11 @@ function create(options: AnalyticsOptions): AnalyticsInstance {
   };
 }
 
-const factory: ProviderFactory = { create };
+const factory: ProviderFactory = {
+  create,
+  meta: {
+    name: 'noop',
+    version: '1.0.0',
+  },
+};
 export default factory;

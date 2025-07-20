@@ -41,6 +41,13 @@ export class StatefulProvider implements AnalyticsInstance {
       }
     });
   }
+
+  /**
+   * Get the provider name
+   */
+  get name(): string {
+    return this.provider.name || 'stateful-provider';
+  }
   
   /**
    * Initialize the provider

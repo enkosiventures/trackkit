@@ -20,6 +20,7 @@ export default defineConfig({
     };
   },
   esbuildOptions(options) {
+    options.metafile = true;
     options.banner = {
       js: '/*! Trackkit - Lightweight Analytics SDK */',
     };
