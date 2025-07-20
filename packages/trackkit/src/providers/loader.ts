@@ -1,8 +1,8 @@
-import type { AsyncLoader, ProviderLoader } from './providers/types';
-import type { ProviderType, AnalyticsOptions } from './types';
-import { StatefulProvider } from './providers/stateful-wrapper';
-import { providers } from './provider-registry';
-import { logger } from './util/logger';
+import type { AsyncLoader, ProviderLoader } from './types';
+import type { ProviderType, AnalyticsOptions } from '../types';
+import { StatefulProvider } from './stateful-wrapper';
+import { providers } from './registry';
+import { logger } from '../util/logger';
 
 /**
  * Check if loader is async
@@ -28,7 +28,8 @@ const providerRegistry = new Map(
  */
 export async function loadProvider(
   name: ProviderType,
-  options: AnalyticsOptions
+  options: AnalyticsOptions,
+  // onReady?: (provider?: StatefulProvider) => void,
 ): Promise<StatefulProvider> {
   logger.debug(`Loading provider: ${name}`);
   
@@ -52,7 +53,6 @@ export async function loadProvider(
     }
     
     // Create provider instance
-    // @ts-ignore: factory is loaded whether sync or async
     const provider = factory.create(options);
     
     // Wrap with state management
@@ -67,8 +67,9 @@ export async function loadProvider(
     logger.info(`Provider loaded: ${name}`, {
       version: factory.meta?.version || 'unknown',
     });
+
     return statefulProvider;
-    
+
   } catch (error) {
     logger.error(`Failed to load provider: ${name}`, error);
     throw error;

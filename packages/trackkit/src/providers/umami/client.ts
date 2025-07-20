@@ -1,4 +1,4 @@
-import type { UmamiConfig, UmamiPayload, UmamiResponse } from './types';
+import type { UmamiConfig, UmamiPayload } from './types';
 import { 
   getApiEndpoint, 
   getFetchOptions, 
@@ -101,19 +101,13 @@ export class UmamiClient {
    */
   async trackPageview(url?: string): Promise<void> {
     const payload: Partial<UmamiPayload> = {
+      // name: 'pageview',
       url: url || this.browserData.url,
       title: document.title,
       referrer: this.browserData.referrer,
     };
     
     await this.send('pageview', payload);
-  }
-
-  async trackPageviewWithVisibilityCheck(url?: string, allowWhenHidden?: boolean): Promise<void> {
-    if (document.visibilityState !== 'visible' && !allowWhenHidden) {
-      return logger.debug('Page hidden, skipping pageview');
-    }
-    return this.trackPageview(url);
   }
 
   /**

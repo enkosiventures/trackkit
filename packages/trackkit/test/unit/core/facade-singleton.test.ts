@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { init, getInstance, destroy, waitForReady } from '../src';
+import { init, getInstance, destroy, waitForReady } from '../../../src';
 
 describe('Singleton behavior', () => {
   beforeEach(() => {
@@ -30,7 +30,7 @@ describe('Singleton behavior', () => {
     init();
     
     // Simulate another module importing trackkit
-    const { getInstance: getInstanceFromAnotherImport } = await import('../src');
+    const { getInstance: getInstanceFromAnotherImport } = await import('../../../src');
     
     expect(getInstance()).toBe(getInstanceFromAnotherImport());
   });

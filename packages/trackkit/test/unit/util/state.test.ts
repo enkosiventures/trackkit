@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { StateMachine } from '../src/util/state';
+import { StateMachine } from '../../../src/util/state';
 
 describe('StateMachine', () => {
   let stateMachine: StateMachine;

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { init, track, pageview, destroy, waitForReady, getInstance } from '../src';
+import { init, track, pageview, destroy, waitForReady, getInstance } from '../../src';
 
 describe('Queue and State Integration', () => {
   beforeEach(() => {

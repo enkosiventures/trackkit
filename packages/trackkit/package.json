@@ -41,10 +41,12 @@
         "default": "./dist/ssr.cjs"
       }
     },
+    "./init": { "import": "./dist/methods/init.js" },
     "./track": { "import": "./dist/methods/track.js" },
     "./pageview": { "import": "./dist/methods/pageview.js" },
     "./identify": { "import": "./dist/methods/identify.js" },
-    "./setConsent": { "import": "./dist/methods/setConsent.js" }
+    "./denyConsent": { "import": "./dist/methods/denyConsent.js" },
+    "./grantConsent": { "import": "./dist/methods/grantConsent.js" }
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

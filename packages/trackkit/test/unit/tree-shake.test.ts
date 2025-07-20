@@ -37,6 +37,5 @@ describe('Tree-shaking', () => {
     // Verify unused methods are not in the bundle
     expect(minified.code).not.toMatch(/\\bpageview\\s*\\()/);
     expect(minified.code).not.toMatch(/\\bidentify\\s*\\()/);
-    expect(minified.code).not.toMatch(/\\bsetConsent\\s*\\()/);
   });
 });
