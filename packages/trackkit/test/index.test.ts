@@ -41,7 +41,6 @@ describe('Trackkit Core API', () => {
     
     it('accepts configuration options', async () => {
       const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
-
       init({
         provider: 'noop',
         siteId: 'test-site',
