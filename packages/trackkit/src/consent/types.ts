@@ -1,143 +1,97 @@
 /**
- * Granular consent categories for different regulations
+ * Core consent state - intentionally minimal
  */
-export interface ConsentCategories {
-  /**
-   * Basic analytics (pageviews, sessions)
-   */
-  necessary?: boolean;
-  
-  /**
-   * Enhanced analytics (events, conversions)
-   */
-  analytics?: boolean;
-  
-  /**
-   * Marketing and advertising tracking
-   */
-  marketing?: boolean;
-  
-  /**
-   * User preferences and settings
-   */
-  preferences?: boolean;
-}
+export type ConsentStatus = 'pending' | 'granted' | 'denied';
 
 /**
  * Consent state with metadata
  */
 export interface ConsentState {
   /**
-   * Overall consent status
+   * Current consent status
    */
-  status: 'pending' | 'granted' | 'denied' | 'partial';
+  status: ConsentStatus;
   
   /**
-   * Granular category consents
+   * When consent was last updated
    */
-  categories: ConsentCategories;
+  timestamp: number;
   
   /**
-   * Timestamp of consent decision
-   */
-  timestamp?: number;
-  
-  /**
-   * Consent version/policy version
+   * Optional consent version for policy updates
    */
   version?: string;
   
   /**
-   * How consent was obtained
+   * How consent was obtained (for audit trails)
    */
-  method?: 'explicit' | 'implicit' | 'opt-out';
-  
-  /**
-   * Legal basis for processing
-   */
-  legalBasis?: 'consent' | 'legitimate_interest' | 'contract';
+  method?: 'explicit' | 'implicit';
 }
 
 /**
- * Consent persistence options
+ * Consent configuration options
  */
-export interface ConsentStorage {
+export interface ConsentOptions {
   /**
-   * Storage mechanism to use
+   * Initial consent state (default: 'pending')
    */
-  type: 'cookie' | 'localStorage' | 'memory' | 'custom';
+  initial?: ConsentStatus | ConsentState;
   
   /**
-   * Storage key/cookie name
+   * Storage key for persistence
+   * @default 'trackkit_consent'
    */
-  key?: string;
+  storageKey?: string;
   
   /**
-   * Cookie options (if using cookies)
+   * Disable persistence (memory-only)
+   * @default false
    */
-  cookieOptions?: {
-    domain?: string;
-    path?: string;
-    expires?: number; // days
-    sameSite?: 'strict' | 'lax' | 'none';
-    secure?: boolean;
-  };
-  
-  /**
-   * Custom storage adapter
-   */
-  adapter?: {
-    get(): ConsentState | null;
-    set(state: ConsentState): void;
-    remove(): void;
-  };
-}
-
-/**
- * Consent configuration
- */
-export interface ConsentConfig {
-  /**
-   * Default consent state before user decision
-   */
-  defaultState?: ConsentState;
-  
-  /**
-   * Storage configuration
-   */
-  storage?: ConsentStorage;
+  disablePersistence?: boolean;
   
   /**
    * Callback when consent changes
    */
-  onConsentChange?: (state: ConsentState, previousState: ConsentState) => void;
+  onChange?: (state: ConsentState, previousState: ConsentState) => void;
   
   /**
-   * Geographic-based defaults
-   */
-  geographicDefaults?: {
-    EU?: Partial<ConsentState>;
-    US?: Partial<ConsentState>;
-    default?: Partial<ConsentState>;
-  };
-  
-  /**
-   * Require explicit consent (no implied consent)
+   * Require explicit consent (no implicit grants)
+   * @default true
    */
   requireExplicit?: boolean;
-  
-  /**
-   * Enable consent mode debugging
-   */
-  debug?: boolean;
 }
 
 /**
- * Consent manager events
+ * Event classification for future extensibility
  */
-export type ConsentEvent = 
-  | { type: 'GRANT'; categories?: ConsentCategories }
-  | { type: 'DENY' }
-  | { type: 'WITHDRAW' }
-  | { type: 'UPDATE'; categories: ConsentCategories }
-  | { type: 'RESET' };
+export interface EventClassification {
+  /**
+   * Event category (default: 'analytics')
+   */
+  category?: string;
+  
+  /**
+   * Whether event requires consent
+   */
+  requiresConsent?: boolean;
+}
+
+/**
+ * Consent evaluator interface for extensibility
+ */
+export interface ConsentEvaluator {
+  /**
+   * Get current consent state
+   */
+  getState(): ConsentState;
+  
+  /**
+   * Check if tracking is allowed
+   */
+  canTrack(classification?: EventClassification): boolean;
+  
+  /**
+   * Subscribe to consent changes
+   */
+  subscribe(callback: (state: ConsentState) => void): () => void;
+}
