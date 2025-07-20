@@ -27,7 +27,7 @@ export default [
     languageOptions: {
       parser,
       parserOptions: {
-        project: ['./packages/*/tsconfig.json'],
+        project: ['./packages/*/tsconfig.json', './packages/trackkit/tsconfig.eslint.json'],
         tsconfigRootDir: import.meta.dirname,
         sourceType: 'module',
       },
@@ -41,15 +41,18 @@ export default [
 
   /* -------- Config-file override (untyped) ------------------------ */
   {
-    files: ['**/*.config.ts', '**/*.config.mts', '**/*.config.mjs'],
+    files: ['**/*.config.ts', '**/*.config.mts', '**/*.config.mjs', '**/*.mjs'],
     languageOptions: {
       parser,
       parserOptions: {
         sourceType: 'module',
         project: null
-      }
+      },
+      globals: {
+        process: 'readonly',
+      },
     },
-    rules: {}
+    rules: {},
   },
 
   /* -------- TypeScript test files override ------------------------ */
@@ -68,7 +71,9 @@ export default [
         describe: 'readonly',
         it: 'readonly',
         process: 'readonly',
-        global: 'readonly', 
+        global: 'readonly',
+        setTimeout: 'readonly',
+        window: 'readonly',
       },
     },
     rules: {}

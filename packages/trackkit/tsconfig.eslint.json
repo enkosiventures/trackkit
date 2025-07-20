@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src",
+    "test",
+    "test/**/*",
+    "vitest.setup.ts",
+    "setupTests.ts",
+    "test/setup-msw.ts"
+  ],
+  "exclude": [
+    "dist",
+    "coverage"
+  ]
+}

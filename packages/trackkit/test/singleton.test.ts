@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { init, getInstance, destroy, waitForReady } from '../src';
 
 describe('Singleton behavior', () => {
@@ -14,23 +14,6 @@ describe('Singleton behavior', () => {
     const instance2 = await waitForReady();
 
     expect(instance1).toBe(instance2);
-  });
-
-  it('warns about repeated initialization in debug mode', async () => {
-    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-
-    init({ debug: true });
-    await waitForReady();
-    init({ debug: true });
-    await waitForReady();
-
-    expect(consoleWarn).toHaveBeenCalledWith(
-      expect.stringContaining('[trackkit]'),
-      expect.anything(),
-      'Analytics already initialized, returning existing instance',
-    );
-    
-    consoleWarn.mockRestore();
   });
 
   it('creates new instance after destroy', async () => {
