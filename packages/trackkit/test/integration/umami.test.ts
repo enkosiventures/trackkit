@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { server } from '../setup-msw';
 import { http, HttpResponse } from 'msw';
-import { init, track, setConsent, destroy, waitForReady } from '../../src';
+import { init, track, setConsent, destroy, waitForReady, grantConsent } from '../../src';
 
 // @vitest-environment jsdom
 
@@ -83,6 +83,7 @@ describe('Umami Integration', () => {
     
     // Wait for everything to process
     const analytics = await waitForReady();
+    grantConsent();
 
     analytics.track('final_event');
 

@@ -78,3 +78,11 @@ export function parseEnvNumber(value: string | undefined, defaultValue: number):
   const parsed = parseInt(value, 10);
   return isNaN(parsed) ? defaultValue : parsed;
 }
+
+/**
+ * Check if we're in a browser environment
+ */
+export function isBrowser(): boolean {
+  return typeof window !== 'undefined' && 
+         typeof window.document !== 'undefined';
+}

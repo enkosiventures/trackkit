@@ -1,4 +1,9 @@
-import type { AnalyticsInstance, AnalyticsOptions, ProviderState } from '../types';
+import type { AnalyticsInstance, AnalyticsOptions } from '../types';
+
+/**
+ * Internal provider lifecycle state
+ */
+export type ProviderState = 'idle' | 'initializing' | 'ready' | 'destroyed';
 
 /**
  * Provider adapter factory interface
@@ -35,9 +40,4 @@ export interface ProviderInstance extends AnalyticsInstance {
    * Provider-specific initialization (optional)
    */
   _init?(): Promise<void>;
-  
-  /**
-   * Provider state
-   */
-  _state?: ProviderState;
 }

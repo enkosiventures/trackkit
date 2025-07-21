@@ -1,6 +1,5 @@
 import type { AnalyticsInstance, AnalyticsOptions } from '../types';
 import type { ProviderInstance } from './types';
-import { EventQueue, type QueuedEventUnion } from '../util/queue';
 import { StateMachine } from '../util/state';
 import { logger } from '../util/logger';
 import { AnalyticsError } from '../errors';
@@ -10,34 +9,43 @@ import { AnalyticsError } from '../errors';
  */
 export class StatefulProvider implements AnalyticsInstance {
   private provider: ProviderInstance;
-  private queue: EventQueue;
   private state: StateMachine;
-  private flushPromise?: Promise<void>;
+
+  track!:     AnalyticsInstance['track'];
+  pageview!:  AnalyticsInstance['pageview'];
+  identify!:  AnalyticsInstance['identify'];
+  setConsent!:AnalyticsInstance['setConsent'];
 
   constructor(
     provider: ProviderInstance,
-    options: AnalyticsOptions
+    private options: AnalyticsOptions,
+    private onReady?: () => void,
   ) {
     this.provider = provider;
     this.state = new StateMachine();
-    this.queue = new EventQueue({
-      maxSize: options.queueSize || 50,
-      debug: options.debug,
-      onOverflow: (dropped) => {
-        const error = new AnalyticsError(
-          `Queue overflow: ${dropped.length} events dropped`,
-          'QUEUE_OVERFLOW'
-        );
-        options.onError?.(error);
-      },
-    });
+
+    this.track     = this.provider.track.bind(this.provider);
+    this.pageview  = this.provider.pageview.bind(this.provider);
+    this.identify  = this.provider.identify.bind(this.provider);
+    this.setConsent= (s) => this.provider.setConsent?.(s);
     
     // Subscribe to state changes
-    this.state.subscribe((newState, oldState) => {
-      logger.debug('Provider state changed', { from: oldState, to: newState });
-      
-      if (newState === 'ready' && !this.queue.isEmpty) {
-        this.flushQueue();
+    this.state.subscribe((newState, oldState, event) => {
+      logger.debug('Provider state changed', { from: oldState, to: newState, via: event });
+      if (event === 'ERROR') {
+        logger.error('Provider encountered an error');
+        this.options.onError?.(
+          new AnalyticsError(
+            'Provider error',
+            'PROVIDER_ERROR',
+            this.provider.name,
+          )
+        );
+      } else if (newState === 'destroyed') {
+        this.provider.destroy();
+      }
+      if (newState === 'ready') {
+        this.onReady?.();
       }
     });
   }
@@ -67,66 +75,13 @@ export class StatefulProvider implements AnalyticsInstance {
       }
       
       this.state.transition('READY');
+      this.onReady?.();
     } catch (error) {
       this.state.transition('ERROR');
       throw error;
     }
   }
-  
-  /**
-   * Track event (queued if not ready)
-   */
-  track(name: string, props?: Record<string, unknown>, url?: string): void {
-    if (this.state.getState() === 'ready') {
-      this.provider.track(name, props, url);
-    } else {
-      this.queue.enqueue('track', [name, props, url]);
-    }
-  }
-  
-  /**
-   * Track pageview (queued if not ready)
-   */
-  pageview(url?: string): void {
-    if (this.state.getState() === 'ready') {
-      this.provider.pageview(url);
-    } else {
-      this.queue.enqueue('pageview', [url]);
-    }
-  }
-  
-  /**
-   * Identify user (queued if not ready)
-   */
-  identify(userId: string | null): void {
-    if (this.state.getState() === 'ready') {
-      this.provider.identify(userId);
-    } else {
-      this.queue.enqueue('identify', [userId]);
-    }
-  }
-  
-  /**
-   * Set consent (always processed immediately)
-   */
-  setConsent(state: 'granted' | 'denied'): void {
-    // Consent changes are always processed immediately
-    this.provider.setConsent(state);
-    
-    if (state === 'denied') {
-      // Clear queue on consent denial
-      this.queue.clear();
-      this.queue.pause();
-    } else {
-      this.queue.resume();
-      
-      // Flush queue if provider is ready
-      if (this.state.getState() === 'ready' && !this.queue.isEmpty) {
-        this.flushQueue();
-      }
-    }
-  }
-  
+
   /**
    * Destroy the instance
    */
@@ -136,7 +91,6 @@ export class StatefulProvider implements AnalyticsInstance {
     }
     
     this.state.transition('DESTROY');
-    this.queue.clear();
     this.provider.destroy();
   }
   
@@ -146,60 +100,7 @@ export class StatefulProvider implements AnalyticsInstance {
   getState() {
     return {
       provider: this.state.getState(),
-      queue: this.queue.getState(),
       history: this.state.getHistory(),
     };
-  }
-  
-  /**
-   * Process queued events
-   */
-  private async flushQueue(): Promise<void> {
-    // Prevent concurrent flushes
-    if (this.flushPromise) {
-      return this.flushPromise;
-    }
-    
-    this.flushPromise = this.processQueuedEvents();
-    
-    try {
-      await this.flushPromise;
-    } finally {
-      this.flushPromise = undefined;
-    }
-  }
-  
-  private async processQueuedEvents(): Promise<void> {
-    const events = this.queue.flush();
-    
-    if (events.length === 0) {
-      return;
-    }
-    
-    logger.info(`Processing ${events.length} queued events`);
-    
-    for (const event of events) {
-      try {
-        switch (event.type) {
-          case 'track':
-            this.provider.track(...event.args);
-            break;
-          case 'pageview':
-            this.provider.pageview(...event.args);
-            break;
-          case 'identify':
-            this.provider.identify(...event.args);
-            break;
-          case 'setConsent':
-            this.provider.setConsent(...event.args);
-            break;
-        }
-      } catch (error) {
-        logger.error('Error processing queued event', {
-          event: event.type,
-          error,
-        });
-      }
-    }
   }
 }

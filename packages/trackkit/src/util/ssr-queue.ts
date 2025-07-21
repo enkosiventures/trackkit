@@ -32,6 +32,12 @@ export function getSSRQueue(): QueuedEventUnion[] {
   return globalThis.__TRACKKIT_SSR_QUEUE__;
 }
 
+export function clearSSRQueue(): void {
+  if ((window as any).__TRACKKIT_SSR_QUEUE__) {
+    delete (window as any).__TRACKKIT_SSR_QUEUE__;
+  }
+}
+
 /**
  * Transfer SSR queue to client
  */
@@ -43,9 +49,7 @@ export function hydrateSSRQueue(): QueuedEventUnion[] {
   const queue = (window as any).__TRACKKIT_SSR_QUEUE__ || [];
   
   // Clear after reading to prevent duplicate processing
-  if ((window as any).__TRACKKIT_SSR_QUEUE__) {
-    delete (window as any).__TRACKKIT_SSR_QUEUE__;
-  }
+  clearSSRQueue();
   
   return queue;
 }

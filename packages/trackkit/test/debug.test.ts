@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { init, track, destroy, waitForReady } from '../src';
+import { init, track, destroy, waitForReady, grantConsent } from '../src';
 
 describe('Debug mode', () => {
   let consoleLog: any;
@@ -35,6 +35,7 @@ describe('Debug mode', () => {
   it('logs method calls in debug mode', async () => {
     init({ debug: true });
     await waitForReady();
+    grantConsent();
 
     track('test_event', { value: 42 });
 

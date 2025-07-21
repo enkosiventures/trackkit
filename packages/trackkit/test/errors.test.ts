@@ -6,6 +6,7 @@ import {
   destroy,
   waitForReady,
   getDiagnostics,
+  grantConsent,
 } from '../src';
 import { AnalyticsError } from '../src/errors';
 
@@ -143,6 +144,8 @@ describe('Error handling (Facade)', () => {
     expect(overflowCall).toBeDefined();
 
     await waitForReady();
+
+    grantConsent();
 
     // After ready the queue should be flushed (cannot assert delivery here without tapping into provider mock)
     const diag = getDiagnostics();

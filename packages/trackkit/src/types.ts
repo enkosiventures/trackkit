@@ -1,3 +1,4 @@
+import { ConsentOptions } from './consent/types';
 import type { AnalyticsError } from './errors';
 
 /**
@@ -91,6 +92,11 @@ export interface AnalyticsOptions {
   allowWhenHidden?: boolean;
 
   /**
+   * Custom consent options for GDPR compliance
+   */
+  consent?: ConsentOptions;
+
+  /**
    * Custom error handler for analytics errors
    * @default console.error
    */
@@ -107,8 +113,9 @@ export interface AnalyticsInstance {
    * @param name - Event name (e.g., 'button_click')
    * @param props - Optional event properties
    * @param url - Optional URL override
+   * @param category - Optional event category for grouping
    */
-  track(name: string, props?: Props, url?: string): void;
+  track(name: string, props?: Props, url?: string, category?: string ): void;
   
   /**
    * Track a page view
@@ -133,8 +140,3 @@ export interface AnalyticsInstance {
    */
   destroy(): void;
 }
-
-/**
- * Internal provider lifecycle state
- */
-export type ProviderState = 'idle' | 'initializing' | 'ready' | 'destroyed';

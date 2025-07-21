@@ -6,7 +6,7 @@ export type ConsentStatus = 'pending' | 'granted' | 'denied';
 /**
  * Consent state with metadata
  */
-export interface ConsentState {
+export interface ConsentStoredState {
   /**
    * Current consent status
    */
@@ -29,37 +29,43 @@ export interface ConsentState {
 }
 
 /**
- * Consent configuration options
+ * Consent options for configuring consent manager behavior
  */
 export interface ConsentOptions {
   /**
-   * Initial consent state (default: 'pending')
-   */
-  initial?: ConsentStatus | ConsentState;
-  
-  /**
-   * Storage key for persistence
-   * @default 'trackkit_consent'
-   */
-  storageKey?: string;
-  
-  /**
-   * Disable persistence (memory-only)
-   * @default false
-   */
-  disablePersistence?: boolean;
-  
-  /**
-   * Callback when consent changes
-   */
-  onChange?: (state: ConsentState, previousState: ConsentState) => void;
-  
-  /**
-   * Require explicit consent (no implicit grants)
+   * If true we start as 'pending' and *require* an explicit call to grant.
+   * If false we auto‑grant on first track (implicit consent).
    * @default true
    */
   requireExplicit?: boolean;
+  
+  /**
+   * Current policy/version. If stored version < this => re‑prompt (reset to pending).
+   */
+  policyVersion?: string;
+
+  /**
+   * Disable all persistence (always start fresh).
+   * @default false
+   */
+  disablePersistence?: boolean;
+
+  /**
+   * Custom storage key for consent state
+   * @default '__trackkit_consent__'
+   */
+  storageKey?: string;
 }
+
+/**
+ * Snapshot of current consent state including queued events
+ */
+export interface ConsentSnapshot extends ConsentStoredState {
+  queuedEvents: number;
+  droppedEventsDenied: number;
+}
+
+export type Listener = (s: ConsentStatus, prev: ConsentStatus) => void;
 
 /**
  * Event classification for future extensibility
@@ -74,24 +80,4 @@ export interface EventClassification {
    * Whether event requires consent
    */
   requiresConsent?: boolean;
-}
-
-/**
- * Consent evaluator interface for extensibility
- */
-export interface ConsentEvaluator {
-  /**
-   * Get current consent state
-   */
-  getState(): ConsentState;
-  
-  /**
-   * Check if tracking is allowed
-   */
-  canTrack(classification?: EventClassification): boolean;
-  
-  /**
-   * Subscribe to consent changes
-   */
-  subscribe(callback: (state: ConsentState) => void): () => void;
 }

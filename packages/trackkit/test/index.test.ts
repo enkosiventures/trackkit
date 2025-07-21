@@ -9,6 +9,7 @@ import {
   destroy, 
   waitForReady,
   getDiagnostics,
+  grantConsent,
 } from '../src';
 
 describe('Trackkit Core API', () => {
@@ -104,6 +105,9 @@ describe('Trackkit Core API', () => {
     it('delegates to instance methods after initialization', async () => {
       init({ debug: true });
       const analytics = await waitForReady();
+
+      grantConsent();
+
       const trackSpy = vi.spyOn(analytics, 'track');
       const pageviewSpy = vi.spyOn(analytics, 'pageview');
       

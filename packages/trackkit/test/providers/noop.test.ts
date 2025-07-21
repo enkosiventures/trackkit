@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import noopProvider from '../../src/providers/noop';
-import { track, destroy, init, waitForReady } from '../../src';
+import { track, destroy, init, waitForReady, grantConsent } from '../../src';
 
 describe('No-op Provider', () => {
   beforeEach(() => {
@@ -20,6 +20,7 @@ describe('No-op Provider', () => {
   it('logs method calls in debug mode', async () => {
     init({ debug: true });
     await waitForReady();
+    grantConsent();
 
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     
