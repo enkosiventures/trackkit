@@ -106,14 +106,9 @@ export class UmamiClient {
       referrer: this.browserData.referrer,
     };
     
+    console.warn('Tracking pageview:', payload); // DEBUG
     await this.send('pageview', payload);
-  }
-
-  async trackPageviewWithVisibilityCheck(url?: string, allowWhenHidden?: boolean): Promise<void> {
-    if (document.visibilityState !== 'visible' && !allowWhenHidden) {
-      return logger.debug('Page hidden, skipping pageview');
-    }
-    return this.trackPageview(url);
+    console.warn('Pageview tracked successfully'); // DEBUG
   }
 
   /**

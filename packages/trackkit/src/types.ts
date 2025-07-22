@@ -130,12 +130,6 @@ export interface AnalyticsInstance {
   identify(userId: string | null): void;
   
   /**
-   * Update user consent state
-   * @param state - 'granted' or 'denied'
-   */
-  setConsent(state: ConsentState): void;
-  
-  /**
    * Clean up and destroy the instance
    */
   destroy(): void;

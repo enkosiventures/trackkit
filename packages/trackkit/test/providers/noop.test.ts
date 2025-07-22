@@ -13,7 +13,6 @@ describe('No-op Provider', () => {
     expect(instance).toHaveProperty('track');
     expect(instance).toHaveProperty('pageview');
     expect(instance).toHaveProperty('identify');
-    expect(instance).toHaveProperty('setConsent');
     expect(instance).toHaveProperty('destroy');
   });
 

@@ -21,6 +21,7 @@ export class ConsentManager {
       policyVersion: options.policyVersion,
       requireExplicit: options.requireExplicit ?? true,
     };
+    console.warn('ConsentManager Options:', this.opts);
     this.initFromStorage();
   }
 
@@ -84,14 +85,9 @@ export class ConsentManager {
   }
 
   /** Called by facade when first *emittable* event arrives and implicit allowed. */
-  // promoteImplicitIfAllowed() {
-  //   if (this.status === 'pending' && !this.opts.requireExplicit) {
-  //     logger.info('Implicit consent granted on first track');
-  //     this.setStatus('granted', true); // implicit
-  //   }
-  // }
   promoteImplicitIfAllowed() {
     if (this.status === 'pending' && !this.opts.requireExplicit) {
+      console.warn('Implicit consent granted on first emittable event');
       this.status = 'granted'; // Don't call setStatus to avoid 'explicit' method
       // Manually persist with 'implicit' method
       if (this.storageAvailable && !this.opts.disablePersistence) {

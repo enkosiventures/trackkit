@@ -32,10 +32,6 @@ function create(options: AnalyticsOptions): AnalyticsInstance {
       log('identify', { userId });
     },
     
-    setConsent(state: ConsentState): void {
-      log('setConsent', { state });
-    },
-    
     destroy(): void {
       log('destroy');
     },

@@ -29,7 +29,7 @@ const providerRegistry = new Map(
 export async function loadProvider(
   name: ProviderType,
   options: AnalyticsOptions,
-  onReady?: () => void,
+  // onReady?: (provider?: StatefulProvider) => void,
 ): Promise<StatefulProvider> {
   logger.debug(`Loading provider: ${name}`);
   
@@ -53,11 +53,10 @@ export async function loadProvider(
     }
     
     // Create provider instance
-    // @ts-ignore: factory is loaded whether sync or async
     const provider = factory.create(options);
     
     // Wrap with state management
-    const statefulProvider = new StatefulProvider(provider, options, onReady);
+    const statefulProvider = new StatefulProvider(provider, options);
 
     // Initialize asynchronously
     statefulProvider.init().catch(error => {
@@ -68,8 +67,9 @@ export async function loadProvider(
     logger.info(`Provider loaded: ${name}`, {
       version: factory.meta?.version || 'unknown',
     });
+
     return statefulProvider;
-    
+
   } catch (error) {
     logger.error(`Failed to load provider: ${name}`, error);
     throw error;

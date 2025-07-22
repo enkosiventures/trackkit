@@ -8,18 +8,18 @@ import { AnalyticsError } from '../errors';
  * Wraps a provider instance with state management and queueing
  */
 export class StatefulProvider implements AnalyticsInstance {
+  private readyCallbacks: Array<() => void> = [];
   private provider: ProviderInstance;
   private state: StateMachine;
 
   track!:     AnalyticsInstance['track'];
   pageview!:  AnalyticsInstance['pageview'];
   identify!:  AnalyticsInstance['identify'];
-  setConsent!:AnalyticsInstance['setConsent'];
 
   constructor(
     provider: ProviderInstance,
     private options: AnalyticsOptions,
-    private onReady?: () => void,
+    // private onReady?: (provider: StatefulProvider) => void,
   ) {
     this.provider = provider;
     this.state = new StateMachine();
@@ -27,7 +27,6 @@ export class StatefulProvider implements AnalyticsInstance {
     this.track     = this.provider.track.bind(this.provider);
     this.pageview  = this.provider.pageview.bind(this.provider);
     this.identify  = this.provider.identify.bind(this.provider);
-    this.setConsent= (s) => this.provider.setConsent?.(s);
     
     // Subscribe to state changes
     this.state.subscribe((newState, oldState, event) => {
@@ -44,8 +43,17 @@ export class StatefulProvider implements AnalyticsInstance {
       } else if (newState === 'destroyed') {
         this.provider.destroy();
       }
-      if (newState === 'ready') {
-        this.onReady?.();
+      if (newState === 'ready' && oldState !== 'ready') {
+        // Notify all ready callbacks
+        this.readyCallbacks.forEach(cb => {
+          try {
+            cb();
+          } catch (error) {
+            logger.error('Error in ready callback', error);
+          }
+        });
+        this.readyCallbacks = [];
+        // this.onReady?.(this);
       }
     });
   }
@@ -75,10 +83,21 @@ export class StatefulProvider implements AnalyticsInstance {
       }
       
       this.state.transition('READY');
-      this.onReady?.();
     } catch (error) {
       this.state.transition('ERROR');
       throw error;
+    }
+  }
+
+  /**
+   * Register a callback for when provider is ready
+   */
+  onReady(callback: () => void): void {
+    if (this.state.getState() === 'ready') {
+      // Already ready, call immediately
+      callback();
+    } else {
+      this.readyCallbacks.push(callback);
     }
   }
 
@@ -102,5 +121,17 @@ export class StatefulProvider implements AnalyticsInstance {
       provider: this.state.getState(),
       history: this.state.getHistory(),
     };
+  }
+
+  /**
+   * Set a callback for navigation events
+   * Used by providers that detect client-side navigation
+   */
+  setNavigationCallback(callback: (url: string) => void): void {
+    if (this.provider._setNavigationCallback) {
+      this.provider._setNavigationCallback(callback);
+    } else {
+      logger.warn('Provider does not support navigation callbacks');
+    }
   }
 }

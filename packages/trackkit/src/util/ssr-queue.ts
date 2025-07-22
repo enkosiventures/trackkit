@@ -32,9 +32,21 @@ export function getSSRQueue(): QueuedEventUnion[] {
   return globalThis.__TRACKKIT_SSR_QUEUE__;
 }
 
+export function getSSRQueueLength(): number {
+  if (typeof window === 'undefined') {
+    return 0;
+  }
+
+  if (globalThis.__TRACKKIT_SSR_QUEUE__) {
+    return globalThis.__TRACKKIT_SSR_QUEUE__.length;
+  }
+
+  return 0;
+}
+
 export function clearSSRQueue(): void {
-  if ((window as any).__TRACKKIT_SSR_QUEUE__) {
-    delete (window as any).__TRACKKIT_SSR_QUEUE__;
+  if (globalThis.__TRACKKIT_SSR_QUEUE__) {
+    delete globalThis.__TRACKKIT_SSR_QUEUE__;
   }
 }
 
@@ -46,7 +58,7 @@ export function hydrateSSRQueue(): QueuedEventUnion[] {
     return [];
   }
   
-  const queue = (window as any).__TRACKKIT_SSR_QUEUE__ || [];
+  const queue = globalThis.__TRACKKIT_SSR_QUEUE__ || [];
   
   // Clear after reading to prevent duplicate processing
   clearSSRQueue();

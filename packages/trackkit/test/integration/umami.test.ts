@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { server } from '../setup-msw';
 import { http, HttpResponse } from 'msw';
-import { init, track, setConsent, destroy, waitForReady, grantConsent } from '../../src';
+import { init, track, destroy, waitForReady, grantConsent } from '../../src';
 
 // @vitest-environment jsdom
 
@@ -64,7 +64,7 @@ describe('Umami Integration', () => {
     );
 
     // Track before init
-    track('early_event');  // <-- When this is uncommented, the post is not sent, and the test fails.
+    track('early_event');
 
     // Initialize
     init({
@@ -72,10 +72,8 @@ describe('Umami Integration', () => {
       siteId: 'test-site',
       autoTrack: false,
       cache: false,
+      // consent: { requireExplicit: false },
     });
-    
-    // Grant consent
-    setConsent('granted');
     
     // Track after init but possibly before ready
     track('quick_event');
@@ -86,7 +84,6 @@ describe('Umami Integration', () => {
     grantConsent();
 
     analytics.track('final_event');
-
 
     await new Promise(resolve => setTimeout(resolve, 200));
 

@@ -5,7 +5,7 @@ import { logger } from './logger';
 /**
  * Queued event types
  */
-export type EventType = 'track' | 'pageview' | 'identify' | 'setConsent';
+export type EventType = 'track' | 'pageview' | 'identify';
 
 /**
  * Queued event structure
@@ -42,21 +42,12 @@ export interface QueuedIdentifyEvent extends QueuedEvent {
 }
 
 /**
- * Consent event in queue
- */
-export interface QueuedConsentEvent extends QueuedEvent {
-  type: 'setConsent';
-  args: [state: ConsentState];
-}
-
-/**
  * Union of all queued event types
  */
 export type QueuedEventUnion = 
   | QueuedTrackEvent 
   | QueuedPageviewEvent 
-  | QueuedIdentifyEvent 
-  | QueuedConsentEvent;
+  | QueuedIdentifyEvent; 
 
 /**
  * Event queue configuration

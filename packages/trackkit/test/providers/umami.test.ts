@@ -55,7 +55,6 @@ describe('Umami Provider', () => {
   describe('tracking', () => {
     it('sends pageview events', async () => {
       const instance = umamiProvider.create(validOptions);
-      instance.setConsent('granted');
       
       let capturedRequest: any;
       server.use(
@@ -78,7 +77,6 @@ describe('Umami Provider', () => {
     
     it('sends custom events with data', async () => {
       const instance = umamiProvider.create(validOptions);
-      instance.setConsent('granted');
       
       let capturedRequest: any;
       server.use(
@@ -99,35 +97,6 @@ describe('Umami Provider', () => {
       });
     });
     
-    it('respects consent state', async () => {
-      const instance = umamiProvider.create(validOptions);
-      
-      let requestCount = 0;
-      server.use(
-        http.post('https://cloud.umami.is/api/send', () => {
-          requestCount++;
-          return HttpResponse.json({ ok: true });
-        })
-      );
-      
-      // Should not send without consent
-      instance.track('no_consent');
-      await new Promise(resolve => setTimeout(resolve, 100));
-      expect(requestCount).toBe(0);
-      
-      // Should send after consent granted
-      instance.setConsent('granted');
-      instance.track('with_consent');
-      await new Promise(resolve => setTimeout(resolve, 100));
-      expect(requestCount).toBe(1);
-      
-      // Should stop after consent revoked
-      instance.setConsent('denied');
-      instance.track('consent_revoked');
-      await new Promise(resolve => setTimeout(resolve, 100));
-      expect(requestCount).toBe(1);
-    });
-    
     it('handles network errors gracefully', async () => {
       const onError = vi.fn();
       const instance = umamiProvider.create({
@@ -135,7 +104,6 @@ describe('Umami Provider', () => {
         host: 'https://error.example.com',
         onError,
       });
-      instance.setConsent('granted');
       
       instance.track('test_event');
       
@@ -162,8 +130,7 @@ describe('Umami Provider', () => {
         ...validOptions,
         doNotTrack: true,
       });
-      instance.setConsent('granted');
-      
+
       let requestMade = false;
       server.use(
         http.post('*', () => {
@@ -189,8 +156,7 @@ describe('Umami Provider', () => {
         ...validOptions,
         doNotTrack: false,
       });
-      instance.setConsent('granted');
-      
+
       let requestMade = false;
       server.use(
         http.post('*', () => {

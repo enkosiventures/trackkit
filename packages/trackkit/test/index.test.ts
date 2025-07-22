@@ -5,7 +5,6 @@ import {
   track, 
   pageview, 
   identify, 
-  setConsent, 
   destroy, 
   waitForReady,
   getDiagnostics,
@@ -36,7 +35,6 @@ describe('Trackkit Core API', () => {
       expect(analytics).toHaveProperty('track');
       expect(analytics).toHaveProperty('pageview');
       expect(analytics).toHaveProperty('identify');
-      expect(analytics).toHaveProperty('setConsent');
       expect(analytics).toHaveProperty('destroy');
     });
     
@@ -99,7 +97,6 @@ describe('Trackkit Core API', () => {
       expect(() => track('test')).not.toThrow();
       expect(() => pageview()).not.toThrow();
       expect(() => identify('user123')).not.toThrow();
-      expect(() => setConsent('granted')).not.toThrow();
     });
 
     it('delegates to instance methods after initialization', async () => {
