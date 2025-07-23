@@ -1,4 +1,9 @@
-import type { AnalyticsInstance, AnalyticsOptions, ProviderState } from '../types';
+import type { AnalyticsInstance, AnalyticsOptions } from '../types';
+
+/**
+ * Internal provider lifecycle state
+ */
+export type ProviderState = 'idle' | 'initializing' | 'ready' | 'destroyed';
 
 /**
  * Provider adapter factory interface
@@ -35,9 +40,58 @@ export interface ProviderInstance extends AnalyticsInstance {
    * Provider-specific initialization (optional)
    */
   _init?(): Promise<void>;
+
+  /**
+   * Set callback for navigation events (optional)
+   * Used by providers that detect client-side navigation
+   */
+  _setNavigationCallback?(callback: (url: string) => void): void;
+}
+
+/**
+ * Consent configuration for providers
+ * Used to determine if provider can operate based on user consent
+ */
+export interface ProviderConsentConfig {
+  /**
+   * Whether this provider requires explicit consent
+   * Can be overridden by user configuration
+   */
+  requireExplicit?: boolean;
+
+  /**
+   * Whether this provider can be used for essential/necessary tracking
+   * (e.g., security, critical functionality)
+   */
+  supportsEssential?: boolean;
   
   /**
-   * Provider state
+   * Default consent mode for this provider
    */
-  _state?: ProviderState;
+  defaultMode?: 'opt-in' | 'opt-out' | 'essential-only';
+  
+  /**
+   * Categories this provider uses
+   */
+  categories?: Array<'essential' | 'analytics' | 'marketing' | 'preferences'>;
+  
+  /**
+   * Provider-specific consent hints
+   */
+  hints?: {
+    /**
+     * Whether provider uses cookies
+     */
+    usesCookies?: boolean;
+    
+    /**
+     * Whether provider stores personally identifiable information
+     */
+    storesPII?: boolean;
+    
+    /**
+     * Data retention period in days
+     */
+    dataRetentionDays?: number;
+  };
 }

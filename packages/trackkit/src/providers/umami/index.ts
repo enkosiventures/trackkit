@@ -1,10 +1,9 @@
 import type { ProviderFactory, ProviderInstance } from '../types';
-import type { AnalyticsOptions, Props, ConsentState } from '../../types';
+import type { AnalyticsOptions, Props } from '../../types';
 import { UmamiClient } from './client';
 import { parseWebsiteId, isBrowser } from './utils';
 import { logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';
-import { getInstance } from '../..';
 
 /**
  * Track page visibility for accurate time-on-page
@@ -12,28 +11,27 @@ import { getInstance } from '../..';
 let lastPageView: string | null = null;
 let isPageHidden = false;
 
-function setupPageTracking(client: UmamiClient, autoTrack: boolean, allowWhenHidden: boolean): void {
-  if (!isBrowser() || !autoTrack) return;
-  
-  // Track initial pageview
-  const currentPath = window.location.pathname + window.location.search;
-  lastPageView = currentPath;
-  client.trackPageviewWithVisibilityCheck().catch(error => {
-    logger.error('Failed to track initial pageview', error);
-  });
+// function setupPageTracking(client: UmamiClient, autoTrack: boolean, allowWhenHidden: boolean): void {
+function setupPageTracking(
+  client: UmamiClient, 
+  autoTrack: boolean, 
+  onNavigate?: (url: string) => void,
+): () => void {
+  if (!isBrowser() || !autoTrack) return () => {};
   
   // Track navigation changes
-  let previousPath = currentPath;
+  let previousPath = window.location.pathname + window.location.search;
   
   const checkForNavigation = () => {
     const newPath = window.location.pathname + window.location.search;
     if (newPath !== previousPath) {
       previousPath = newPath;
-      lastPageView = newPath;
       client.updateBrowserData();
-      client.trackPageviewWithVisibilityCheck(newPath, allowWhenHidden).catch(error => {
-        logger.error('Failed to track navigation', error);
-      });
+      
+      // Instead of tracking directly, notify the facade
+      if (onNavigate) {
+        onNavigate(newPath);
+      }
     }
   };
   
@@ -55,9 +53,18 @@ function setupPageTracking(client: UmamiClient, autoTrack: boolean, allowWhenHid
   };
   
   // Track page visibility
-  document.addEventListener('visibilitychange', () => {
+  const handleVisibilityChange = () => {
     isPageHidden = document.hidden;
-  });
+  };
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  // Return cleanup function
+  return () => {
+    window.removeEventListener('popstate', checkForNavigation);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    history.pushState = originalPushState;
+    history.replaceState = originalReplaceState;
+  };
 }
 
 /**
@@ -83,7 +90,6 @@ function create(options: AnalyticsOptions): ProviderInstance {
       track: () => {},
       pageview: () => {},
       identify: () => {},
-      setConsent: () => {},
       destroy: () => {},
     };
   }
@@ -98,14 +104,14 @@ function create(options: AnalyticsOptions): ProviderInstance {
     cache: options.cache ?? true,
   });
   
-  // Track consent state
-  let consentGranted = false;
-  
   // Setup auto-tracking
   const autoTrack = options.autoTrack ?? true;
 
   // Setup tracking when page is hidden
   const allowWhenHidden = options.allowWhenHidden ?? false;
+
+  let navigationCallback: ((url: string) => void) | undefined;
+  let cleanupAutoTracking: (() => void) | undefined;
   
   return {
     name: 'umami-browser',
@@ -120,28 +126,25 @@ function create(options: AnalyticsOptions): ProviderInstance {
       });
       
       // Setup automatic pageview tracking
-      if (consentGranted) {
-        setupPageTracking(client, autoTrack, allowWhenHidden);
-      }
+      // Note: Initial pageview will be sent by facade after consent check
+      cleanupAutoTracking = setupPageTracking(
+        client,
+        autoTrack,
+        navigationCallback,
+      );
+    },
+
+    // Add a method to set the navigation callback
+    _setNavigationCallback(callback: (url: string) => void) {
+      navigationCallback = callback;
     },
     
     /**
      * Track custom event
      */
     track(name: string, props?: Props, url?: string) {
-      // console.warn("[UMAMI] Track called with:", name, props);
-      // console.warn("[UMAMI] Current instance:", getInstance());
-      // console.warn("[UMAMI] Consent state:", consentGranted);
-
-      if (!consentGranted) {
-        // console.warn("[UMAMI] Event not sent: consent not granted", { name });
-        logger.debug('Event not sent: consent not granted', { name });
-        return;
-      }
-      
-      // Don't track if page is hidden (user switched tabs)
-      if (isPageHidden) {
-        // console.warn("[UMAMI] Event not sent: page is hidden", { name });
+      // Don't track if page is hidden (unless overridden)
+      if (isPageHidden && !allowWhenHidden) {
         logger.debug('Event not sent: page is hidden', { name });
         return;
       }
@@ -156,16 +159,17 @@ function create(options: AnalyticsOptions): ProviderInstance {
      * Track pageview
      */
     pageview(url?: string) {
-      if (!consentGranted) {
-        logger.debug('Pageview not sent: consent not granted', { url });
-        return;
-      }
-      
       // Update last pageview
       lastPageView = url || window.location.pathname + window.location.search;
       
+      // Don't track if page is hidden (unless overridden)
+      if (isPageHidden && !allowWhenHidden) {
+        logger.debug('Pageview not sent: page is hidden', { url });
+        return;
+      }
+
       client.updateBrowserData();
-      client.trackPageviewWithVisibilityCheck(url, allowWhenHidden).catch(error => {
+      client.trackPageview(url).catch(error => {
         logger.error('Failed to track pageview', error);
         options.onError?.(error);
       });
@@ -180,23 +184,11 @@ function create(options: AnalyticsOptions): ProviderInstance {
     },
     
     /**
-     * Update consent state
-     */
-    setConsent(state: ConsentState) {
-      consentGranted = state === 'granted';
-      logger.debug('Consent state updated', { state });
-      
-      if (consentGranted && autoTrack && lastPageView === null) {
-        // Setup tracking if consent granted after init
-        setupPageTracking(client, autoTrack, allowWhenHidden);
-      }
-    },
-    
-    /**
      * Clean up
      */
     destroy() {
       logger.debug('Destroying Umami provider');
+      cleanupAutoTracking?.();
       lastPageView = null;
       isPageHidden = false;
     },

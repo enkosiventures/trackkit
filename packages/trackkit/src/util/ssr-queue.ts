@@ -22,7 +22,7 @@ export function isSSR(): boolean {
  */
 export function getSSRQueue(): QueuedEventUnion[] {
   if (!isSSR()) {
-    throw new Error('SSR queue should only be used in server environment');
+    return [];
   }
 
   if (!globalThis.__TRACKKIT_SSR_QUEUE__) {
@@ -32,22 +32,35 @@ export function getSSRQueue(): QueuedEventUnion[] {
   return globalThis.__TRACKKIT_SSR_QUEUE__;
 }
 
+export function getSSRQueueLength(): number {
+  if (typeof window === 'undefined') {
+    return 0;
+  }
+
+  if (globalThis.__TRACKKIT_SSR_QUEUE__) {
+    return globalThis.__TRACKKIT_SSR_QUEUE__.length;
+  }
+
+  return 0;
+}
+
+export function clearSSRQueue(): void {
+  if (globalThis.__TRACKKIT_SSR_QUEUE__) {
+    delete globalThis.__TRACKKIT_SSR_QUEUE__;
+  }
+}
+
 /**
  * Transfer SSR queue to client
  */
 export function hydrateSSRQueue(): QueuedEventUnion[] {
-  if (typeof window === 'undefined') {
-    return [];
+  if (!isSSR()) {
+    // In browser, check if there's a queue to hydrate
+    const queue = globalThis.__TRACKKIT_SSR_QUEUE__ || [];
+    globalThis.__TRACKKIT_SSR_QUEUE__ = undefined; // Clear after hydration
+    return queue;
   }
-  
-  const queue = (window as any).__TRACKKIT_SSR_QUEUE__ || [];
-  
-  // Clear after reading to prevent duplicate processing
-  if ((window as any).__TRACKKIT_SSR_QUEUE__) {
-    delete (window as any).__TRACKKIT_SSR_QUEUE__;
-  }
-  
-  return queue;
+  return [];
 }
 
 /**

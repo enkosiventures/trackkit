@@ -1,5 +1,8 @@
+/// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { init, track, destroy, waitForReady } from '../src';
+import { init, track, destroy, waitForReady, grantConsent } from '../../src';
+
+// @vitest-environment jsdom
 
 describe('Debug mode', () => {
   let consoleLog: any;
@@ -33,10 +36,11 @@ describe('Debug mode', () => {
   });
   
   it('logs method calls in debug mode', async () => {
-    init({ debug: true });
+    init({ debug: true, consent: { requireExplicit: false } });
     await waitForReady();
+    grantConsent();
 
-    track('test_event', { value: 42 });
+    await track('test_event', { value: 42 });
 
     expect(consoleLog).toHaveBeenCalledWith(
       expect.stringContaining('[trackkit]'),
@@ -51,6 +55,10 @@ describe('Debug mode', () => {
   
   it('does not log in production mode', async () => {
     init({ debug: false });
+
+    // Clear previous logs
+    consoleLog.mockClear();
+
     await waitForReady();
 
     track('test_event');

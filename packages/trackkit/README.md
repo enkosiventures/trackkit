@@ -31,7 +31,7 @@ pnpm add trackkit
 ## Usage
 
 ```ts
-import { init, track, pageview, setConsent } from 'trackkit';
+import { init, track, pageview, grantConsent } from 'trackkit';
 
 init({
   provider: 'umami',                        // or 'plausible' | 'ga' | 'none'
@@ -39,7 +39,7 @@ init({
   host: 'https://cloud.umami.is'
 });
 
-setConsent('granted');
+grantConsent();
 
 track('signup_submitted', { plan: 'pro' });
 pageview();
@@ -75,7 +75,7 @@ analytics.track('signup_submitted', { plan: 'starter' });
 
 ## Consent
 
-Use `setConsent('granted' | 'denied')` to control event flow. Events are buffered until granted. See [`privacy-compliance.md`](../../docs/guides/privacy-compliance.md).
+Use `grantConsent / denyConsent` to control event flow. Events are buffered until granted. See [`privacy-compliance.md`](../../docs/guides/privacy-compliance.md).
 
 ---
 

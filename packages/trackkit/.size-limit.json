@@ -3,17 +3,17 @@
     "name": "Core ESM (gzip)",
     "path": "dist/index.js",
     "import": "*",
-    "limit": "6 KB"
+    "limit": "7 KB"
   },
   {
     "name": "Core CJS (gzip)",
     "path": "dist/index.cjs",
-    "limit": "6 KB"
+    "limit": "7 KB"
   },
   {
     "name": "Tree-shaken single method",
     "path": "dist/index.js",
     "import": "{ track }",
-    "limit": "6 KB"
+    "limit": "7 KB"
   }
 ]

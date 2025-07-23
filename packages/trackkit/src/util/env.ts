@@ -3,8 +3,6 @@
  * Supports build-time (process.env) and runtime (window) access
  */
 
-import { ProviderType } from "../types";
-
 export interface EnvConfig {
   provider?: string;
   siteId?: string;
@@ -16,6 +14,13 @@ export interface EnvConfig {
 const ENV_PREFIX = 'TRACKKIT_';
 const VITE_PREFIX = 'VITE_';
 const REACT_PREFIX = 'REACT_APP_';
+
+/**
+ * Global container for environment variables
+ */
+declare global {
+  var __TRACKKIT_ENV__: any;
+}
 
 /**
  * Get environment variable with fallback chain:
@@ -37,7 +42,7 @@ function getEnvVar(key: string): string | undefined {
   // Runtime resolution
   if (typeof window !== 'undefined') {
     // Check for injected config object
-    const runtimeConfig = (window as any).__TRACKKIT_ENV__;
+    const runtimeConfig = globalThis.__TRACKKIT_ENV__;
     if (runtimeConfig && typeof runtimeConfig === 'object') {
       return runtimeConfig[key];
     }
@@ -77,4 +82,12 @@ export function parseEnvNumber(value: string | undefined, defaultValue: number):
   if (!value) return defaultValue;
   const parsed = parseInt(value, 10);
   return isNaN(parsed) ? defaultValue : parsed;
+}
+
+/**
+ * Check if we're in a browser environment
+ */
+export function isBrowser(): boolean {
+  return typeof window !== 'undefined' && 
+         typeof window.document !== 'undefined';
 }

@@ -1,14 +1,10 @@
+import { ConsentOptions } from './consent/types';
 import type { AnalyticsError } from './errors';
 
 /**
  * Event properties - can be any JSON-serializable data
  */
 export type Props = Record<string, unknown>;
-
-/**
- * User consent state for GDPR compliance
- */
-export type ConsentState = 'granted' | 'denied';
 
 /**
  * Analytics provider types
@@ -91,6 +87,11 @@ export interface AnalyticsOptions {
   allowWhenHidden?: boolean;
 
   /**
+   * Custom consent options for GDPR compliance
+   */
+  consent?: ConsentOptions;
+
+  /**
    * Custom error handler for analytics errors
    * @default console.error
    */
@@ -107,8 +108,9 @@ export interface AnalyticsInstance {
    * @param name - Event name (e.g., 'button_click')
    * @param props - Optional event properties
    * @param url - Optional URL override
+   * @param category - Optional event category for grouping
    */
-  track(name: string, props?: Props, url?: string): void;
+  track(name: string, props?: Props, url?: string, category?: string ): void;
   
   /**
    * Track a page view
@@ -123,18 +125,7 @@ export interface AnalyticsInstance {
   identify(userId: string | null): void;
   
   /**
-   * Update user consent state
-   * @param state - 'granted' or 'denied'
-   */
-  setConsent(state: ConsentState): void;
-  
-  /**
    * Clean up and destroy the instance
    */
   destroy(): void;
 }
-
-/**
- * Internal provider lifecycle state
- */
-export type ProviderState = 'idle' | 'initializing' | 'ready' | 'destroyed';

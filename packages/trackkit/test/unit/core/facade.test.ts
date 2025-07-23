@@ -5,29 +5,17 @@ import {
   track, 
   pageview, 
   identify, 
-  setConsent, 
   destroy, 
   waitForReady,
   getDiagnostics,
-} from '../src';
+  grantConsent,
+} from '../../../src';
 
 describe('Trackkit Core API', () => {
-  // let consoleInfo: any;
-  
   beforeEach(() => {
-    destroy(); // Clean slate for each test
+    destroy();
   });
 
-  // beforeEach(() => {
-  //   consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined);
-  //   destroy();
-  // });
-  
-  // afterEach(() => {
-  //   destroy();
-  //   consoleInfo.mockRestore();
-  // });
-  
   describe('init()', () => {
     it('creates and returns an analytics instance', async () => {
       const analytics = init();
@@ -35,7 +23,6 @@ describe('Trackkit Core API', () => {
       expect(analytics).toHaveProperty('track');
       expect(analytics).toHaveProperty('pageview');
       expect(analytics).toHaveProperty('identify');
-      expect(analytics).toHaveProperty('setConsent');
       expect(analytics).toHaveProperty('destroy');
     });
     
@@ -61,12 +48,6 @@ describe('Trackkit Core API', () => {
         })
       );
       
-      // expect(consoleSpy).toHaveBeenCalledWith(
-      //   '%c[trackkit]',
-      //   expect.any(String),
-      //   'Analytics initialized successfully'
-      // );
-
       consoleSpy.mockRestore();
     });
 
@@ -98,14 +79,18 @@ describe('Trackkit Core API', () => {
       expect(() => track('test')).not.toThrow();
       expect(() => pageview()).not.toThrow();
       expect(() => identify('user123')).not.toThrow();
-      expect(() => setConsent('granted')).not.toThrow();
     });
 
     it('delegates to instance methods after initialization', async () => {
       init({ debug: true });
-      const analytics = await waitForReady();
-      const trackSpy = vi.spyOn(analytics, 'track');
-      const pageviewSpy = vi.spyOn(analytics, 'pageview');
+      await waitForReady();
+      grantConsent();
+
+      const { getFacade } = await import('../../../src/core/facade-singleton');
+      const facade = getFacade();
+      
+      const trackSpy = vi.spyOn(facade, 'track');
+      const pageviewSpy = vi.spyOn(facade, 'pageview');
       
       track('test_event', { value: 42 }, "/test");
       pageview('/test-page');

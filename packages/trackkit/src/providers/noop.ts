@@ -1,5 +1,5 @@
 import type { ProviderFactory } from './types';
-import type { AnalyticsInstance, AnalyticsOptions, Props, ConsentState } from '../types';
+import type { AnalyticsInstance, AnalyticsOptions, Props } from '../types';
 import { logger } from '../util/logger';
 
 /**
@@ -30,10 +30,6 @@ function create(options: AnalyticsOptions): AnalyticsInstance {
     
     identify(userId: string | null): void {
       log('identify', { userId });
-    },
-    
-    setConsent(state: ConsentState): void {
-      log('setConsent', { state });
     },
     
     destroy(): void {

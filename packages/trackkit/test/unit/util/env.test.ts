@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { readEnvConfig, parseEnvBoolean, parseEnvNumber } from '../src/util/env';
+import { readEnvConfig, parseEnvBoolean, parseEnvNumber } from '../../../src/util/env';
 
 describe('Environment configuration', () => {
   const originalEnv = process.env;
