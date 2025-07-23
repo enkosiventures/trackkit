@@ -1,3 +1,3 @@
-import { denyConsent } from '../index';
+import { denyConsent } from "../consent/exports";
 
 export default denyConsent;

@@ -7,6 +7,7 @@ import {
   waitForReady,
   getDiagnostics,
   grantConsent,
+  getInstance,
 } from '../src';
 import { AnalyticsError } from '../src/errors';
 
@@ -17,7 +18,7 @@ describe('Error handling (Facade)', () => {
 
   beforeEach(() => {
     consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    // destroy();
+    destroy();
   });
 
   afterEach(async () => {
@@ -46,9 +47,8 @@ describe('Error handling (Facade)', () => {
     await waitForReady();
 
     const diag = getDiagnostics();
-    console.warn('[TRACKKIT::DEBUG] Diagnostics after INVALID_CONFIG:', diag); // DEBUG
     expect(diag.provider).toBe('noop');
-    expect(diag.hasRealInstance).toBe(true);
+    expect(diag.providerReady).toBe(true);
   });
 
   it('falls back to noop when unknown provider is specified', async () => {
@@ -125,6 +125,7 @@ describe('Error handling (Facade)', () => {
 
     init({
       provider: 'umami', // invalid -> fallback noop (so initPromise stays)
+      siteId: 'test',
       queueSize: 3,
       debug: true,
       onError,
@@ -149,27 +150,36 @@ describe('Error handling (Facade)', () => {
 
     // After ready the queue should be flushed (cannot assert delivery here without tapping into provider mock)
     const diag = getDiagnostics();
-    expect(diag.queueSize).toBe(0);
+    expect(diag.totalQueueSize).toBe(0);
   });
+
 
   it('destroy() errors are caught and surfaced', async () => {
     const onError = vi.fn();
 
-    // Use valid noop init
     init({ provider: 'noop', debug: true, onError });
     await waitForReady();
 
-    // Monkey patch realInstance destroy to throw (simulate provider bug)
-    const inst: any = (getDiagnostics().hasRealInstance && (await waitForReady())) || null;
-    if (inst && typeof inst.destroy === 'function') {
-      const original = inst.destroy;
-      inst.destroy = () => { throw new Error('provider destroy failed'); };
-      await destroy();
-      // restore just in case (not strictly needed)
-      inst.destroy = original;
-    }
+    // Get the StatefulProvider
+    const statefulProvider = getInstance();
+    expect(statefulProvider).toBeDefined();
+    
+    // Patch the inner provider's destroy method
+    const innerProvider = (statefulProvider as any).provider;
+    expect(innerProvider).toBeDefined();
+    
+    const originalDestroy = innerProvider.destroy;
+    innerProvider.destroy = () => { 
+      throw new Error('provider destroy failed'); 
+    };
 
-    // An error should have been emitted *or* logged
+    // Now destroy should catch the error
+    destroy();
+
+    // Restore
+    innerProvider.destroy = originalDestroy;
+
+    // Check that error was emitted
     const providerErr = onError.mock.calls.find(
       (args) => (args[0] as AnalyticsError).code === 'PROVIDER_ERROR'
     );

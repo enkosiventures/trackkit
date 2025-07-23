@@ -1,8 +1,8 @@
-import type { AsyncLoader, ProviderLoader } from './providers/types';
-import type { ProviderType, AnalyticsOptions } from './types';
-import { StatefulProvider } from './providers/stateful-wrapper';
-import { providers } from './provider-registry';
-import { logger } from './util/logger';
+import type { AsyncLoader, ProviderLoader } from './types';
+import type { ProviderType, AnalyticsOptions } from '../types';
+import { StatefulProvider } from './stateful-wrapper';
+import { providers } from './registry';
+import { logger } from '../util/logger';
 
 /**
  * Check if loader is async

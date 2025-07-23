@@ -101,12 +101,14 @@ describe('Trackkit Core API', () => {
 
     it('delegates to instance methods after initialization', async () => {
       init({ debug: true });
-      const analytics = await waitForReady();
-
+      await waitForReady();
       grantConsent();
 
-      const trackSpy = vi.spyOn(analytics, 'track');
-      const pageviewSpy = vi.spyOn(analytics, 'pageview');
+      const { getFacade } = await import('../src/core/facade-singleton');
+      const facade = getFacade();
+      
+      const trackSpy = vi.spyOn(facade, 'track');
+      const pageviewSpy = vi.spyOn(facade, 'pageview');
       
       track('test_event', { value: 42 }, "/test");
       pageview('/test-page');

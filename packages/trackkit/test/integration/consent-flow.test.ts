@@ -1,4 +1,4 @@
-// @vitest-environment jsdom
+/// <reference types="vitest" />
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import {
   init,
@@ -14,6 +14,8 @@ import {
   waitForReady,
   getDiagnostics,
 } from '../../src';
+
+// @vitest-environment jsdom
 
 describe('Consent Flow Integration', () => {
   beforeEach(() => {
@@ -37,7 +39,7 @@ describe('Consent Flow Integration', () => {
     pageview('/test');
 
     const diagnostics = getDiagnostics();
-    expect(diagnostics.queueSize).toBe(3);
+    expect(diagnostics.facadeQueueSize).toBe(3);
 
     const consent = getConsent();
     expect(consent?.status).toBe('pending');
@@ -56,7 +58,7 @@ describe('Consent Flow Integration', () => {
 
     // Check events are queued
     let diagnostics = getDiagnostics();
-    expect(diagnostics.queueSize).toBe(2);
+    expect(diagnostics.facadeQueueSize).toBe(2);
 
     await waitForReady();
 
@@ -68,7 +70,7 @@ describe('Consent Flow Integration', () => {
 
     // Queue should be empty after flush
     diagnostics = getDiagnostics();
-    expect(diagnostics.queueSize).toBe(0);
+    expect(diagnostics.facadeQueueSize).toBe(0);
     
     // Consent should show events were queued
     const consent = getConsent();
@@ -98,7 +100,7 @@ describe('Consent Flow Integration', () => {
 
     // Queue should be empty
     const diagnostics = getDiagnostics();
-    expect(diagnostics.queueSize).toBe(0);
+    expect(diagnostics.facadeQueueSize).toBe(0);
   });
 
   it('handles implicit consent flow', async () => {
@@ -217,12 +219,12 @@ describe('Consent Flow Integration', () => {
     pageview('/page1');
     identify('user123');
 
-    expect(getDiagnostics().queueSize).toBe(5);
+    expect(getDiagnostics().facadeQueueSize).toBe(5);
 
     // Deny consent - should clear queue
     denyConsent();
 
-    expect(getDiagnostics().queueSize).toBe(0);
+    expect(getDiagnostics().facadeQueueSize).toBe(0);
   });
 
   it('handles rapid consent state changes', async () => {

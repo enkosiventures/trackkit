@@ -101,14 +101,13 @@ export class UmamiClient {
    */
   async trackPageview(url?: string): Promise<void> {
     const payload: Partial<UmamiPayload> = {
+      // name: 'pageview',
       url: url || this.browserData.url,
       title: document.title,
       referrer: this.browserData.referrer,
     };
     
-    console.warn('Tracking pageview:', payload); // DEBUG
     await this.send('pageview', payload);
-    console.warn('Pageview tracked successfully'); // DEBUG
   }
 
   /**

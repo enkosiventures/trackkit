@@ -1,3 +1,3 @@
-import { grantConsent } from '../index';
+import { grantConsent } from "../consent/exports";
 
 export default grantConsent;

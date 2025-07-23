@@ -54,7 +54,7 @@ export type QueuedEventUnion =
  */
 export interface QueueConfig {
   maxSize: number;
-  onOverflow?: (dropped: QueuedEvent[]) => void;
+  onOverflow?: (dropped: QueuedEventUnion[]) => void;
   debug?: boolean;
 }
 

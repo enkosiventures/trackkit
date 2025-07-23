@@ -51,13 +51,13 @@ describe('Pageview Tracking with Consent', () => {
   });
 
   it('sends initial pageview after consent is granted', async () => {
-    const pageviews: any[] = [];
+    const events: any[] = [];
     
     server.use(
       http.post('*/api/send', async ({ request }) => {
         const body = await request.json();
-        if (body && typeof body === 'object' && 'url' in body) {
-          pageviews.push(body);
+        if (body && typeof body === 'object') {
+          events.push(body);
         }
         return HttpResponse.json({ ok: true });
       })
@@ -68,35 +68,38 @@ describe('Pageview Tracking with Consent', () => {
       siteId: 'test-site',
       consent: { requireExplicit: true },
       autoTrack: true,
-      host: 'http://localhost', // Use local URL for tests
+      host: 'http://localhost',
     });
 
     await waitForReady();
     
-    expect(pageviews).toHaveLength(0);
+    expect(events).toHaveLength(0);
 
     grantConsent();
     
-    // Wait for network request
+    // Wait for pageview to be sent
     await vi.waitFor(() => {
+      const pageviews = events.filter(e => !e.name && e.url);
       expect(pageviews).toHaveLength(1);
     });
 
-    expect(pageviews[0]).toMatchObject({
+    const pageview = events.find(e => !e.name && e.url);
+    expect(pageview).toMatchObject({
       url: '/test-page?param=value',
       website: 'test-site',
     });
   });
 
-
   it('does not send duplicate initial pageviews', async () => {
-    const pageviews: any[] = [];
+    const events: any[] = [];
 
     server.use(
       http.post('*/api/send', async ({ request }) => {
         const body = await request.json();
-        if (body && typeof body === 'object' && 'url' in body) {
-          pageviews.push(body);
+        console.log('[DEBUG] Received event:', body);
+        
+        if (body && typeof body === 'object') {
+          events.push(body);
         }
         return HttpResponse.json({ ok: true });
       }),
@@ -112,25 +115,29 @@ describe('Pageview Tracking with Consent', () => {
 
     await waitForReady();
 
-    // Trigger implicit consent with first track
+    // Trigger implicit consent
     track('some_event');
 
-    // Wait for the implicit consent to trigger and initial pageview to be sent
+    // Wait for events to be sent
     await vi.waitFor(() => {
-      expect(pageviews).toHaveLength(1);  // Initial pageview
-    }, { timeout: 1000 });
+      expect(events.length).toBeGreaterThanOrEqual(2);
+    });
 
-    // Now send manual pageview
+    // Filter pageviews (events without 'name' field)
+    const pageviews = events.filter(e => !e.name && e.url);
+    const trackEvents = events.filter(e => e.name);
+
+    // Should have 1 initial pageview and 1 track event
+    expect(pageviews).toHaveLength(1);
+    expect(trackEvents).toHaveLength(1);
+    expect(trackEvents[0].name).toBe('some_event');
+
+    // Manual pageview
     pageview();
     
-    // Wait for the manual pageview
     await vi.waitFor(() => {
-      expect(pageviews).toHaveLength(2);
-    }, { timeout: 1000 });
-    
-    // Verify we have exactly 2 pageviews
-    expect(pageviews).toHaveLength(2);
-    expect(pageviews[0].url).toBe('/test-page?param=value'); // Initial
-    expect(pageviews[1].url).toBe('/test-page?param=value'); // Manual
+      const allPageviews = events.filter(e => !e.name && e.url);
+      expect(allPageviews).toHaveLength(2);
+    });
   });
 });

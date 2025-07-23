@@ -160,7 +160,6 @@ function create(options: AnalyticsOptions): ProviderInstance {
      * Track pageview
      */
     pageview(url?: string) {
-      console.warn('[UMAMI] Tracking pageview:', url); // DEBUG
       // Update last pageview
       lastPageView = url || window.location.pathname + window.location.search;
       
