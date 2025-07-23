@@ -7,11 +7,6 @@ import type { AnalyticsError } from './errors';
 export type Props = Record<string, unknown>;
 
 /**
- * User consent state for GDPR compliance
- */
-export type ConsentState = 'granted' | 'denied';
-
-/**
  * Analytics provider types
  */
 export type ProviderType = 'noop' | 'umami';  // | 'plausible' | 'ga';

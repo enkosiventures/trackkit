@@ -1,4 +1,4 @@
-import type { BrowserData, UmamiConfig } from './types';
+import type { BrowserData } from './types';
 
 /**
  * Check if we're in a browser environment

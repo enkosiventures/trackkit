@@ -1,5 +1,5 @@
 import type { ProviderFactory } from './types';
-import type { AnalyticsInstance, AnalyticsOptions, Props, ConsentState } from '../types';
+import type { AnalyticsInstance, AnalyticsOptions, Props } from '../types';
 import { logger } from '../util/logger';
 
 /**

@@ -53,13 +53,6 @@ export interface UmamiPayload {
 }
 
 /**
- * Umami API response
- */
-export interface UmamiResponse {
-  ok: boolean;
-}
-
-/**
  * Browser environment data
  */
 export interface BrowserData {

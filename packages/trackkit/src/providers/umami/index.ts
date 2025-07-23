@@ -1,10 +1,9 @@
 import type { ProviderFactory, ProviderInstance } from '../types';
-import type { AnalyticsOptions, Props, ConsentState } from '../../types';
+import type { AnalyticsOptions, Props } from '../../types';
 import { UmamiClient } from './client';
 import { parseWebsiteId, isBrowser } from './utils';
 import { logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';
-import { getInstance } from '../..';
 
 /**
  * Track page visibility for accurate time-on-page

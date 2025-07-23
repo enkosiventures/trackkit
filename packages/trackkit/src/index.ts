@@ -1,5 +1,4 @@
 // Main facade
-// export { getFacade as getAnalytics } from './core/facade-singleton';
 export { init, destroy, track, pageview, identify } from './core/facade-singleton';
 
 // Consent API

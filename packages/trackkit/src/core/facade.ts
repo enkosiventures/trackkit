@@ -1,13 +1,12 @@
 import type { AnalyticsInstance, AnalyticsOptions, Props } from '../types';
 import { AnalyticsError } from '../errors';
-import { createLogger, logger, setGlobalLogger } from '../util/logger';
-import { EventQueue, QueuedEvent, QueuedEventUnion } from '../util/queue';
+import { logger } from '../util/logger';
+import { EventQueue, QueuedEventUnion } from '../util/queue';
 import { validateConfig, mergeConfig, getConsentConfig } from './config';
 import { loadProviderAsync } from './initialization';
 import { isSSR, hydrateSSRQueue, getSSRQueue, getSSRQueueLength } from '../util/ssr-queue';
 import { ConsentManager } from '../consent/ConsentManager';
 import type { StatefulProvider } from '../providers/stateful-wrapper';
-import { config } from 'node:process';
 
 
 /**

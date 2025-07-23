@@ -1,4 +1,4 @@
-import type { UmamiConfig, UmamiPayload, UmamiResponse } from './types';
+import type { UmamiConfig, UmamiPayload } from './types';
 import { 
   getApiEndpoint, 
   getFetchOptions, 

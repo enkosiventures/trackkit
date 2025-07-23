@@ -1,5 +1,4 @@
-import type { Props, ConsentState } from '../types';
-import { AnalyticsError } from '../errors';
+import type { Props } from '../types';
 import { logger } from './logger';
 
 /**

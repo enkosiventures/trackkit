@@ -1,5 +1,5 @@
-import { AnalyticsError } from '../errors'; // adjust path if different
-import { isBrowser } from '../util/env';    // or your existing env helper
+import { STORAGE_KEY } from '../constants';
+import { isBrowser } from '../util/env';
 import { logger } from '../util/logger';
 import { ConsentOptions, ConsentSnapshot, ConsentStatus, ConsentStoredState, Listener } from './types';
 
@@ -16,7 +16,7 @@ export class ConsentManager {
 
   constructor(options: ConsentOptions = {}) {
     this.opts = {
-      storageKey: options.storageKey || '__trackkit_consent__',
+      storageKey: options.storageKey || STORAGE_KEY,
       disablePersistence: !!options.disablePersistence,
       policyVersion: options.policyVersion,
       requireExplicit: options.requireExplicit ?? true,
