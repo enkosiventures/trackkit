@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { init, track, destroy, waitForReady, grantConsent } from '../src';
+import { init, track, destroy, waitForReady, grantConsent } from '../../src';
 
 // @vitest-environment jsdom
 

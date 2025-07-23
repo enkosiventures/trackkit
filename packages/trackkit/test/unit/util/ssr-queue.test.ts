@@ -2,8 +2,8 @@
  * @vitest-environment node
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { track, pageview, destroy } from '../src';
-import { getSSRQueue, serializeSSRQueue } from '../src/util/ssr-queue';
+import { track, pageview, destroy } from '../../../src';
+import { getSSRQueue, serializeSSRQueue } from '../../../src/util/ssr-queue';
 
 describe('SSR Support', () => {
   beforeEach(() => {
@@ -45,7 +45,7 @@ describe('SSR Support', () => {
     expect(ssrQueue).toHaveLength(2);
     
     // Runtime instance should not exist
-    import('../src').then(({ getInstance }) => {
+    import('../../../src').then(({ getInstance }) => {
       expect(getInstance()).toBeNull();
     });
   });

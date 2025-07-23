@@ -1,9 +1,9 @@
 /// <reference types="vitest" />
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
-import { server } from '../setup-msw';
+import { server } from '../../setup-msw';
 import { http, HttpResponse } from 'msw';
-import umamiProvider from '../../src/providers/umami';
-import type { AnalyticsOptions } from '../../src/types';
+import umamiProvider from '../../../src/providers/umami';
+import type { AnalyticsOptions } from '../../../src/types';
 
 // @vitest-environment jsdom
 

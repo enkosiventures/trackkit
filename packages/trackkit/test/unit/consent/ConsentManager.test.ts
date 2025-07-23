@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ConsentManager } from '../../src/consent/ConsentManager';
+import { ConsentManager } from '../../../src/consent/ConsentManager';
 
 describe('ConsentManager', () => {
   beforeEach(() => {

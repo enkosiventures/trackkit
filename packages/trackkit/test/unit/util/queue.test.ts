@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EventQueue } from '../src/util/queue';
+import { EventQueue } from '../../../src/util/queue';
 
 describe('EventQueue', () => {
   let queue: EventQueue;

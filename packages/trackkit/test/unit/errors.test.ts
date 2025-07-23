@@ -8,8 +8,8 @@ import {
   getDiagnostics,
   grantConsent,
   getInstance,
-} from '../src';
-import { AnalyticsError } from '../src/errors';
+} from '../../src';
+import { AnalyticsError } from '../../src/errors';
 
 // @vitest-environment jsdom
 

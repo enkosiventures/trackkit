@@ -1,7 +1,7 @@
 /// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import noopProvider from '../../src/providers/noop';
-import { track, destroy, init, waitForReady, grantConsent } from '../../src';
+import noopProvider from '../../../src/providers/noop';
+import { track, destroy, init, waitForReady, grantConsent } from '../../../src';
 
 // @vitest-environment jsdom
 

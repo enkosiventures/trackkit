@@ -9,25 +9,13 @@ import {
   waitForReady,
   getDiagnostics,
   grantConsent,
-} from '../src';
+} from '../../../src';
 
 describe('Trackkit Core API', () => {
-  // let consoleInfo: any;
-  
   beforeEach(() => {
-    destroy(); // Clean slate for each test
+    destroy();
   });
 
-  // beforeEach(() => {
-  //   consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined);
-  //   destroy();
-  // });
-  
-  // afterEach(() => {
-  //   destroy();
-  //   consoleInfo.mockRestore();
-  // });
-  
   describe('init()', () => {
     it('creates and returns an analytics instance', async () => {
       const analytics = init();
@@ -60,12 +48,6 @@ describe('Trackkit Core API', () => {
         })
       );
       
-      // expect(consoleSpy).toHaveBeenCalledWith(
-      //   '%c[trackkit]',
-      //   expect.any(String),
-      //   'Analytics initialized successfully'
-      // );
-
       consoleSpy.mockRestore();
     });
 
@@ -104,7 +86,7 @@ describe('Trackkit Core API', () => {
       await waitForReady();
       grantConsent();
 
-      const { getFacade } = await import('../src/core/facade-singleton');
+      const { getFacade } = await import('../../../src/core/facade-singleton');
       const facade = getFacade();
       
       const trackSpy = vi.spyOn(facade, 'track');
