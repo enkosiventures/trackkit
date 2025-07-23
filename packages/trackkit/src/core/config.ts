@@ -2,13 +2,14 @@ import { readEnvConfig, parseEnvBoolean, parseEnvNumber } from '../util/env';
 import { getProviderMetadata } from '../providers/metadata';
 import { AnalyticsError } from '../errors';
 import type { AnalyticsOptions, ProviderType } from '../types';
+import { DEFAULT_BATCH_SIZE, DEFAULT_BATCH_TIMEOUT, DEFAULT_QUEUE_SIZE } from '../constants';
 
 const DEFAULT_OPTIONS = {
   provider: 'noop' as ProviderType,
-  queueSize: 50,
+  queueSize: DEFAULT_QUEUE_SIZE,
   debug: false,
-  batchSize: 10,
-  batchTimeout: 1000,
+  batchSize: DEFAULT_BATCH_SIZE,
+  batchTimeout: DEFAULT_BATCH_TIMEOUT,
 };
 
 export function mergeConfig(options: AnalyticsOptions): AnalyticsOptions {
