@@ -87,11 +87,6 @@ export interface AnalyticsOptions {
   allowWhenHidden?: boolean;
 
   /**
-   * Custom consent options for GDPR compliance
-   */
-  consent?: ConsentOptions;
-
-  /**
    * Custom API secret for server-side tracking
    * Required for providers that support server-side events
    */
@@ -102,6 +97,40 @@ export interface AnalyticsOptions {
    * @default 'beacon'
    */
   transport?: 'beacon' | 'xhr' | 'fetch';
+
+  /**
+   * Hash mode for Plausible (SPAs)
+   */
+  hashMode?: boolean;
+
+  /**
+   * Track localhost events (Plausible)
+   * @default false
+   */
+  trackLocalhost?: boolean;
+  
+  /**
+   * Exclude paths from tracking (Plausible)
+   */
+  exclude?: string[];
+  
+  /**
+   * Default properties for all events (Plausible)
+   */
+  defaultProps?: Record<string, string>;
+  
+  /**
+   * Revenue tracking configuration (Plausible)
+   */
+  revenue?: {
+    currency: string;
+    trackingEnabled: boolean;
+  };
+
+  /**
+   * Custom consent options for GDPR compliance
+   */
+  consent?: ConsentOptions;
 
   /**
    * Custom error handler for analytics errors
