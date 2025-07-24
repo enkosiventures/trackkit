@@ -17,7 +17,9 @@ export function grantConsent(): void {
     return;
   }
   
+  logger.debug('Granting analytics consent');
   consent.grant();
+  logger.debug('Flushing queued events after consent granted');
   facade.flushIfReady();
 }
 

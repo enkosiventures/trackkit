@@ -1,43 +1,28 @@
 /// <reference types="vitest" />
-import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from 'vitest';
-import { init, track, waitForReady, grantConsent, pageview, destroy } from '../../src';
-import { server } from '../setup-msw';
-import { http, HttpResponse } from 'msw';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { denyConsent, grantConsent, init, waitForReady, destroy } from '../../src';
+import { createFacade } from '../helpers/providers';
+import { navigate } from '../helpers/navigation';
+import { tick } from '../helpers/core';
 
 // @vitest-environment jsdom
 
-const mockLocation = {
-  pathname: '/test-page',
-  search: '?param=value',
-  hash: '',
-  host: 'example.com',
-  hostname: 'example.com',
-  href: 'https://example.com/test-page?param=value',
-  origin: 'https://example.com',
-  port: '',
-  protocol: 'https:',
+// take function and run tick after it
+const runWithTick = async (fn: () => void) => {
+  fn();
+  await tick();
 };
 
-describe('Pageview Tracking with Consent', () => {
+const navigateWithTick = async (url: string) => {
+  await navigate(url);
+  await tick();
+};
 
-  // Enable MSW
-  beforeAll(() => server.listen());
-  afterAll(() => server.close());
+describe('Facade autotrack with real history', () => {
 
-  beforeEach(() => {
-    // Clear any module cache to ensure fresh imports
-    vi.resetModules();
-    
-    // Mock window location
-    Object.defineProperty(window, 'location', {
-      value: mockLocation,
-      configurable: true,
-      writable: true,
-    });
-    
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-  });
+ beforeEach(() => {
+   destroy();
+ });
 
   afterEach(async () => {
     destroy();
@@ -45,99 +30,85 @@ describe('Pageview Tracking with Consent', () => {
     // Wait for any pending async operations
     await new Promise(resolve => setTimeout(resolve, 50));
     
-    server.resetHandlers();
-    delete (window as any).location;
     vi.clearAllMocks();
   });
+  it('sends initial pageview once', async () => {
+    const { provider } = await createFacade();
 
-  it('sends initial pageview after consent is granted', async () => {
-    const events: any[] = [];
-    
-    server.use(
-      http.post('*/api/send', async ({ request }) => {
-        const body = await request.json();
-        if (body && typeof body === 'object') {
-          events.push(body);
-        }
-        return HttpResponse.json({ ok: true });
-      })
-    );
+    await runWithTick(grantConsent);
 
-    init({
-      provider: 'umami',
-      siteId: 'test-site',
-      consent: { requireExplicit: true },
-      autoTrack: true,
-      host: 'http://localhost',
-    });
-
-    await waitForReady();
-    
-    expect(events).toHaveLength(0);
-
-    grantConsent();
-    
-    // Wait for pageview to be sent
-    await vi.waitFor(() => {
-      const pageviews = events.filter(e => !e.name && e.url);
-      expect(pageviews).toHaveLength(1);
-    });
-
-    const pageview = events.find(e => !e.name && e.url);
-    expect(pageview).toMatchObject({
-      url: '/test-page?param=value',
-      website: 'test-site',
-    });
+    expect(provider.pageviewCalls.length).toBe(1);
+    expect(provider.pageviewCalls[0]?.url).toBe('/');
   });
 
-  it('does not send duplicate initial pageviews', async () => {
-    const events: any[] = [];
+  it('sends SPA navigations and dedupes repeats', async () => {
+    const { provider } = await createFacade({ includeHash: true });
 
-    server.use(
-      http.post('*/api/send', async ({ request }) => {
-        const body = await request.json();
-        console.log('[DEBUG] Received event:', body);
-        
-        if (body && typeof body === 'object') {
-          events.push(body);
-        }
-        return HttpResponse.json({ ok: true });
+    await runWithTick(grantConsent);
+    provider.pageviewCalls.length = 0;
+
+    await navigateWithTick('/a');
+    await navigateWithTick('/a'); // duplicate
+    await navigateWithTick('/b?x=1#h');
+
+    console.warn('Pageview calls:', provider.pageviewCalls);
+
+    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/a', '/b?x=1#h']);
+    expect(provider.pageviewCalls[0]?.referrer ?? '').toBe('/');  // A referrer
+    expect(provider.pageviewCalls[1]?.referrer ?? '').toBe('/a'); // B referrer
+  });
+
+  it('applies exclusions', async () => {
+    const { provider } = await createFacade({ exclude: ['/secret/alpha'] });
+
+    await runWithTick(grantConsent);
+
+    provider.pageviewCalls.length = 0;
+
+    await navigateWithTick('/secret/alpha'); // excluded
+    await navigateWithTick('/public');
+
+    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/public']);
+  });
+
+  it('gates by consent per policy', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    init({ autoTrack: true, debug: true, trackLocalhost: true, consent: { requireExplicit: true }});
+    await waitForReady();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    denyConsent();
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    await navigate('/pre-consent');
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    grantConsent();
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await navigate('/after-consent');
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[trackkit]'),
+      expect.any(String),
+      '[no-op] pageview',
+      expect.objectContaining({
+        pageContext: {
+          hostname: "localhost",
+          language: "en-US",
+          referrer: "/pre-consent",
+          timestamp: expect.any(Number),
+          url: "/after-consent",
+          viewportSize: {
+            height: 768,
+            width: 1024,
+          },
+        },
       }),
     );
-
-    init({
-      provider: 'umami',
-      siteId: 'test-site',
-      consent: { requireExplicit: false },
-      autoTrack: true,
-      host: 'http://localhost',
-    });
-
-    await waitForReady();
-
-    // Trigger implicit consent
-    track('some_event');
-
-    // Wait for events to be sent
-    await vi.waitFor(() => {
-      expect(events.length).toBeGreaterThanOrEqual(2);
-    });
-
-    // Filter pageviews (events without 'name' field)
-    const pageviews = events.filter(e => !e.name && e.url);
-    const trackEvents = events.filter(e => e.name);
-
-    // Should have 1 initial pageview and 1 track event
-    expect(pageviews).toHaveLength(1);
-    expect(trackEvents).toHaveLength(1);
-    expect(trackEvents[0].name).toBe('some_event');
-
-    // Manual pageview
-    pageview();
-    
-    await vi.waitFor(() => {
-      const allPageviews = events.filter(e => !e.name && e.url);
-      expect(allPageviews).toHaveLength(2);
-    });
+    consoleSpy.mockRestore();
   });
 });

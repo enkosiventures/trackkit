@@ -1,5 +1,11 @@
 // Main facade
-export { init, destroy, track, pageview, identify } from './core/facade-singleton';
+export {
+  init,
+  destroy,
+  track,
+  pageview,
+  identify
+} from './core/facade-singleton';
 
 // Consent API
 export { 
@@ -11,7 +17,13 @@ export {
 } from './consent/exports';
 
 // Utilities
-export { waitForReady, getInstance, getDiagnostics } from './core/facade-singleton';
+export {
+  waitForReady,
+  getInstance,
+  flushIfReady,
+  hasQueuedEvents,
+  getDiagnostics,
+} from './core/facade-singleton';
 
 // Types
 export * from './types';

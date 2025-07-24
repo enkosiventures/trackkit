@@ -36,7 +36,11 @@ describe('Debug mode', () => {
   });
   
   it('logs method calls in debug mode', async () => {
-    init({ debug: true, consent: { requireExplicit: false } });
+    init({
+      debug: true,
+      consent: { requireExplicit: false },
+      trackLocalhost: true,
+    });
     await waitForReady();
     grantConsent();
 

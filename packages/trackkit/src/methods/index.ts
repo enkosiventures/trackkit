@@ -8,3 +8,6 @@ export { default as resetConsent } from './resetConsent';
 export { default as getConsent } from './getConsent';
 export { default as destroy } from './destroy';
 export { default as waitForReady } from './waitForReady';
+export { default as hasQueuedEvents } from './hasQueuedEvents';
+export { default as flushIfReady } from './flushIfReady';
+export { default as getDiagnostics } from './getDiagnostics';

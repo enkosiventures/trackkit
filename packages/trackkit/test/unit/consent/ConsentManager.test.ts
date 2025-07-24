@@ -13,7 +13,7 @@ describe('ConsentManager', () => {
     it('defaults to pending state with explicit consent required', () => {
       const mgr = new ConsentManager();
       expect(mgr.getStatus()).toBe('pending');
-      expect(mgr.isGranted()).toBe(false);
+      expect(mgr.isAllowed()).toBe(false);
     });
 
     it('loads persisted state from localStorage', () => {
@@ -74,7 +74,7 @@ describe('ConsentManager', () => {
       mgr.grant();
 
       expect(mgr.getStatus()).toBe('granted');
-      expect(mgr.isGranted()).toBe(true);
+      expect(mgr.isAllowed()).toBe(true);
       expect(listener).toHaveBeenCalledWith('granted', 'pending');
 
       // Check persistence
@@ -88,7 +88,7 @@ describe('ConsentManager', () => {
       mgr.deny();
 
       expect(mgr.getStatus()).toBe('denied');
-      expect(mgr.isGranted()).toBe(false);
+      expect(mgr.isAllowed()).toBe(false);
     });
 
     it('resets to pending state', () => {
@@ -124,26 +124,43 @@ describe('ConsentManager', () => {
       const mgr = new ConsentManager();
       mgr.grant();
 
-      expect(mgr.isGranted()).toBe(true);
-      expect(mgr.isGranted('analytics')).toBe(true);
-      expect(mgr.isGranted('marketing')).toBe(true);
+      expect(mgr.isAllowed()).toBe(true);
+      expect(mgr.isAllowed('analytics')).toBe(true);
+      expect(mgr.isAllowed('marketing')).toBe(true);
     });
 
     it('blocks all categories when denied', () => {
       const mgr = new ConsentManager();
       mgr.deny();
 
-      expect(mgr.isGranted()).toBe(false);
-      expect(mgr.isGranted('analytics')).toBe(false);
-      expect(mgr.isGranted('essential')).toBe(false);
+      expect(mgr.isAllowed()).toBe(false);
+      expect(mgr.isAllowed('analytics')).toBe(false);
+      expect(mgr.isAllowed('essential')).toBe(false);
     });
 
     it('allows only essential when pending', () => {
       const mgr = new ConsentManager();
 
-      expect(mgr.isGranted()).toBe(false);
-      expect(mgr.isGranted('analytics')).toBe(false);
-      expect(mgr.isGranted('essential')).toBe(true);
+      expect(mgr.isAllowed()).toBe(false);
+      expect(mgr.isAllowed('analytics')).toBe(false);
+      expect(mgr.isAllowed('essential')).toBe(true);
+    });
+
+    it('allows essential when denied if allowEssentialOnDenied=true', () => {
+      const mgr = new ConsentManager({ allowEssentialOnDenied: true });
+      mgr.deny();
+
+      expect(mgr.getStatus()).toBe('denied');
+      expect(mgr.isAllowed('analytics')).toBe(false);
+      expect(mgr.isAllowed('essential')).toBe(true); // allowed due to config
+    });
+
+    it('denied blocks analytics but allows essential when configured', () => {
+      const mgr = new ConsentManager({ allowEssentialOnDenied: true });
+      mgr.deny();
+
+      expect(mgr.isAllowed('analytics')).toBe(false);
+      expect(mgr.isAllowed('essential')).toBe(true);
     });
   });
 
@@ -167,6 +184,52 @@ describe('ConsentManager', () => {
       
       const snapshot = mgr.snapshot();
       expect(snapshot.droppedEventsDenied).toBe(3);
+    });
+  });
+
+  describe('persistence', () => {
+    it('does not write to storage on implicit promotion when disablePersistence=true', () => {
+      const mgr = new ConsentManager({ requireExplicit: false, disablePersistence: true });
+      mgr.promoteImplicitIfAllowed();
+
+      expect(mgr.getStatus()).toBe('granted');
+      // Should not write anything because persistence disabled
+      expect(window.localStorage.getItem('__trackkit_consent__')).toBeNull();
+    });
+
+    it('does not write to storage on implicit promotion when disablePersistence=true', () => {
+      const mgr = new ConsentManager({ requireExplicit: false, disablePersistence: true });
+      mgr.promoteImplicitIfAllowed();
+
+      expect(mgr.getStatus()).toBe('granted');
+      // Should not write anything because persistence disabled
+      expect(window.localStorage.getItem('__trackkit_consent__')).toBeNull();
+    });
+
+    it('re-prompts (pending) when a policy version is introduced but stored state had no version', () => {
+      // Simulate older sessions that stored without a version
+      window.localStorage.setItem('__trackkit_consent__', JSON.stringify({
+        status: 'granted',
+        timestamp: Date.now() - 1000,
+        // no version key
+        method: 'explicit',
+      }));
+
+      const mgr = new ConsentManager({ policyVersion: '1.0' });
+      expect(mgr.getStatus()).toBe('pending');
+    });
+
+    it('handles localStorage.setItem failures gracefully during grant()', () => {
+      const original = window.localStorage.setItem;
+      // Force setItem to throw
+      window.localStorage.setItem = vi.fn(() => { throw new Error('quota exceeded'); }) as any;
+
+      const mgr = new ConsentManager();
+      expect(() => mgr.grant()).not.toThrow();
+      expect(mgr.getStatus()).toBe('granted');
+
+      // restore
+      window.localStorage.setItem = original;
     });
   });
 

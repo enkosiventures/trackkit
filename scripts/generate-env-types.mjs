@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const envVars = [
   'TRACKKIT_PROVIDER',
-  'TRACKKIT_SITE_ID',
+  'TRACKKIT_SITE',
   'TRACKKIT_HOST',
   'TRACKKIT_QUEUE_SIZE',
   'TRACKKIT_DEBUG',

@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventQueue } from '../../../src/util/queue';
+import { getPageContext } from '../../../src/providers/shared/browser';
+
+const pageContext = getPageContext();
 
 describe('EventQueue', () => {
   let queue: EventQueue;
@@ -14,9 +17,9 @@ describe('EventQueue', () => {
   
   describe('enqueue', () => {
     it('adds events to queue', () => {
-      const id1 = queue.enqueue('track', ['event1']);
-      const id2 = queue.enqueue('pageview', ['/page']);
-      
+      const id1 = queue.enqueue('track', ['event1'], "analytics", pageContext);
+      const id2 = queue.enqueue('pageview', ['/page'], "analytics", pageContext);
+
       expect(queue.size).toBe(2);
       expect(id1).toBeTruthy();
       expect(id2).toBeTruthy();
@@ -27,10 +30,10 @@ describe('EventQueue', () => {
       const onOverflow = vi.fn();
       queue = new EventQueue({ ...config, onOverflow });
       
-      queue.enqueue('track', ['event1']);
-      queue.enqueue('track', ['event2']);
-      queue.enqueue('track', ['event3']);
-      queue.enqueue('track', ['event4']); // Overflow
+      queue.enqueue('track', ['event1'], "analytics", pageContext);
+      queue.enqueue('track', ['event2'], "analytics", pageContext);
+      queue.enqueue('track', ['event3'], "analytics", pageContext);
+      queue.enqueue('track', ['event4'], "analytics", pageContext);
       
       expect(queue.size).toBe(3);
       expect(onOverflow).toHaveBeenCalledWith(
@@ -39,21 +42,48 @@ describe('EventQueue', () => {
         ])
       );
     });
+
+    it('drops the oldest items on overflow (FIFO) and reports all dropped', () => {
+      const onOverflow = vi.fn();
+      queue = new EventQueue({ ...config, maxSize: 3, onOverflow });
+
+      queue.enqueue('track', ['e1'], 'analytics', pageContext);
+      queue.enqueue('track', ['e2'], 'analytics', pageContext);
+      queue.enqueue('track', ['e3'], 'analytics', pageContext);
+      // Next enqueue causes 1 drop (keep last 3)
+      queue.enqueue('track', ['e4'], 'analytics', pageContext);
+
+      const events = queue.getEvents().map(e => e.args[0]);
+      expect(events).toEqual(['e2', 'e3', 'e4']); // e1 dropped
+      expect(onOverflow).toHaveBeenCalledTimes(1);
+      const dropped = onOverflow.mock.calls[0][0];
+      expect(dropped.map((d: any) => d.args[0])).toEqual(['e1']);
+    });
+
     
     it('drops events when paused', () => {
       queue.pause();
-      const id = queue.enqueue('track', ['event']);
-      
+      const id = queue.enqueue('track', ['event'], "analytics", pageContext);
+
       expect(id).toBeUndefined();
       expect(queue.size).toBe(0);
+    });
+
+    it('preserves consent category and pageContext on enqueue', () => {
+      const ctx = { ...pageContext, url: '/ctx' };
+      queue.enqueue('track', ['evt'], 'marketing', ctx as any);
+      const [e] = queue.getEvents();
+
+      expect(e.category).toBe('marketing');
+      expect(e.pageContext.url).toBe('/ctx');
     });
   });
   
   describe('flush', () => {
     it('returns and clears all events', () => {
-      queue.enqueue('track', ['event1']);
-      queue.enqueue('track', ['event2']);
-      
+      queue.enqueue('track', ['event1'], "analytics", pageContext);
+      queue.enqueue('track', ['event2'], "analytics", pageContext);
+
       const events = queue.flush();
       
       expect(events).toHaveLength(2);
@@ -66,30 +96,67 @@ describe('EventQueue', () => {
       const events = queue.flush();
       expect(events).toEqual([]);
     });
+
+    it('assigns timestamps; flushed events retain original order and increasing timestamps', () => {
+      queue.enqueue('track', ['a'], 'analytics', pageContext);
+      queue.enqueue('track', ['b'], 'analytics', pageContext);
+      const flushed = queue.flush();
+
+      expect(flushed).toHaveLength(2);
+      expect(flushed[0].timestamp).toBeLessThanOrEqual(flushed[1].timestamp);
+      expect(flushed.map(e => e.args[0])).toEqual(['a', 'b']);
+    });
+  });
+
+  describe('clear', () => {
+    it('clear() empties the queue', () => {
+      queue.enqueue('track', ['a'], 'analytics', pageContext);
+      queue.enqueue('pageview', ['/p'], 'analytics', pageContext);
+
+      queue.clear();
+
+      expect(queue.size).toBe(0);
+      expect(queue.isEmpty).toBe(true);
+      expect(queue.getEvents()).toEqual([]);
+    });
   });
   
   describe('remove', () => {
     it('removes events matching predicate', () => {
-      queue.enqueue('track', ['keep']);
-      queue.enqueue('pageview', ['/remove']);
-      queue.enqueue('track', ['keep2']);
-      
+      queue.enqueue('track', ['keep'], "analytics", pageContext);
+      queue.enqueue('pageview', ['/remove'], "analytics", pageContext);
+      queue.enqueue('track', ['keep2'], "analytics", pageContext);
+
       const removed = queue.remove(e => e.type === 'pageview');
       
       expect(removed).toHaveLength(1);
       expect(queue.size).toBe(2);
       expect(removed[0].type).toBe('pageview');
     });
+
+    it('remove() can remove multiple events when predicate matches several', () => {
+      // Use a larger queue to avoid overflow affecting the assertion
+      queue = new EventQueue({ ...config, maxSize: 10 });
+      queue.enqueue('track', ['keep1'], 'analytics', pageContext);
+      queue.enqueue('pageview', ['/rm1'], 'analytics', pageContext);
+      queue.enqueue('pageview', ['/rm2'], 'analytics', pageContext);
+      queue.enqueue('track', ['keep2'], 'analytics', pageContext);
+
+      const removed = queue.remove(e => e.type === 'pageview');
+      expect(removed).toHaveLength(2);
+      expect(queue.size).toBe(2);
+      expect(queue.getEvents().map(e => e.args[0])).toEqual(['keep1', 'keep2']);
+    });
   });
   
   describe('pause/resume', () => {
     it('pauses and resumes queueing', () => {
-      queue.enqueue('track', ['before']);
+      queue.enqueue('track', ['before'], "analytics", pageContext);
       queue.pause();
-      queue.enqueue('track', ['during']);
+      queue.enqueue('track', ['during'], "analytics", pageContext);
       queue.resume();
-      queue.enqueue('track', ['after']);
-      
+      queue.enqueue('track', ['after'], "analytics", pageContext);
+
       expect(queue.size).toBe(2); // 'during' was dropped
       const events = queue.getEvents();
       expect(events[0].args).toEqual(['before']);
@@ -106,11 +173,34 @@ describe('EventQueue', () => {
         oldestEventAge: null,
       });
       
-      queue.enqueue('track', ['event']);
+      queue.enqueue('track', ['event'], "analytics", pageContext);
       const state2 = queue.getState();
       
       expect(state2.size).toBe(1);
       expect(state2.oldestEventAge).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('getEvents', () => {
+    it('getEvents() returns a copy; mutating it does not affect the queue', () => {
+      queue.enqueue('track', ['x'], 'analytics', pageContext);
+
+      const snap = queue.getEvents() as any[];
+      expect(snap.length).toBe(1);
+
+      snap.pop(); // mutate snapshot
+      expect(snap.length).toBe(0);
+      expect(queue.size).toBe(1); // queue unaffected
+    });
+  });
+
+  describe('isEmpty', () => {
+    it('isEmpty reflects enqueue/flush transitions', () => {
+      expect(queue.isEmpty).toBe(true);
+      queue.enqueue('track', ['a'], 'analytics', pageContext);
+      expect(queue.isEmpty).toBe(false);
+      queue.flush();
+      expect(queue.isEmpty).toBe(true);
     });
   });
 });

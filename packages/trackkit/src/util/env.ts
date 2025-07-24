@@ -3,9 +3,12 @@
  * Supports build-time (process.env) and runtime (window) access
  */
 
+import { stripEmptyFields } from "../providers/shared/utils";
+import type { InitOptions } from "../types";
+
 export interface EnvConfig {
   provider?: string;
-  siteId?: string;
+  site?: string;
   host?: string;
   queueSize?: string;
   debug?: string;
@@ -32,39 +35,72 @@ declare global {
 function getEnvVar(key: string): string | undefined {
   const envKey = `${ENV_PREFIX}${key}`;
   
-  // Build-time resolution
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env[envKey] ||
-           process.env[`${VITE_PREFIX}${envKey}`] ||
-           process.env[`${REACT_PREFIX}${envKey}`];
-  }
-  
   // Runtime resolution
   if (typeof window !== 'undefined') {
     // Check for injected config object
     const runtimeConfig = globalThis.__TRACKKIT_ENV__;
-    if (runtimeConfig && typeof runtimeConfig === 'object') {
+    if (runtimeConfig && typeof runtimeConfig === 'object' && runtimeConfig[key]) {
       return runtimeConfig[key];
     }
     
     // Check meta tags (for static hosting)
     if (typeof document !== 'undefined') {
       const metaTag = document.querySelector(`meta[name="${envKey}"]`);
-      if (metaTag) return metaTag.getAttribute('content') || undefined;
+      const metaTagContent = metaTag?.getAttribute('content');
+      if (metaTagContent) return metaTagContent;
     }
   }
   
+  // Build-time resolution
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[envKey] ??
+           process.env[`${VITE_PREFIX}${envKey}`] ??
+           process.env[`${REACT_PREFIX}${envKey}`];
+  }
+
   return undefined;
 }
 
-export function readEnvConfig(): EnvConfig {
-  return {
-    provider: getEnvVar('PROVIDER'),
-    siteId: getEnvVar('SITE_ID'),
-    host: getEnvVar('HOST'),
-    queueSize: getEnvVar('QUEUE_SIZE'),
-    debug: getEnvVar('DEBUG'),
-  };
+function maybeFormat(value: string | undefined, formatter?: (val: string) => any): any | undefined {
+  if (value === undefined) return undefined;
+  // Try to parse as JSON first
+  try {
+    return JSON.parse(value);
+  } catch (_e) {
+    // If that fails, use the provided formatter
+    if (!formatter) return value;
+    return formatter(value);
+  }
+}
+
+export function readEnvConfig(): InitOptions {
+  return stripEmptyFields({
+    provider: maybeFormat(getEnvVar('PROVIDER')),
+    site: maybeFormat(getEnvVar('SITE')),
+    host: maybeFormat(getEnvVar('HOST')),
+    queueSize: maybeFormat(getEnvVar('QUEUE_SIZE'), parseInt),
+    debug: parseEnvBoolean(getEnvVar('DEBUG')),
+    batchSize: maybeFormat(getEnvVar('BATCH_SIZE'), parseInt),
+    batchTimeout: maybeFormat(getEnvVar('BATCH_TIMEOUT'), parseInt),
+    autoTrack: parseEnvBoolean(getEnvVar('AUTO_TRACK')),
+    doNotTrack: parseEnvBoolean(getEnvVar('DO_NOT_TRACK')),
+    domains: maybeFormat(getEnvVar('DOMAINS'), s => s.split(',').map(x => x.trim())),
+    cache: parseEnvBoolean(getEnvVar('CACHE')),
+    allowWhenHidden: parseEnvBoolean(getEnvVar('ALLOW_WHEN_HIDDEN')),
+    apiSecret: maybeFormat(getEnvVar('API_SECRET')),
+    customDimensions: maybeFormat(getEnvVar('CUSTOM_DIMENSIONS')),
+    customMetrics: maybeFormat(getEnvVar('CUSTOM_METRICS')),
+    transport: maybeFormat(getEnvVar('TRANSPORT')) as any,
+    includeHash: parseEnvBoolean(getEnvVar('INCLUDE_HASH')),
+    measurementId: maybeFormat(getEnvVar('MEASUREMENT_ID')),
+    trackLocalhost: parseEnvBoolean(getEnvVar('TRACK_LOCALHOST')),
+    exclude: maybeFormat(getEnvVar('EXCLUDE'), s => s.split(',').map(x => x.trim())),
+    defaultProps: maybeFormat(getEnvVar('DEFAULT_PROPS')),
+    revenue: maybeFormat(getEnvVar('REVENUE')),
+    consent: maybeFormat(getEnvVar('CONSENT')),
+    domain: maybeFormat(getEnvVar('DOMAIN')),
+    website: maybeFormat(getEnvVar('WEBSITE')),
+  });
 }
 
 /**

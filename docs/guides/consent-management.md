@@ -1,473 +1,266 @@
-# Consent Management Guide
+# Consent Management
 
-Trackkit includes a lightweight, privacy-first consent management system that helps you comply with GDPR, CCPA, and other privacy regulations.
+Trackkit ships with a lightweight consent layer designed to gate analytics reliably while staying out of your way. It works in browsers, supports SSR hydration, and plays nicely with your own CMP or banner.
 
-## Quick Start
+* **Default behavior:** nothing is sent until allowed by policy.
+* **When consent is denied:** events are dropped (optionally allowing only “essential” events).
+* **When consent is pending:** events are queued and flushed on grant.
 
-```typescript
-import { init, grantConsent, denyConsent, getConsent } from 'trackkit';
+If you haven’t seen it yet, skim **Configuration → Consent** for env-based config. This page focuses on behavior and usage.
 
-// Initialize with explicit consent required (default)
-init({
-  provider: 'umami',
-  siteId: 'your-site-id',
-  consent: {
-    requireExplicit: true,
-    policyVersion: '1.0', // Optional: for version tracking
-  },
-});
+---
 
-// Check consent status
-const consent = getConsent();
-if (consent?.status === 'pending') {
-  showCookieBanner();
-}
+## TL;DR Quick Start
 
-// Handle user consent
-document.getElementById('accept-cookies')?.addEventListener('click', () => {
-  grantConsent();
-  hideCookieBanner();
-});
-
-document.getElementById('reject-cookies')?.addEventListener('click', () => {
-  denyConsent();
-  hideCookieBanner();
-});
-```
-
-## Consent States
-
-### Pending (Default)
-- No analytics events are sent to providers
-- Events are queued in memory (up to configured limit)
-- User hasn't made a consent decision yet
-- Essential/necessary tracking is allowed
-
-### Granted
-- All analytics tracking is enabled
-- Queued events are immediately sent
-- Consent choice is persisted for future visits
-- New events are sent in real-time
-
-### Denied
-- All analytics tracking is disabled
-- Queued events are discarded
-- No future events will be tracked
-- Essential tracking may still be allowed
-
-## Configuration Options
-
-```typescript
-interface ConsentOptions {
-  /**
-   * If true, explicit consent is required before any tracking
-   * If false, implicit consent is granted on first user action
-   * @default true
-   */
-  requireExplicit?: boolean;
-  
-  /**
-   * Current privacy policy version
-   * If stored version differs, consent is reset to pending
-   */
-  policyVersion?: string;
-  
-  /**
-   * Disable consent persistence (memory-only)
-   * @default false
-   */
-  disablePersistence?: boolean;
-  
-  /**
-   * Custom localStorage key for consent state
-   * @default '__trackkit_consent__'
-   */
-  storageKey?: string;
-}
-```
-
-## API Reference
-
-### Core Functions
-
-```typescript
-// Get current consent state
-const consent = getConsent();
-console.log(consent?.status);          // 'pending' | 'granted' | 'denied'
-console.log(consent?.timestamp);       // When consent was given
-console.log(consent?.method);          // 'explicit' | 'implicit'
-console.log(consent?.queuedEvents);    // Number of events waiting
-console.log(consent?.droppedEventsDenied); // Events dropped due to denial
-
-// Update consent
-grantConsent();  // User accepts analytics
-denyConsent();   // User rejects analytics
-resetConsent();  // Reset to pending (clears stored consent)
-
-// Listen for consent changes
-const unsubscribe = onConsentChange((status, previousStatus) => {
-  console.log(`Consent changed from ${previousStatus} to ${status}`);
-  
-  if (status === 'granted') {
-    // Enable additional features
-    loadMarketingPixels();
-  }
-});
-
-// Clean up listener
-unsubscribe();
-```
-
-## Event Flow
-
-```mermaid
-graph LR
-    A[User Action] --> B{Consent Status?}
-    B -->|Pending| C[Queue Event]
-    B -->|Granted| D[Send to Provider]
-    B -->|Denied| E[Drop Event]
-    
-    C --> F{User Grants?}
-    F -->|Yes| G[Flush Queue + Send]
-    F -->|No| H[Clear Queue]
-```
-
-## Implementation Patterns
-
-### Basic Cookie Banner
-
-```typescript
-// components/CookieBanner.ts
-import { getConsent, grantConsent, denyConsent, onConsentChange } from 'trackkit';
-
-export class CookieBanner {
-  private banner: HTMLElement;
-  private unsubscribe?: () => void;
-  
-  constructor() {
-    this.banner = document.getElementById('cookie-banner')!;
-    this.init();
-  }
-  
-  private init() {
-    // Show banner if consent is pending
-    const consent = getConsent();
-    if (consent?.status === 'pending') {
-      this.show();
-    }
-    
-    // Listen for consent changes
-    this.unsubscribe = onConsentChange((status) => {
-      if (status !== 'pending') {
-        this.hide();
-      }
-    });
-    
-    // Bind button handlers
-    this.banner.querySelector('.accept-all')?.addEventListener('click', () => {
-      grantConsent();
-    });
-    
-    this.banner.querySelector('.reject-all')?.addEventListener('click', () => {
-      denyConsent();
-    });
-  }
-  
-  show() {
-    this.banner.style.display = 'block';
-  }
-  
-  hide() {
-    this.banner.style.display = 'none';
-  }
-  
-  destroy() {
-    this.unsubscribe?.();
-  }
-}
-```
-
-### Implicit Consent
-
-For regions where opt-out is acceptable:
-
-```typescript
-init({
-  provider: 'umami',
-  consent: {
-    requireExplicit: false, // Implicit consent on first interaction
-  },
-});
-
-// First track call will automatically grant consent
-track('page_view'); // Consent promoted to 'granted'
-```
-
-### Policy Version Management
-
-Track privacy policy updates and re-request consent:
-
-```typescript
-const CURRENT_POLICY_VERSION = '2024-01-15';
+```ts
+import { init, grantConsent, denyConsent, onConsentChange, getConsent } from 'trackkit';
 
 init({
   provider: 'umami',
+  site: 'your-site-id',
   consent: {
-    requireExplicit: true,
-    policyVersion: CURRENT_POLICY_VERSION,
-  },
-});
-
-// If user had consented to an older version,
-// consent is automatically reset to 'pending'
-```
-
-### Conditional Feature Loading
-
-```typescript
-// Only load additional analytics tools after consent
-onConsentChange((status) => {
-  if (status === 'granted') {
-    // Load Facebook Pixel
-    import('./analytics/facebook').then(fb => fb.init());
-    
-    // Load Hotjar
-    import('./analytics/hotjar').then(hj => hj.init());
-    
-    // Enable error tracking
-    import('./analytics/sentry').then(sentry => sentry.init());
-  }
-});
-```
-
-### Server-Side Rendering (SSR)
-
-```typescript
-// server.ts
-import { init } from 'trackkit';
-
-// On server, consent is always pending
-init({
-  provider: 'umami',
-  consent: {
-    disablePersistence: true, // No localStorage on server
-  },
-});
-
-// Events are queued in SSR context
-track('server_render', { path: request.path });
-
-// client.ts
-// On client hydration, stored consent is loaded
-// and queued SSR events are processed based on consent
-```
-
-## Privacy Compliance
-
-### GDPR Compliance
-
-1. **Explicit Consent**: Default `requireExplicit: true` ensures no tracking without user action
-2. **Right to Withdraw**: `denyConsent()` immediately stops all tracking
-3. **Data Minimization**: Only essential consent data is stored
-4. **Transparency**: Clear consent status and event queuing
-
-```typescript
-// GDPR-compliant setup
-init({
-  consent: {
-    requireExplicit: true,
+    initial: 'pending',          // 'pending' | 'granted' | 'denied'
+    requireExplicit: true,       // if true, we never auto-promote to granted
+    allowEssentialOnDenied: false,
     policyVersion: '2024-01-15',
   },
 });
 
-// Provide clear consent UI
-const consentUI = `
-  <div class="consent-banner">
-    <h3>We value your privacy</h3>
-    <p>We use analytics to understand how you use our site and improve your experience.</p>
-    <button onclick="trackkit.grantConsent()">Accept Analytics</button>
-    <button onclick="trackkit.denyConsent()">Reject All</button>
-    <a href="/privacy">Privacy Policy</a>
-  </div>
-`;
+// Show UI if pending
+if (getConsent()?.status === 'pending') showBanner();
+
+// Button handlers
+acceptBtn.onclick = () => grantConsent();
+rejectBtn.onclick = () => denyConsent();
+
+// React to changes
+const off = onConsentChange((status, prev) => {
+  if (status === 'granted') hideBanner();
+});
 ```
 
-### CCPA Compliance
+> Using a CMP? Just wire your CMP callbacks to `grantConsent()` / `denyConsent()`.
 
-```typescript
-// CCPA allows opt-out model
+---
+
+## Consent Model
+
+### States
+
+* **pending**
+  No events sent. Events are queued in memory and flushed if consent is later granted.
+* **granted**
+  All events flow immediately (subject to DNT, domain filters, etc.).
+* **denied**
+  Non-essential events are dropped (not queued). If `allowEssentialOnDenied` is `true`, **essential** events (like `identify`) still send; otherwise they’re blocked.
+
+### Transitions
+
+* `pending → granted` when you call `grantConsent()` (or implicit grant; see below).
+* `pending → denied` when you call `denyConsent()`.
+* Any state → `pending` when you call `resetConsent()` or when `policyVersion` changes.
+
+### Essential vs analytics categories
+
+Trackkit internally tags some calls as **essential** (e.g. `identify`) and everything else as **analytics**.
+
+* When `allowEssentialOnDenied = true`, essential events can still be sent after denial (useful for strictly-necessary product telemetry).
+* Otherwise, **all** events are blocked on denial.
+
+---
+
+## Configuration
+
+Keep this minimal at first, then adjust as your policy demands:
+
+```ts
 init({
   consent: {
-    requireExplicit: false, // Implicit consent allowed
-  },
-});
+    /**
+     * Initial status at startup. If stored consent exists (and matches policyVersion),
+     * the stored value overrides this.
+     * @default 'pending'
+     */
+    initial: 'pending', // 'pending' | 'granted' | 'denied'
 
-// Provide opt-out mechanism
-function handleDoNotSell() {
-  denyConsent();
-  showOptOutConfirmation();
-}
-```
+    /**
+     * If true, Trackkit will NOT auto-promote from pending to granted on first user action.
+     * @default true
+     */
+    requireExplicit: true,
 
-## Debugging
+    /**
+     * If denied, allow essential events (e.g. identify) to pass.
+     * @default false
+     */
+    allowEssentialOnDenied: false,
 
-### Check Current State
+    /**
+     * Version stamp for your privacy policy. When this changes, stored consent is invalidated
+     * and state resets to `initial`.
+     */
+    policyVersion: '2024-01-15',
 
-```typescript
-// In browser console
-const consent = trackkit.getConsent();
-console.log('Consent Status:', consent?.status);
-console.log('Queued Events:', consent?.queuedEvents);
-console.log('Dropped Events:', consent?.droppedEventsDenied);
+    /**
+     * Disable localStorage persistence; consent lives only in-memory (resets on reload).
+     * @default false
+     */
+    disablePersistence: false,
 
-// Check what's in localStorage
-console.log('Stored:', localStorage.getItem('__trackkit_consent__'));
-```
-
-### Monitor Consent Changes
-
-```typescript
-// Debug all consent state changes
-onConsentChange((status, prev) => {
-  console.log(`[Consent] ${prev} → ${status}`);
-});
-```
-
-### Test Different Scenarios
-
-```typescript
-// Test pending state
-localStorage.clear();
-location.reload();
-
-// Test granted state
-trackkit.grantConsent();
-
-// Test denied state
-trackkit.denyConsent();
-
-// Test policy version update
-localStorage.setItem('__trackkit_consent__', JSON.stringify({
-  status: 'granted',
-  version: 'old-version',
-  timestamp: Date.now(),
-}));
-location.reload(); // Should reset to pending
-```
-
-## Testing
-
-```typescript
-import { describe, it, expect } from 'vitest';
-import { init, track, grantConsent, getConsent } from 'trackkit';
-
-describe('Analytics with Consent', () => {
-  it('queues events while consent is pending', () => {
-    init({ consent: { requireExplicit: true } });
-    
-    track('test_event');
-    
-    const consent = getConsent();
-    expect(consent?.queuedEvents).toBe(1);
-  });
-  
-  it('sends events after consent granted', async () => {
-    init({ consent: { requireExplicit: true } });
-    
-    track('test_event');
-    grantConsent();
-    
-    // Events are flushed asynchronously
-    await new Promise(resolve => setTimeout(resolve, 10));
-    
-    const consent = getConsent();
-    expect(consent?.queuedEvents).toBe(0);
-  });
-});
-```
-
-## Migration Guide
-
-### From Google Analytics
-
-```typescript
-// Before (Google Analytics)
-gtag('consent', 'update', {
-  'analytics_storage': 'granted'
-});
-
-// After (Trackkit)
-grantConsent();
-```
-
-### From Segment
-
-```typescript
-// Before (Segment)
-analytics.load('writeKey', {
-  integrations: {
-    'Google Analytics': false
+    /**
+     * Storage key if you need to customize it.
+     * @default '__trackkit_consent__'
+     */
+    storageKey: '__trackkit_consent__',
   }
 });
-
-// After (Trackkit)
-init({
-  provider: 'umami',
-  consent: { requireExplicit: true }
-});
-// Selectively grant later
 ```
+
+**Implicit consent (opt-out models):**
+If you set `requireExplicit: false` and keep `initial: 'pending'`, the first **analytics** event during a genuine user interaction can auto-promote to **granted**. (This promotion never happens if you keep `requireExplicit: true`.)
+
+> For environment-based config of consent (e.g., `VITE_TRACKKIT_CONSENT`), see **API → Configuration**.
+
+---
+
+## Runtime API
+
+```ts
+import {
+  getConsent,            // -> { status: 'pending'|'granted'|'denied', updatedAt, policyVersion, ... }
+  grantConsent,
+  denyConsent,
+  resetConsent,          // resets to 'pending' and clears stored value
+  onConsentChange        // (status, previousStatus) => void; returns unsubscribe fn
+} from 'trackkit';
+```
+
+* **`getConsent()`** — inspect current status and counters (queued & dropped).
+* **`grantConsent()`** — sets status to **granted**, flushes any queued events.
+* **`denyConsent()`** — sets status to **denied**, clears queued analytics events; essential behavior depends on `allowEssentialOnDenied`.
+* **`resetConsent()`** — clears stored consent (if any), sets **pending**.
+* **`onConsentChange()`** — subscribe to changes (useful to lazily load other tools after grant).
+
+> Some guides refer to `setConsent('granted'|'denied'|'pending')`. If present in your build, it’s a thin sugar over the three methods above.
+
+---
+
+## Typical Patterns
+
+### 1) Explicit banner (GDPR-style)
+
+```ts
+init({ consent: { initial: 'pending', requireExplicit: true } });
+
+if (getConsent()?.status === 'pending') showBanner();
+
+accept.onclick = () => grantConsent();
+reject.onclick = () => denyConsent();
+```
+
+### 2) Implicit grant on first interaction (opt-out)
+
+```ts
+init({
+  consent: { initial: 'pending', requireExplicit: false },
+});
+// First analytics event after user interacts can auto-promote to 'granted'.
+// (Never auto-promotes if requireExplicit is true.)
+```
+
+### 3) Policy version bumps (force re-consent)
+
+```ts
+init({
+  consent: { policyVersion: '2024-10-01', initial: 'pending' },
+});
+// If stored policyVersion differs, consent resets to 'pending'.
+```
+
+### 4) Load third-party tools only after grant
+
+```ts
+onConsentChange((status) => {
+  if (status === 'granted') {
+    import('./pixels/facebook').then(m => m.init());
+    import('./hotjar').then(m => m.init());
+  }
+});
+```
+
+### 5) SSR
+
+* On the server, consent is effectively **pending**; events go into the SSR queue.
+* On the client, Trackkit hydrates SSR events and **gates them through consent** before sending.
+* If consent remains pending or denied on the client, SSR events won’t leak.
+
+---
+
+## How Consent Interacts with Other Policies
+
+* **Do Not Track (DNT):** If `doNotTrack` is enabled (default), DNT can block sends even if consent is granted. You can disable DNT enforcement via `init({ doNotTrack: false })` if your policy allows.
+* **Domain/URL Filters:** `domains` and `exclude` still apply after consent is granted.
+* **Localhost:** If `trackLocalhost` is `false`, nothing sends on localhost even when consent is granted (unless you override).
+
+---
+
+## Diagnostics & Debugging
+
+* **Enable debug logs:** `init({ debug: true })` to trace consent decisions and queue behavior.
+* **At runtime:**
+
+  ```ts
+  console.log(getConsent()); // status, queued count, dropped count
+  ```
+* **Storage unavailable?** If localStorage is disabled/restricted, Trackkit falls back to memory-only behavior if `disablePersistence` is true; otherwise consent may not persist across reloads.
+
+Common symptoms & checks:
+
+* **“Events aren’t sending”** → `getConsent().status` must be `granted`. Pending queues; denied drops.
+* **“My identify still sends after denial”** → Set `allowEssentialOnDenied: false`.
+* **“Users weren’t re-asked after policy update”** → Ensure `policyVersion` changed and persistence is enabled.
+
+---
+
+## Minimal CMP Integration
+
+Hook your CMP’s callbacks straight into Trackkit:
+
+```ts
+cmp.on('consent:granted', () => grantConsent());
+cmp.on('consent:denied',  () => denyConsent());
+cmp.on('consent:reset',   () => resetConsent());
+```
+
+If your CMP provides granular categories, gate calls accordingly and keep Trackkit’s consent **strict** (e.g., `requireExplicit: true`, `initial: 'pending'`). Trackkit’s own categories are minimal (essential vs analytics); you can still decide at your UI layer which calls to make.
+
+---
+
+## Testing Consent Behavior
+
+* **Unit/integration tests:** simulate each initial state and verify queue/flush/drop:
+
+  * `initial: 'pending'` → queue, then `grantConsent()` → flush
+  * `initial: 'denied'` with/without `allowEssentialOnDenied` → drop/allow essential
+  * `policyVersion` bump → stored consent invalidated → back to `pending`
+* Use small `await Promise.resolve()` (or a short `setTimeout(0)`) to let async flushes complete.
+
+---
 
 ## Best Practices
 
-1. **Start with Explicit Consent**: Use `requireExplicit: true` for maximum compliance
-2. **Version Your Policy**: Track policy updates with `policyVersion`
-3. **Provide Clear UI**: Make consent choices obvious and accessible
-4. **Test Edge Cases**: Verify behavior with blocked storage, rapid state changes
-5. **Monitor Consent**: Log consent changes for audit trails
-6. **Handle Errors Gracefully**: Consent system should never break your app
+1. **Default to explicit consent** unless your legal basis differs (`requireExplicit: true`, `initial: 'pending'`).
+2. **Version your policy** and rotate `policyVersion` when language meaningfully changes.
+3. **Don’t rely on auto-promotion** if you need an auditable explicit signal.
+4. **Load extras after grant** (pixels, replayers) via `onConsentChange`.
+5. **Keep the UI obvious** and accessible; make “reject” as easy as “accept”.
 
-## Common Issues
+---
 
-### Events Not Being Sent
+### Where to go next
 
-```typescript
-// Check consent status
-console.log(getConsent());
+* **Configuration reference:** environment-driven consent config, defaults, and examples.
+* **Queue Management:** deeper dive into pending/flush semantics and SSR hydration.
+* **Provider Guides:** see how each adapter behaves under consent (e.g., identify being essential).
 
-// Ensure consent is granted
-if (getConsent()?.status !== 'granted') {
-  console.log('Consent not granted - events are queued or dropped');
-}
-```
-
-### Consent Not Persisting
-
-```typescript
-// Check if localStorage is available
-if (!window.localStorage) {
-  console.log('localStorage not available');
-}
-
-// Check for storage quota errors
-try {
-  localStorage.setItem('test', 'test');
-  localStorage.removeItem('test');
-} catch (e) {
-  console.log('Storage quota exceeded or blocked');
-}
-```
-
-### Queue Overflow
-
-```typescript
-// Monitor queue size
-const diagnostics = getDiagnostics();
-console.log('Queue size:', diagnostics.queueSize);
-console.log('Queue limit:', diagnostics.queueLimit);
-
-// Increase queue size if needed
-init({
-  queueSize: 100, // Default is 50
-});
-```
+If anything in this doc conflicts with your legal requirements, defer to your counsel and tune the options accordingly.
