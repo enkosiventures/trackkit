@@ -9,7 +9,7 @@ export type Props = Record<string, unknown>;
 /**
  * Analytics provider types
  */
-export type ProviderType = 'noop' | 'umami';  // | 'plausible' | 'ga';
+export type ProviderType = 'noop' | 'umami' | 'plausible' | 'ga';
 
 /**
  * Configuration options for analytics initialization
@@ -90,6 +90,18 @@ export interface AnalyticsOptions {
    * Custom consent options for GDPR compliance
    */
   consent?: ConsentOptions;
+
+  /**
+   * Custom API secret for server-side tracking
+   * Required for providers that support server-side events
+   */
+  apiSecret?: string;
+
+  /**
+   * Transport mechanism for sending events
+   * @default 'beacon'
+   */
+  transport?: 'beacon' | 'xhr' | 'fetch';
 
   /**
    * Custom error handler for analytics errors

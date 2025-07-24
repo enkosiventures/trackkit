@@ -35,31 +35,30 @@ export const providerMetadata: Record<string, ProviderMetadata> = {
       categories: ['analytics'],
     },
   },
+
+  plausible: {
+    name: 'plausible',
+    version: '1.0.0',
+    description: 'Privacy-friendly analytics',
+    consentDefaults: {
+      requireExplicit: true,
+      supportsEssential: false,
+      defaultMode: 'opt-in',
+      categories: ['analytics'],
+    },
+  },
   
-  // Future providers
-  // plausible: {
-  //   name: 'plausible',
-  //   version: '1.0.0',
-  //   description: 'Privacy-friendly analytics',
-  //   consentDefaults: {
-  //     requireExplicit: true,
-  //     supportsEssential: false,
-  //     defaultMode: 'opt-in',
-  //     categories: ['analytics'],
-  //   },
-  // },
-  
-  // ga: {
-  //   name: 'ga4',
-  //   version: '1.0.0',
-  //   description: 'Google Analytics 4',
-  //   consentDefaults: {
-  //     requireExplicit: true,
-  //     supportsEssential: false,
-  //     defaultMode: 'opt-in',
-  //     categories: ['analytics', 'marketing'],
-  //   },
-  // },
+  ga: {
+    name: 'ga4',
+    version: '1.0.0',
+    description: 'Google Analytics 4',
+    consentDefaults: {
+      requireExplicit: true,
+      supportsEssential: false,
+      defaultMode: 'opt-in',
+      categories: ['analytics', 'marketing'],
+    },
+  },
 };
 
 /**
