@@ -1,44 +1,73 @@
-// src/providers/plausible/index.ts
 import type { ProviderFactory, ProviderInstance } from '../types';
 import type { AnalyticsOptions, Props } from '../../types';
-import { PlausibleClient, enableAutoTracking } from './client';
+import { PlausibleClient } from './client';
+import { validateDomain } from '../shared/validation';
+import { isBrowser } from '../shared/browser';
+import { createNavigationTracker } from '../shared/navigation';
 import { logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';
 
 /**
- * Navigation tracking for SPAs
+ * Set up Plausible auto-tracking features
  */
-function setupNavigationTracking(client: PlausibleClient): void {
-  if (typeof window === 'undefined') return;
+function setupAutoTracking(client: PlausibleClient): () => void {
+  if (!isBrowser()) return () => {};
   
-  let lastPath = window.location.pathname;
+  const cleanupFunctions: Array<() => void> = [];
   
-  // Check for navigation changes
-  const checkNavigation = () => {
-    const newPath = window.location.pathname;
-    if (newPath !== lastPath) {
-      lastPath = newPath;
-      client.trackPageview().catch(error => {
-        logger.error('Failed to track navigation', error);
+  // Track outbound links
+  const handleClick = (event: MouseEvent) => {
+    const link = (event.target as HTMLElement).closest('a');
+    if (!link?.href) return;
+    
+    try {
+      const url = new URL(link.href);
+      if (url.host !== window.location.host) {
+        client.trackOutboundLink(link.href).catch(error => {
+          logger.error('Failed to track outbound link', error);
+        });
+      }
+    } catch {
+      // Invalid URL, ignore
+    }
+  };
+  
+  document.addEventListener('click', handleClick);
+  cleanupFunctions.push(() => document.removeEventListener('click', handleClick));
+  
+  // Track file downloads
+  const downloadExtensions = [
+    'pdf', 'xlsx', 'xls', 'csv', 'docx', 'doc',
+    'ppt', 'pptx', 'zip', 'rar', 'tar', 'gz',
+  ];
+  
+  const handleDownload = (event: MouseEvent) => {
+    const link = (event.target as HTMLElement).closest('a');
+    if (!link?.href) return;
+    
+    const extension = link.href.split('.').pop()?.toLowerCase();
+    if (extension && downloadExtensions.includes(extension)) {
+      const fileName = link.href.split('/').pop() || 'unknown';
+      client.trackFileDownload(fileName).catch(error => {
+        logger.error('Failed to track file download', error);
       });
     }
   };
   
-  // Listen for history changes
-  window.addEventListener('popstate', checkNavigation);
+  document.addEventListener('click', handleDownload);
+  cleanupFunctions.push(() => document.removeEventListener('click', handleDownload));
   
-  // Override pushState and replaceState
-  const originalPushState = history.pushState;
-  const originalReplaceState = history.replaceState;
+  // Track 404 errors
+  if (document.title.toLowerCase().includes('404') || 
+      document.body.textContent?.toLowerCase().includes('page not found')) {
+    client.track404().catch(error => {
+      logger.error('Failed to track 404', error);
+    });
+  }
   
-  history.pushState = function(...args) {
-    originalPushState.apply(history, args);
-    setTimeout(checkNavigation, 0);
-  };
-  
-  history.replaceState = function(...args) {
-    originalReplaceState.apply(history, args);
-    setTimeout(checkNavigation, 0);
+  // Return cleanup function
+  return () => {
+    cleanupFunctions.forEach(cleanup => cleanup());
   };
 }
 
@@ -55,13 +84,22 @@ function create(options: AnalyticsOptions): ProviderInstance {
     );
   }
   
-  // Parse domain from siteId
-  const domain = options.siteId.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  // Validate domain format
+  const domainValidation = validateDomain(options.siteId);
+  if (!domainValidation.valid) {
+    throw new AnalyticsError(
+      domainValidation.error!,
+      'INVALID_CONFIG',
+      'plausible'
+    );
+  }
+  
+  const domain = domainValidation.parsed!;
   
   // Create client
   const client = new PlausibleClient({
     domain,
-    apiHost: options.host || 'https://plausible.io',
+    apiHost: options.host,
     hashMode: options.hashMode,
     trackLocalhost: options.trackLocalhost,
     exclude: options.exclude,
@@ -69,15 +107,14 @@ function create(options: AnalyticsOptions): ProviderInstance {
     revenue: options.revenue,
   });
   
-  let autoTrackingEnabled = false;
-
-  // Track navigation for auto pageviews
+  // Tracking state
+  let navigationTracker: ReturnType<typeof createNavigationTracker> | null = null;
+  let autoTrackingCleanup: (() => void) | null = null;
   let navigationCallback: ((url: string) => void) | undefined;
-  let cleanupAutoTracking: (() => void) | undefined;
   
   return {
     name: 'plausible',
-
+    
     /**
      * Initialize provider
      */
@@ -87,55 +124,40 @@ function create(options: AnalyticsOptions): ProviderInstance {
         apiHost: options.host || 'https://plausible.io',
       });
       
-      // Setup auto-tracking if enabled and consent granted
+      // Setup auto-tracking features
       if (options.autoTrack !== false) {
-        enableAutoTracking(client);
-        setupNavigationTracking(client);
-        autoTrackingEnabled = true;
+        autoTrackingCleanup = setupAutoTracking(client);
         
-        // Send initial pageview
-        await client.trackPageview();
+        // Setup navigation tracking
+        if (navigationCallback) {
+          navigationTracker = createNavigationTracker((url) => {
+            client.updateBrowserData();
+            navigationCallback!(url);
+          });
+        }
       }
     },
-
+    
+    /**
+     * Set navigation callback from facade
+     */
     _setNavigationCallback(callback: (url: string) => void) {
       navigationCallback = callback;
+      
+      // If already initialized and auto-tracking is enabled, start tracking
+      if (options.autoTrack !== false && !navigationTracker) {
+        navigationTracker = createNavigationTracker((url) => {
+          client.updateBrowserData();
+          callback(url);
+        });
+      }
     },
     
     /**
      * Track custom event
      */
     track(name: string, props?: Props, url?: string) {
-      console.warn("[PLAUSIBLE] performing track event");
-      // Extract revenue if present
-      let revenue: number | undefined;
-      let currency: string | undefined;
-      
-      if (props?.revenue && typeof props.revenue === 'number') {
-        revenue = props.revenue as number;
-        currency = props.currency as string;
-        
-        // Remove from props to avoid sending as custom property
-        const { revenue: _, currency: __, ...cleanProps } = props;
-        props = cleanProps;
-      }
-      
-      // Convert props to string values (Plausible requirement)
-      const stringProps: Record<string, string> = {};
-      if (props) {
-        Object.entries(props).forEach(([key, value]) => {
-          if (value != null) {
-            stringProps[key] = String(value);
-          }
-        });
-      }
-      
-      client.sendEvent(name, {
-        url,
-        props: stringProps,
-        revenue,
-        currency,
-      }).catch(error => {
+      client.sendEvent(name, props, url).catch(error => {
         logger.error('Failed to track Plausible event', error);
         options.onError?.(error);
       });
@@ -145,7 +167,7 @@ function create(options: AnalyticsOptions): ProviderInstance {
      * Track pageview
      */
     pageview(url?: string) {
-      client.trackPageview(url).catch(error => {
+      client.sendPageview(url).catch(error => {
         logger.error('Failed to track Plausible pageview', error);
         options.onError?.(error);
       });
@@ -156,7 +178,6 @@ function create(options: AnalyticsOptions): ProviderInstance {
      */
     identify(userId: string | null) {
       logger.debug('Plausible does not support user identification', { userId });
-      // Could be added as a custom property in the future
     },
     
     /**
@@ -164,11 +185,11 @@ function create(options: AnalyticsOptions): ProviderInstance {
      */
     destroy() {
       logger.debug('Destroying Plausible provider');
-      // Reset navigation tracking
-      if (typeof window !== 'undefined') {
-        // Restore original methods
-        // Note: In production, we'd store references to restore them
-      }
+      navigationTracker?.stop();
+      navigationTracker = null;
+      autoTrackingCleanup?.();
+      autoTrackingCleanup = null;
+      client.destroy();
     },
   };
 }
@@ -180,7 +201,7 @@ const plausibleProvider: ProviderFactory = {
   create,
   meta: {
     name: 'plausible',
-    version: '1.0.0',
+    version: '2.0.0',
   },
 };
 

@@ -1,48 +1,89 @@
-// src/providers/umami/client.ts
 import type { UmamiConfig, UmamiPayload } from './types';
+import type { Props } from '../../types';
+import { BaseClient } from '../shared/base-client';
 import { 
-  getApiEndpoint, 
-  getFetchOptions, 
-  getBrowserData,
-  shouldTrackDomain,
-  isDoNotTrackEnabled 
-} from './utils';
+  isDoNotTrackEnabled, 
+  isDomainAllowed,
+  isLocalhost,
+  getPageUrl,
+} from '../shared/browser';
 import { logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';
 
 /**
- * Umami API client for browser environments
+ * Umami-specific client implementation
  */
-export class UmamiClient {
-  private config: Required<UmamiConfig>;
-  private browserData: ReturnType<typeof getBrowserData>;
-  
+export class UmamiClient extends BaseClient<Required<UmamiConfig>> {
   constructor(config: UmamiConfig) {
-    this.config = {
+    const fullConfig: Required<UmamiConfig> = {
       websiteId: config.websiteId,
       hostUrl: config.hostUrl || 'https://cloud.umami.is',
       autoTrack: config.autoTrack ?? true,
       doNotTrack: config.doNotTrack ?? true,
       domains: config.domains || [],
-      cache: config.cache ?? true,
+      cache: config.cache ?? false,
     };
     
-    this.browserData = getBrowserData();
+    super(fullConfig, false); // Don't allow tracking when page is hidden
   }
   
   /**
-   * Check if tracking should be performed
+   * Send event to Umami
    */
-  private shouldTrack(): boolean {
+  async sendEvent(name: string, props?: Props, url?: string): Promise<void> {
+    if (!this.shouldTrack()) return;
+    
+    // Additional Umami-specific checks
+    if (!this.shouldTrackUmami()) return;
+    
+    const payload: UmamiPayload = {
+      website: this.config.websiteId,
+      hostname: window.location.hostname,
+      language: this.browserData.language,
+      screen: `${this.browserData.screen.width}x${this.browserData.screen.height}`,
+      title: this.browserData.title,
+      url: url || this.browserData.url,
+      referrer: this.browserData.referrer,
+      name,
+      data: props,
+    };
+    
+    await this.send('event', payload);
+  }
+  
+  /**
+   * Send pageview to Umami
+   */
+  async sendPageview(url?: string, title?: string): Promise<void> {
+    if (!this.shouldTrack()) return;
+    if (!this.shouldTrackUmami()) return;
+    
+    const payload: UmamiPayload = {
+      website: this.config.websiteId,
+      hostname: window.location.hostname,
+      language: this.browserData.language,
+      screen: `${this.browserData.screen.width}x${this.browserData.screen.height}`,
+      title: title || this.browserData.title,
+      url: url || this.browserData.url,
+      referrer: this.browserData.referrer,
+    };
+    
+    await this.send('pageview', payload);
+  }
+  
+  /**
+   * Check Umami-specific tracking conditions
+   */
+  private shouldTrackUmami(): boolean {
     // Check Do Not Track
     if (this.config.doNotTrack && isDoNotTrackEnabled()) {
-      logger.debug('Tracking disabled: Do Not Track is enabled');
+      this.debug('Umami: Do Not Track is enabled');
       return false;
     }
     
     // Check domain whitelist
-    if (!shouldTrackDomain(this.config.domains)) {
-      logger.debug('Tracking disabled: Domain not in whitelist');
+    if (!isDomainAllowed(this.config.domains)) {
+      this.debug('Umami: Domain not in whitelist');
       return false;
     }
     
@@ -50,88 +91,43 @@ export class UmamiClient {
   }
   
   /**
-   * Send event to Umami
+   * Send data to Umami API
    */
-  async send(type: 'pageview' | 'event', payload: Partial<UmamiPayload>): Promise<void> {
-    if (!this.shouldTrack()) {
-      return;
-    }
+  private async send(type: 'pageview' | 'event', payload: UmamiPayload): Promise<void> {
+    const endpoint = this.getEndpoint();
+    const cacheParam = this.config.cache ? `?cache=${Date.now()}` : '';
+    const url = `${endpoint}/api/send${cacheParam}`;
     
-    const endpoint = type === 'pageview' ? '/api/send' : '/api/send';
-    const url = getApiEndpoint(this.config.hostUrl, endpoint, this.config.cache);
-    
-    // Merge with browser data
-    const fullPayload: UmamiPayload = {
-      website: this.config.websiteId,
-      hostname: window.location.hostname,
-      ...this.browserData,
-      ...payload,
-    };
-    
-    logger.debug(`Sending ${type} to Umami`, { url, payload: fullPayload });
+    this.debug(`Sending ${type} to Umami`, { url, payload });
     
     try {
-      const response = await fetch(url, getFetchOptions(fullPayload));
+      await this.transport.send(url, payload, {
+        method: 'POST',
+        headers: {
+          'User-Agent': 'Trackkit/1.0',
+        },
+      });
       
-      if (!response.ok) {
-        throw new AnalyticsError(
-          `Umami request failed: ${response.status} ${response.statusText}`,
-          'NETWORK_ERROR',
-          'umami'
-        );
-      }
-      
-      logger.debug(`${type} sent successfully`);
-      
+      this.debug(`Umami ${type} sent successfully`);
     } catch (error) {
-      if (error instanceof AnalyticsError) {
-        throw error;
-      }
-      
-      throw new AnalyticsError(
-        'Failed to send event to Umami',
-        'NETWORK_ERROR',
-        'umami',
-        error
-      );
+      const analyticsError = error instanceof AnalyticsError
+        ? error
+        : new AnalyticsError(
+            'Failed to send event to Umami',
+            'NETWORK_ERROR',
+            'umami',
+            error
+          );
+          
+      this.handleError(analyticsError, `Umami ${type}`);
+      throw analyticsError;
     }
   }
   
   /**
-   * Track a pageview
+   * Get API endpoint
    */
-  async trackPageview(url?: string): Promise<void> {
-    const payload: Partial<UmamiPayload> = {
-      // name: 'pageview',
-      url: url || this.browserData.url,
-      title: document.title,
-      referrer: this.browserData.referrer,
-    };
-    
-    await this.send('pageview', payload);
-  }
-
-  /**
-   * Track a custom event
-   */
-  async trackEvent(
-    name: string, 
-    data?: Record<string, unknown>,
-    url?: string
-  ): Promise<void> {
-    const payload: Partial<UmamiPayload> = {
-      name,
-      data,
-      url: url || this.browserData.url,
-    };
-    
-    await this.send('event', payload);
-  }
-  
-  /**
-   * Update browser data (call on navigation)
-   */
-  updateBrowserData(): void {
-    this.browserData = getBrowserData();
+  private getEndpoint(): string {
+    return this.config.hostUrl.replace(/\/$/, '');
   }
 }

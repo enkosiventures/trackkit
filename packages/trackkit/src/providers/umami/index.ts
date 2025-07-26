@@ -1,71 +1,35 @@
-// src/providers/umami/index.ts
 import type { ProviderFactory, ProviderInstance } from '../types';
 import type { AnalyticsOptions, Props } from '../../types';
 import { UmamiClient } from './client';
-import { parseWebsiteId, isBrowser } from './utils';
+import { validateUUID, createValidationError } from '../shared/validation';
+import { isBrowser } from '../shared/browser';
+import { createNavigationTracker } from '../shared/navigation';
 import { logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';
 
 /**
- * Track page visibility for accurate time-on-page
+ * Parse and validate Umami website ID
  */
-let lastPageView: string | null = null;
-let isPageHidden = false;
-
-// function setupPageTracking(client: UmamiClient, autoTrack: boolean, allowWhenHidden: boolean): void {
-function setupPageTracking(
-  client: UmamiClient, 
-  autoTrack: boolean, 
-  onNavigate?: (url: string) => void,
-): () => void {
-  if (!isBrowser() || !autoTrack) return () => {};
+function parseWebsiteId(siteId?: string): string | null {
+  if (!siteId) return null;
   
-  // Track navigation changes
-  let previousPath = window.location.pathname + window.location.search;
+  // Handle Umami script data attributes format
+  const cleaned = siteId.replace('data-website-id=', '');
   
-  const checkForNavigation = () => {
-    const newPath = window.location.pathname + window.location.search;
-    if (newPath !== previousPath) {
-      previousPath = newPath;
-      client.updateBrowserData();
-      
-      // Instead of tracking directly, notify the facade
-      if (onNavigate) {
-        onNavigate(newPath);
-      }
-    }
-  };
+  // Validate UUID format
+  const validation = validateUUID(cleaned);
   
-  // Listen for history changes (SPA navigation)
-  window.addEventListener('popstate', checkForNavigation);
+  if (validation.valid) {
+    return validation.parsed!;
+  }
   
-  // Override pushState and replaceState
-  const originalPushState = history.pushState;
-  const originalReplaceState = history.replaceState;
+  // Some Umami instances might use non-UUID IDs
+  // If it's not a UUID but looks reasonable, accept it
+  if (cleaned.length >= 10 && /^[a-zA-Z0-9-_]+$/.test(cleaned)) {
+    return cleaned;
+  }
   
-  history.pushState = function(...args) {
-    originalPushState.apply(history, args);
-    setTimeout(checkForNavigation, 0);
-  };
-  
-  history.replaceState = function(...args) {
-    originalReplaceState.apply(history, args);
-    setTimeout(checkForNavigation, 0);
-  };
-  
-  // Track page visibility
-  const handleVisibilityChange = () => {
-    isPageHidden = document.hidden;
-  };
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-
-  // Return cleanup function
-  return () => {
-    window.removeEventListener('popstate', checkForNavigation);
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-    history.pushState = originalPushState;
-    history.replaceState = originalReplaceState;
-  };
+  return null;
 }
 
 /**
@@ -84,7 +48,7 @@ function create(options: AnalyticsOptions): ProviderInstance {
   
   // Check browser environment
   if (!isBrowser()) {
-    logger.warn('Umami browser adapter requires a browser environment');
+    logger.warn('Umami requires a browser environment');
     // Return no-op implementation for SSR
     return {
       name: 'umami-noop',
@@ -102,20 +66,16 @@ function create(options: AnalyticsOptions): ProviderInstance {
     autoTrack: options.autoTrack ?? true,
     doNotTrack: options.doNotTrack ?? true,
     domains: options.domains,
-    cache: options.cache ?? true,
+    cache: options.cache ?? false,
   });
   
-  // Setup auto-tracking
-  const autoTrack = options.autoTrack ?? true;
-
-  // Setup tracking when page is hidden
-  const allowWhenHidden = options.allowWhenHidden ?? false;
-
+  // Navigation tracking
+  let navigationTracker: ReturnType<typeof createNavigationTracker> | null = null;
   let navigationCallback: ((url: string) => void) | undefined;
-  let cleanupAutoTracking: (() => void) | undefined;
   
   return {
-    name: 'umami-browser',
+    name: 'umami',
+    
     /**
      * Initialize provider
      */
@@ -123,35 +83,39 @@ function create(options: AnalyticsOptions): ProviderInstance {
       logger.info('Initializing Umami provider', {
         websiteId,
         hostUrl: options.host || 'https://cloud.umami.is',
-        autoTrack,
+        autoTrack: options.autoTrack ?? true,
       });
       
       // Setup automatic pageview tracking
-      // Note: Initial pageview will be sent by facade after consent check
-      cleanupAutoTracking = setupPageTracking(
-        client,
-        autoTrack,
-        navigationCallback,
-      );
+      if (options.autoTrack !== false && navigationCallback) {
+        navigationTracker = createNavigationTracker((url) => {
+          client.updateBrowserData();
+          navigationCallback!(url);
+        });
+      }
     },
-
-    // Add a method to set the navigation callback
+    
+    /**
+     * Set navigation callback from facade
+     */
     _setNavigationCallback(callback: (url: string) => void) {
       navigationCallback = callback;
+      
+      // If already initialized and auto-tracking is enabled, start tracking
+      if (options.autoTrack !== false && !navigationTracker) {
+        navigationTracker = createNavigationTracker((url) => {
+          client.updateBrowserData();
+          callback(url);
+        });
+      }
     },
     
     /**
      * Track custom event
      */
     track(name: string, props?: Props, url?: string) {
-      // Don't track if page is hidden (unless overridden)
-      if (isPageHidden && !allowWhenHidden) {
-        logger.debug('Event not sent: page is hidden', { name });
-        return;
-      }
-      
-      client.trackEvent(name, props, url).catch(error => {
-        logger.error('Failed to track event', error);
+      client.sendEvent(name, props, url).catch(error => {
+        logger.error('Failed to track Umami event', error);
         options.onError?.(error);
       });
     },
@@ -160,28 +124,18 @@ function create(options: AnalyticsOptions): ProviderInstance {
      * Track pageview
      */
     pageview(url?: string) {
-      // Update last pageview
-      lastPageView = url || window.location.pathname + window.location.search;
-      
-      // Don't track if page is hidden (unless overridden)
-      if (isPageHidden && !allowWhenHidden) {
-        logger.debug('Pageview not sent: page is hidden', { url });
-        return;
-      }
-
       client.updateBrowserData();
-      client.trackPageview(url).catch(error => {
-        logger.error('Failed to track pageview', error);
+      client.sendPageview(url).catch(error => {
+        logger.error('Failed to track Umami pageview', error);
         options.onError?.(error);
       });
     },
     
     /**
-     * Identify user (Umami doesn't support user identification)
+     * Identify user (not supported by Umami)
      */
     identify(userId: string | null) {
       logger.debug('Umami does not support user identification', { userId });
-      // Could be used to set a custom dimension in the future
     },
     
     /**
@@ -189,21 +143,21 @@ function create(options: AnalyticsOptions): ProviderInstance {
      */
     destroy() {
       logger.debug('Destroying Umami provider');
-      cleanupAutoTracking?.();
-      lastPageView = null;
-      isPageHidden = false;
+      navigationTracker?.stop();
+      navigationTracker = null;
+      client.destroy();
     },
   };
 }
 
 /**
- * Umami browser provider factory
+ * Umami provider factory
  */
 const umamiProvider: ProviderFactory = {
   create,
   meta: {
-    name: 'umami-browser',
-    version: '1.0.0',
+    name: 'umami',
+    version: '2.0.0',
   },
 };
 
