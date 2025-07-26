@@ -1,5 +1,5 @@
 import type { AnalyticsInstance, AnalyticsOptions, Props } from '../types';
-import { AnalyticsError } from '../errors';
+import { dispatchError, AnalyticsError, setUserErrorHandler } from '../errors';
 import { logger } from '../util/logger';
 import { EventQueue, QueuedEventUnion } from '../util/queue';
 import { validateConfig, mergeConfig, getConsentConfig } from './config';
@@ -25,7 +25,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
   
   // Tracking state
   private initialPageviewSent = false;
-  private errorHandler: ((e: AnalyticsError) => void) | undefined;
+  // private errorHandler: ((e: AnalyticsError) => void) | undefined;
   
   constructor() {
     // Initialize with default queue config
@@ -42,7 +42,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
   // ================ Public API ================
   
   init(options: AnalyticsOptions = {}): this {
-
+    console.warn("[DEBUG] Initializing facade");
     if (this.provider || this.initPromise) {
       logger.warn('Analytics already initialized');
 
@@ -55,21 +55,26 @@ export class AnalyticsFacade implements AnalyticsInstance {
     }
     
     try {
+      console.warn("[DEBUG] Beginning config init")
       const config = mergeConfig(options);
-      
+      console.warn("[DEBUG] raw config", config);
+
       this.config = config;
-      this.errorHandler = config.onError;
+      setUserErrorHandler(config.onError);
 
       validateConfig(config);
+      console.warn("[DEBUG] config validated")
 
       // Update queue with final config
       this.reconfigureQueue(config);
 
       // Create consent manager synchronously
+      console.warn("[DEBUG] creating consent manager")
       const consentConfig = getConsentConfig(config);
       this.consent = new ConsentManager(consentConfig);
 
       // Start async initialization
+      console.warn("[DEBUG] Config:", config);
       this.initPromise = this.initializeAsync(config)
         .catch(async (error) => {
           // Handle init failure by falling back to noop
@@ -113,7 +118,8 @@ export class AnalyticsFacade implements AnalyticsInstance {
     try {
       this.provider?.destroy();
     } catch (error) {
-      this.dispatchError(new AnalyticsError(
+      logger.error("Provider destroy failed");
+      dispatchError(new AnalyticsError(
         'Provider destroy failed',
         'PROVIDER_ERROR',
         this.config?.provider,
@@ -126,13 +132,16 @@ export class AnalyticsFacade implements AnalyticsInstance {
     this.consent = null;
     this.config = null;
     this.initPromise = null;
-    this.errorHandler = undefined;
     this.initialPageviewSent = false;
+
+    // Reset error handler
+    setUserErrorHandler(null);
     
     // Clear queues
     this.clearAllQueues();
     
     logger.info('Analytics destroyed');
+    console.warn('[DEBUG] Analytics destroyed');
   }
   
   async waitForReady(): Promise<StatefulProvider> {
@@ -268,7 +277,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
         // @ts-expect-error - dynamic dispatch
         this.provider[type](...args);
       } catch (error) {
-        this.dispatchError(new AnalyticsError(
+        dispatchError(new AnalyticsError(
           `Error executing ${type}`,
           'PROVIDER_ERROR',
           this.config?.provider,
@@ -379,7 +388,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
           }
         }
       } catch (error) {
-        this.dispatchError(new AnalyticsError(
+        dispatchError(new AnalyticsError(
           `Error replaying queued event: ${event.type}`,
           'PROVIDER_ERROR',
           this.config?.provider,
@@ -447,7 +456,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
         error
       );
     
-    this.dispatchError(analyticsError);
+    dispatchError(analyticsError);
   }
   
   private async handleInitFailure(error: unknown, config: AnalyticsOptions): Promise<void> {
@@ -459,7 +468,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
         error
       );
     
-    this.dispatchError(wrapped);
+    dispatchError(wrapped);
     logger.error('Initialization failed – falling back to noop', wrapped);
     
     // Try to load noop provider
@@ -484,7 +493,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
         'noop',
         noopError
       );
-      this.dispatchError(fatalError);
+      dispatchError(fatalError);
       logger.error('Fatal: fallback noop load failed', fatalError);
     }
   }
@@ -506,19 +515,6 @@ export class AnalyticsFacade implements AnalyticsInstance {
       });
   }
   
-  private dispatchError(error: AnalyticsError): void {
-    try {
-      this.errorHandler?.(error);
-    } catch (userHandlerError) {
-      // Swallow user callback exceptions
-      logger.error(
-        'Error in error handler',
-        error,
-        userHandlerError instanceof Error ? userHandlerError : String(userHandlerError)
-      );
-    }
-  }
-  
   private handleQueueOverflow(dropped: QueuedEventUnion[]): void {
     const error = new AnalyticsError(
       `Queue overflow: ${dropped.length} events dropped`,
@@ -533,7 +529,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
       eventTypes: dropped.map(e => e.type),
     });
     
-    this.dispatchError(error);
+    dispatchError(error);
   }
 
   // ================ Utilities ================

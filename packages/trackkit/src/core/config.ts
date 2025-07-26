@@ -27,8 +27,7 @@ export function mergeConfig(options: AnalyticsOptions): AnalyticsOptions {
 }
 
 export function validateConfig(config: AnalyticsOptions): void {
-  const VALID_PROVIDERS: ProviderType[] = ['noop', 'umami'];
-  
+  const VALID_PROVIDERS: ProviderType[] = ['noop', 'umami', 'plausible', 'ga'];
   if (!VALID_PROVIDERS.includes(config.provider as ProviderType)) {
     throw new AnalyticsError(
       `Unknown provider: ${config.provider}`,

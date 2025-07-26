@@ -1,3 +1,4 @@
+// src/providers/umami/utils.ts
 import type { BrowserData } from './types';
 
 /**

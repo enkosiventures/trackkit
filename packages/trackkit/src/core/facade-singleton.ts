@@ -17,6 +17,7 @@ export function getFacade(): AnalyticsFacade {
 // Convenience exports that delegate to singleton
 export const init = (options: AnalyticsOptions = {}) => getFacade().init(options);
 export const destroy = () => {
+  console.warn("[DEBUG] Destroying...")
   getFacade().destroy();
   facadeInstance = null; // Allow re-initialization after destroy
 };

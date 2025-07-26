@@ -1,4 +1,5 @@
 import type { AnalyticsInstance, AnalyticsOptions } from '../types';
+import { StatefulProvider } from './stateful-wrapper';
 
 /**
  * Internal provider lifecycle state
@@ -12,7 +13,7 @@ export interface ProviderFactory {
   /**
    * Create a new analytics instance
    */
-  create(options: AnalyticsOptions): AnalyticsInstance;
+  create(options: AnalyticsOptions): ProviderInstance;
   
   /**
    * Provider metadata

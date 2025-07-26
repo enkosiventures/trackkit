@@ -1,3 +1,4 @@
+// src/providers/ga4/client.ts
 import type { GA4Config, GA4EventParams } from './types';
 import { logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';

@@ -1,3 +1,4 @@
+// src/providers/plausible/index.ts
 import type { ProviderFactory, ProviderInstance } from '../types';
 import type { AnalyticsOptions, Props } from '../../types';
 import { PlausibleClient, enableAutoTracking } from './client';
@@ -68,9 +69,11 @@ function create(options: AnalyticsOptions): ProviderInstance {
     revenue: options.revenue,
   });
   
-  // Track consent state
-  let consentGranted = false;
   let autoTrackingEnabled = false;
+
+  // Track navigation for auto pageviews
+  let navigationCallback: ((url: string) => void) | undefined;
+  let cleanupAutoTracking: (() => void) | undefined;
   
   return {
     name: 'plausible',
@@ -85,7 +88,7 @@ function create(options: AnalyticsOptions): ProviderInstance {
       });
       
       // Setup auto-tracking if enabled and consent granted
-      if (consentGranted && options.autoTrack !== false) {
+      if (options.autoTrack !== false) {
         enableAutoTracking(client);
         setupNavigationTracking(client);
         autoTrackingEnabled = true;
@@ -94,16 +97,16 @@ function create(options: AnalyticsOptions): ProviderInstance {
         await client.trackPageview();
       }
     },
+
+    _setNavigationCallback(callback: (url: string) => void) {
+      navigationCallback = callback;
+    },
     
     /**
      * Track custom event
      */
     track(name: string, props?: Props, url?: string) {
-      if (!consentGranted) {
-        logger.debug('Plausible event blocked by consent', { name });
-        return;
-      }
-      
+      console.warn("[PLAUSIBLE] performing track event");
       // Extract revenue if present
       let revenue: number | undefined;
       let currency: string | undefined;
@@ -142,11 +145,6 @@ function create(options: AnalyticsOptions): ProviderInstance {
      * Track pageview
      */
     pageview(url?: string) {
-      if (!consentGranted) {
-        logger.debug('Plausible pageview blocked by consent', { url });
-        return;
-      }
-      
       client.trackPageview(url).catch(error => {
         logger.error('Failed to track Plausible pageview', error);
         options.onError?.(error);

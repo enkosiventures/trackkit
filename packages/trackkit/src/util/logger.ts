@@ -1,5 +1,3 @@
-import { stringifyError } from '../errors';
-
 export interface Logger {
   debug(...args: unknown[]): void;
   info(...args: unknown[]): void;
@@ -14,6 +12,25 @@ const STYLES = {
   warn: 'color: #ff9800',
   error: 'color: #f44336',
 };
+
+/**
+ * Safe error logger that handles circular references
+ */
+export function stringifyError(error: unknown): string {
+  if (error instanceof Error) {
+    return JSON.stringify({
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    });
+  }
+  
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
 
 export function createLogger(enabled: boolean): Logger {
   if (!enabled || typeof console === 'undefined') {

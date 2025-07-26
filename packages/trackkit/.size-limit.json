@@ -6,6 +6,30 @@
     "limit": "7 KB"
   },
   {
+    "name": "Core + No-op",
+    "path": "dist/index.js",
+    "import": "{ init }",
+    "limit": "4 KB"
+  },
+  {
+    "name": "Core + Umami",
+    "path": "dist/index.js",
+    "import": "{ init }",
+    "limit": "5.5 KB"
+  },
+  {
+    "name": "Core + Plausible",
+    "path": "dist/index.js",
+    "import": "{ init }",
+    "limit": "6 KB"
+  },
+  {
+    "name": "Core + GA4",
+    "path": "dist/index.js",
+    "import": "{ init }",
+    "limit": "5 KB"
+  },
+  {
     "name": "Core CJS (gzip)",
     "path": "dist/index.cjs",
     "limit": "7 KB"

@@ -1,3 +1,4 @@
+// src/providers/umami/index.ts
 import type { ProviderFactory, ProviderInstance } from '../types';
 import type { AnalyticsOptions, Props } from '../../types';
 import { UmamiClient } from './client';

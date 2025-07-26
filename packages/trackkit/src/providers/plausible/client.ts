@@ -1,3 +1,4 @@
+// src/providers/plausible/client.ts
 import type { PlausibleConfig, PlausibleEvent } from './types';
 import { logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';
@@ -94,6 +95,8 @@ export class PlausibleClient {
     const url = options.url || pageData.url;
     
     if (!this.shouldTrack(url)) {
+      console.warn("Event has url marked 'should not track'", url);
+      logger.warn("Event has url marked 'should not track'", url);
       return;
     }
     
@@ -136,6 +139,7 @@ export class PlausibleClient {
     });
     
     try {
+      console.warn("[PLAUSIBLE] performing event fetch", payload);
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {

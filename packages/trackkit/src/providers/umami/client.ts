@@ -1,3 +1,4 @@
+// src/providers/umami/client.ts
 import type { UmamiConfig, UmamiPayload } from './types';
 import { 
   getApiEndpoint, 

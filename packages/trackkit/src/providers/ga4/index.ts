@@ -1,3 +1,4 @@
+// src/providers/ga4/index.ts
 import type { ProviderFactory, ProviderInstance } from '../types';
 import type { AnalyticsOptions, Props } from '../../types';
 import { GA4Client } from './client';
@@ -42,8 +43,66 @@ function create(options: AnalyticsOptions): ProviderInstance {
     transport: options.transport as any || 'beacon',
   });
   
+  // Track navigation for auto pageviews
+  let navigationCallback: ((url: string) => void) | undefined;
+  let cleanupAutoTracking: (() => void) | undefined;
+  
+  // Setup navigation tracking
+  function setupNavigationTracking(): () => void {
+    if (typeof window === 'undefined' || !options.autoTrack) return () => {};
+    
+    let previousPath = window.location.pathname + window.location.search;
+    
+    const checkForNavigation = () => {
+      const newPath = window.location.pathname + window.location.search;
+      if (newPath !== previousPath) {
+        previousPath = newPath;
+        if (navigationCallback) {
+          navigationCallback(newPath);
+        }
+      }
+    };
+    
+    // Listen for history changes
+    window.addEventListener('popstate', checkForNavigation);
+    
+    // Override pushState and replaceState
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    
+    history.pushState = function(...args) {
+      originalPushState.apply(history, args);
+      setTimeout(checkForNavigation, 0);
+    };
+    
+    history.replaceState = function(...args) {
+      originalReplaceState.apply(history, args);
+      setTimeout(checkForNavigation, 0);
+    };
+    
+    return () => {
+      window.removeEventListener('popstate', checkForNavigation);
+      history.pushState = originalPushState;
+      history.replaceState = originalReplaceState;
+    };
+  }
+  
   return {
     name: 'ga4',
+    
+    async _init() {
+      logger.info('Initializing GA4 provider', {
+        measurementId,
+        debug: options.debug,
+      });
+      
+      // Setup auto-tracking if enabled
+      cleanupAutoTracking = setupNavigationTracking();
+    },
+    
+    _setNavigationCallback(callback: (url: string) => void) {
+      navigationCallback = callback;
+    },
     
     track(name: string, props?: Props, url?: string) {
       // Just send - consent already checked by facade
@@ -74,10 +133,7 @@ function create(options: AnalyticsOptions): ProviderInstance {
     
     destroy() {
       logger.debug('Destroying GA4 provider');
-      if (typeof window !== 'undefined') {
-        delete (window as any).gtag;
-        delete (window as any).dataLayer;
-      }
+      cleanupAutoTracking?.();
     },
   };
 }
