@@ -1,10 +1,10 @@
-import type { GA4Config, GA4EventParams, GA4ClientConfig } from './types';
-import type { Props } from '../../types';
+import type { GA4Config, GA4EventParams } from './types';
+import type { PageContext, Props } from '../../types';
 import { BaseClient } from '../shared/base-client';
 import { Transport, TransportMethod } from '../shared/transport';
 import { getScreenResolution, safeStringify } from '../shared/browser';
-import { logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';
+import { formatResolution } from '../shared/utils';
 
 /**
  * GA4 client ID management
@@ -113,16 +113,17 @@ class SessionManager {
 
 /**
  * GA4-specific client implementation
+ * The facade handles consent, error management, and debug logging
  */
-export class GA4Client extends BaseClient<GA4ClientConfig> {
+export class GA4Client extends BaseClient<GA4Config> {
   private clientId: string;
   private sessionManager: SessionManager;
   private userId?: string;
+  private useDebugEndpoint: boolean;
   
-  constructor(config: GA4Config) {
-    const fullConfig: GA4ClientConfig = {
+  constructor(config: GA4Config, useDebugEndpoint = false) {
+    const fullConfig: GA4Config = {
       measurementId: config.measurementId,
-      debug: config.debug ?? false,
       apiSecret: config.apiSecret || '',
       sessionTimeout: config.sessionTimeout ?? 30,
       customDimensions: config.customDimensions || {},
@@ -135,15 +136,16 @@ export class GA4Client extends BaseClient<GA4ClientConfig> {
     
     this.clientId = ClientIdManager.get();
     this.sessionManager = new SessionManager(fullConfig.sessionTimeout);
+    this.useDebugEndpoint = useDebugEndpoint;
   }
   
   /**
    * Send event to GA4
    */
-  async sendEvent(name: string, props?: Props, url?: string): Promise<void> {
+  async sendEvent(name: string, props?: Props, url?: string, pageContext?: PageContext): Promise<void> {
     if (!this.shouldTrack()) return;
     
-    const ga4Params = this.buildEventParams(props, url);
+    const ga4Params = this.buildEventParams(props, url, pageContext);
     const payload = this.buildPayload(name, ga4Params);
     
     await this.send(payload);
@@ -152,14 +154,8 @@ export class GA4Client extends BaseClient<GA4ClientConfig> {
   /**
    * Send pageview to GA4
    */
-  async sendPageview(url?: string, title?: string): Promise<void> {
-    const params: GA4EventParams = {
-      page_location: url || window.location.href,
-      page_title: title || this.browserData.title,
-      page_referrer: this.browserData.referrer,
-    };
-    
-    await this.sendEvent('page_view', params);
+  async sendPageview(url?: string, pageContext?: PageContext): Promise<void> {
+    await this.sendEvent('page_view', {}, url, pageContext);
   }
   
   /**
@@ -175,7 +171,7 @@ export class GA4Client extends BaseClient<GA4ClientConfig> {
   protected createTransport(): Transport {
     // GA4 Measurement Protocol doesn't support beacon with response validation
     const method: TransportMethod = 
-      this.config.transport === 'beacon' && !this.config.debug 
+      this.config.transport === 'beacon' && !this.useDebugEndpoint
         ? 'beacon' 
         : 'fetch';
         
@@ -185,21 +181,26 @@ export class GA4Client extends BaseClient<GA4ClientConfig> {
   /**
    * Build GA4 event parameters
    */
-  private buildEventParams(props?: Props, url?: string): GA4EventParams {
+  private buildEventParams(props?: Props, url?: string, pageContext?: PageContext): GA4EventParams {
     const params: GA4EventParams = {
       // Session info
       session_id: this.sessionManager.getSessionId(),
       engagement_time_msec: 100, // Required by GA4
       
       // Page info
-      page_location: url || window.location.href,
-      page_referrer: this.browserData.referrer,
-      page_title: this.browserData.title,
-      
+      page_location: url || pageContext?.url,
+      page_referrer: pageContext?.referrer,
+      page_title: pageContext?.title,
+
       // Device info
-      screen_resolution: getScreenResolution(),
-      language: this.browserData.language,
+      language: pageContext?.language,
+      screen_resolution: (pageContext?.viewportSize || pageContext?.screenSize) ? formatResolution(
+        pageContext?.viewportSize?.width || pageContext?.screenSize?.width || 0,
+        pageContext?.viewportSize?.height || pageContext?.screenSize?.height || 0
+      ) : undefined,
     };
+
+    
     
     // Add custom dimensions/metrics
     if (props) {
@@ -217,12 +218,13 @@ export class GA4Client extends BaseClient<GA4ClientConfig> {
     const processed: Props = {};
     
     Object.entries(props).forEach(([key, value]) => {
+      const v = this.config.customDimensions
       // Check if it's a custom dimension
-      if (this.config.customDimensions[key]) {
+      if (this.config.customDimensions && this.config.customDimensions[key]) {
         processed[this.config.customDimensions[key]] = value;
       }
       // Check if it's a custom metric
-      else if (this.config.customMetrics[key]) {
+      else if (this.config.customMetrics && this.config.customMetrics[key]) {
         processed[this.config.customMetrics[key]] = value;
       }
       // Standard property
@@ -284,7 +286,7 @@ export class GA4Client extends BaseClient<GA4ClientConfig> {
    * Send data to GA4 Measurement Protocol
    */
   private async send(payload: any): Promise<void> {
-    const endpoint = this.config.debug
+    const endpoint = this.useDebugEndpoint
       ? 'https://www.google-analytics.com/debug/mp/collect'
       : 'https://www.google-analytics.com/mp/collect';
     
@@ -295,44 +297,6 @@ export class GA4Client extends BaseClient<GA4ClientConfig> {
       url.searchParams.append('api_secret', this.config.apiSecret);
     }
     
-    this.debug('Sending GA4 event', { url: url.toString(), payload });
-    
-    try {
-      await this.transport.send(url.toString(), payload);
-      
-      // In debug mode, make a second request to get validation messages
-      if (this.config.debug) {
-        try {
-          const debugResponse = await fetch(url.toString(), {
-            method: 'POST',
-            body: safeStringify(payload),
-          });
-          
-          if (debugResponse.ok) {
-            const result = await debugResponse.json();
-            if (result.validationMessages?.length > 0) {
-              logger.warn('GA4 validation messages:', result.validationMessages);
-            }
-          }
-        } catch (debugError) {
-          // Debug validation is optional, don't fail
-          logger.debug('Could not fetch debug validation', debugError);
-        }
-      }
-      
-      this.debug('GA4 event sent successfully');
-    } catch (error) {
-      const analyticsError = error instanceof AnalyticsError
-        ? error
-        : new AnalyticsError(
-            'Failed to send GA4 event',
-            'NETWORK_ERROR',
-            'ga4',
-            error
-          );
-          
-      this.handleError(analyticsError, 'GA4 event');
-      throw analyticsError;
-    }
+    await this.transport.send(url.toString(), payload);
   }
 }

@@ -1,19 +1,4 @@
-import type { Props } from '../../types';
-
-/**
- * Base configuration for all analytics clients
- */
-export interface BaseClientConfig {
-  /**
-   * Enable debug logging
-   */
-  debug?: boolean;
-  
-  /**
-   * Error callback
-   */
-  onError?: (error: Error) => void;
-}
+import type { PageContext, Props } from '../../types';
 
 /**
  * Common browser data collected by all providers
@@ -51,13 +36,13 @@ export interface BaseAnalyticsClient {
   /**
    * Send an event to the analytics service
    */
-  sendEvent(eventName: string, props?: Props, url?: string): Promise<void>;
-  
+  sendEvent(eventName: string, props?: Props, url?: string, pageContext?: PageContext): Promise<void>;
+
   /**
    * Send a pageview event
    */
-  sendPageview(url?: string, title?: string): Promise<void>;
-  
+  sendPageview(url?: string, pageContext?: PageContext): Promise<void>;
+
   /**
    * Identify a user (if supported)
    */

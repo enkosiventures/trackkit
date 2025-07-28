@@ -3,14 +3,13 @@ import type { AnalyticsOptions, Props } from '../../types';
 import { PlausibleClient } from './client';
 import { validateDomain } from '../shared/validation';
 import { isBrowser } from '../shared/browser';
-import { createNavigationTracker } from '../shared/navigation';
-import { logger } from '../../util/logger';
+import { debugLog, logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';
 
 /**
- * Set up Plausible auto-tracking features
+ * Set up Plausible outbound auto-tracking features
  */
-function setupAutoTracking(client: PlausibleClient): () => void {
+function setupOutboundAutoTracking(client: PlausibleClient): () => void {
   if (!isBrowser()) return () => {};
   
   const cleanupFunctions: Array<() => void> = [];
@@ -23,9 +22,8 @@ function setupAutoTracking(client: PlausibleClient): () => void {
     try {
       const url = new URL(link.href);
       if (url.host !== window.location.host) {
-        client.trackOutboundLink(link.href).catch(error => {
-          logger.error('Failed to track outbound link', error);
-        });
+        // Let errors bubble up
+        client.trackOutboundLink(link.href);
       }
     } catch {
       // Invalid URL, ignore
@@ -48,9 +46,8 @@ function setupAutoTracking(client: PlausibleClient): () => void {
     const extension = link.href.split('.').pop()?.toLowerCase();
     if (extension && downloadExtensions.includes(extension)) {
       const fileName = link.href.split('/').pop() || 'unknown';
-      client.trackFileDownload(fileName).catch(error => {
-        logger.error('Failed to track file download', error);
-      });
+      // Let errors bubble up
+      client.trackFileDownload(fileName);
     }
   };
   
@@ -60,9 +57,8 @@ function setupAutoTracking(client: PlausibleClient): () => void {
   // Track 404 errors
   if (document.title.toLowerCase().includes('404') || 
       document.body.textContent?.toLowerCase().includes('page not found')) {
-    client.track404().catch(error => {
-      logger.error('Failed to track 404', error);
-    });
+    // Let errors bubble up
+    client.track404();
   }
   
   // Return cleanup function
@@ -108,9 +104,7 @@ function create(options: AnalyticsOptions): ProviderInstance {
   });
   
   // Tracking state
-  let navigationTracker: ReturnType<typeof createNavigationTracker> | null = null;
-  let autoTrackingCleanup: (() => void) | null = null;
-  let navigationCallback: ((url: string) => void) | undefined;
+  let autoOutboundTrackingCleanup: (() => void) | null = null;
   
   return {
     name: 'plausible',
@@ -126,51 +120,25 @@ function create(options: AnalyticsOptions): ProviderInstance {
       
       // Setup auto-tracking features
       if (options.autoTrack !== false) {
-        autoTrackingCleanup = setupAutoTracking(client);
-        
-        // Setup navigation tracking
-        if (navigationCallback) {
-          navigationTracker = createNavigationTracker((url) => {
-            client.updateBrowserData();
-            navigationCallback!(url);
-          });
-        }
-      }
-    },
-    
-    /**
-     * Set navigation callback from facade
-     */
-    _setNavigationCallback(callback: (url: string) => void) {
-      navigationCallback = callback;
-      
-      // If already initialized and auto-tracking is enabled, start tracking
-      if (options.autoTrack !== false && !navigationTracker) {
-        navigationTracker = createNavigationTracker((url) => {
-          client.updateBrowserData();
-          callback(url);
-        });
+        autoOutboundTrackingCleanup = setupOutboundAutoTracking(client);
       }
     },
     
     /**
      * Track custom event
      */
-    track(name: string, props?: Props, url?: string) {
-      client.sendEvent(name, props, url).catch(error => {
-        logger.error('Failed to track Plausible event', error);
-        options.onError?.(error);
-      });
+    async track(name: string, props?: Props, url?: string) {
+      debugLog('starting tracking event')
+      // Let errors bubble up to facade
+      await client.sendEvent(name, props, url);
     },
     
     /**
      * Track pageview
      */
-    pageview(url?: string) {
-      client.sendPageview(url).catch(error => {
-        logger.error('Failed to track Plausible pageview', error);
-        options.onError?.(error);
-      });
+    async pageview(url?: string) {
+      // Let errors bubble up to facade
+      await client.sendPageview(url);
     },
     
     /**
@@ -185,10 +153,8 @@ function create(options: AnalyticsOptions): ProviderInstance {
      */
     destroy() {
       logger.debug('Destroying Plausible provider');
-      navigationTracker?.stop();
-      navigationTracker = null;
-      autoTrackingCleanup?.();
-      autoTrackingCleanup = null;
+      autoOutboundTrackingCleanup?.();
+      autoOutboundTrackingCleanup = null;
       client.destroy();
     },
   };

@@ -71,9 +71,7 @@ defaultHandler = function defaultErrorHandler(err: AnalyticsError) {
 };
 
 export function setUserErrorHandler(fn?: ErrorHandler | null) {
-  console.warn("[DEBUG] Setting default handler");
   userHandler = fn ?? defaultHandler;
-  console.warn("[DEBUG] Default handler set");
 }
 
 export function normalizeError(e: unknown, fallbackCode: ErrorCode = 'UNKNOWN', provider?: ProviderType): AnalyticsError {
@@ -104,7 +102,7 @@ export function dispatchError(e: unknown, code: ErrorCode = 'UNKNOWN', provider?
   }
 
   // Always call default handler as safety net if the user didn’t provide one
-  if (userHandler === defaultHandler) {
+  if (!userHandler) {
     defaultHandler(err);
   }
 }

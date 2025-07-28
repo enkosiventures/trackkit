@@ -2,6 +2,11 @@ import { ConsentOptions } from './consent/types';
 import type { AnalyticsError } from './errors';
 
 /**
+ * Event types
+ */
+export type EventType = 'track' | 'pageview' | 'identify';
+
+/**
  * Event properties - can be any JSON-serializable data
  */
 export type Props = Record<string, unknown>;
@@ -10,6 +15,57 @@ export type Props = Record<string, unknown>;
  * Analytics provider types
  */
 export type ProviderType = 'noop' | 'umami' | 'plausible' | 'ga';
+
+// navigation source DI
+export interface NavigationSource {
+  /** Subscribe to normalized URL changes (pathname + search + hash). */
+  subscribe(cb: (url: string) => void): () => void;
+}
+
+/** 
+ * Page-level context computed by the facade at send-time. */
+export interface PageContext {
+  /** Normalized, masked URL to report (pathname+search+hash). */
+  url: string;
+
+  /** Current document title (optional). */
+  title?: string;
+
+  /**
+   * Referrer to report:
+   * - first pageview: document.referrer (external only, after your policy)
+   * - SPA navigations: previous same-origin URL, or '' if none/app policy strips
+   */
+  referrer?: string;
+
+  /** Viewport size in CSS pixels at send-time. */
+  viewportSize?: { width: number; height: number };
+
+  /** Screen size in CSS pixels at send-time. */
+  screenSize?: { width: number; height: number };
+
+  /**
+   * Language of the browser at send-time.
+   * Useful for providers that support localization.
+   */
+  language?: string;
+
+  /**
+   * When the facade created this context (ms since epoch).
+   * Helps providers that batch or order events.
+   */
+  timestamp?: number;
+
+  /**
+   * Optional bag for future, strictly provider-agnostic additions (e.g., language).
+   * Avoid PII; keep this small to preserve a stable ABI.
+   */
+  meta?: Readonly<Record<string, unknown>>;
+}
+
+/** Optional context for custom events; identical today for simplicity. */
+export type EventContext = PageContext;
+
 
 /**
  * Configuration options for analytics initialization
@@ -93,6 +149,26 @@ export interface AnalyticsOptions {
   apiSecret?: string;
 
   /**
+   * Session timeout in minutes
+   * @default 30
+   */
+  sessionTimeout?: number;
+  
+  /**
+   * Custom dimensions mapping
+   * Maps friendly names to GA4 dimension names
+   * @example { plan_type: 'custom_dimension_1' }
+   */
+  customDimensions?: Record<string, string>;
+  
+  /**
+   * Custom metrics mapping
+   * Maps friendly names to GA4 metric names
+   * @example { engagement_score: 'custom_metric_1' }
+   */
+  customMetrics?: Record<string, string>;
+
+  /**
    * Transport mechanism for sending events
    * @default 'beacon'
    */
@@ -150,14 +226,16 @@ export interface AnalyticsInstance {
    * @param props - Optional event properties
    * @param url - Optional URL override
    * @param category - Optional event category for grouping
+   * @param ctx - Optional page context for the event
    */
-  track(name: string, props?: Props, url?: string, category?: string ): void;
-  
+  track(name: string, props?: Props, url?: string, category?: string, pageContext?: PageContext): void;
+
   /**
    * Track a page view
    * @param url - Optional URL override (defaults to current page)
+   * @param pageContext - Optional page context for the event
    */
-  pageview(url?: string): void;
+  pageview(url?: string, pageContext?: PageContext): void;
   
   /**
    * Identify the current user

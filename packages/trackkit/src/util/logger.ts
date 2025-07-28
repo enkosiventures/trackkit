@@ -67,3 +67,8 @@ export let logger: Logger = createLogger(false);
 export function setGlobalLogger(newLogger: Logger): void {
   logger = newLogger;
 }
+
+// Development debug logger
+export function debugLog(message: string, ...args: unknown[]) {
+  console.warn(`[DEBUG] ${message}`, ...args);
+}

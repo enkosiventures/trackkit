@@ -43,13 +43,23 @@ export interface PlausibleConfig {
   defaultProps?: Record<string, string>;
   
   /**
-   * Revenue tracking currency
-   * @default 'USD'
+   * Revenue tracking configuration
    */
   revenue?: {
     currency: string;
     trackingEnabled: boolean;
   };
+  
+  /**
+   * Error callback for async operations
+   * The facade passes its error handler here
+   */
+  onError?: (error: Error) => void;
+}
+
+export interface Revenue {
+  amount: number,
+  currency: string,
 }
 
 /**
@@ -57,18 +67,19 @@ export interface PlausibleConfig {
  */
 export interface PlausibleEvent {
   // Required fields
-  n: string;    // Event name
-  u: string;    // URL
-  d: string;    // Domain
-  r: string;    // Referrer
-  w: number;    // Screen width
-  h?: number;   // Hash mode
-  
+  name: string;    // Event name
+  url: string;    // URL
+  domain: string;    // Domain
+  referrer: string;    // Referrer
+
   // Optional fields
-  m?: Record<string, string | number>; // Meta/props
-  p?: string;    // Custom properties (legacy)
-  $?: number;    // Revenue amount (cents)
-  $$?: string;   // Revenue currency
+  revenue?: Revenue;    // Revenue amount (cents)
+  props?: Record<string, string | number>; // Meta/props
+  hashMode?: number;   // Hash mode
+
+  // Are these still valid?
+  w?: number;    // Screen width
+  // p?: string;    // Custom properties (legacy)
 }
 
 /**

@@ -1,12 +1,12 @@
-import type { ProviderFactory } from './types';
-import type { AnalyticsInstance, AnalyticsOptions, Props } from '../types';
+import { AnalyticsOptions, Props } from '../types';
 import { logger } from '../util/logger';
+import { ProviderFactory, ProviderInstance } from './types';
 
 /**
  * Create a no-op analytics instance
  * Used as default provider and fallback for errors
  */
-function create(options: AnalyticsOptions): AnalyticsInstance {
+function create(options: AnalyticsOptions): ProviderInstance {
   logger.debug('Creating no-op provider instance', options);
 
   /**
@@ -20,6 +20,7 @@ function create(options: AnalyticsOptions): AnalyticsInstance {
   
   return {
     name: 'noop',
+    
     track(name: string, props?: Props, url?: string): void {
       log('track', { name, props, url });
     },
@@ -38,11 +39,12 @@ function create(options: AnalyticsOptions): AnalyticsInstance {
   };
 }
 
-const factory: ProviderFactory = {
+const noopProvider: ProviderFactory = {
   create,
   meta: {
     name: 'noop',
     version: '1.0.0',
   },
 };
-export default factory;
+
+export default noopProvider;

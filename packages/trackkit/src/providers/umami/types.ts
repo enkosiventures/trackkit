@@ -35,6 +35,12 @@ export interface UmamiConfig {
    * @default false
    */
   cache?: boolean;
+  
+  /**
+   * Error callback for async operations
+   * The facade passes its error handler here
+   */
+  onError?: (error: Error) => void;
 }
 
 /**

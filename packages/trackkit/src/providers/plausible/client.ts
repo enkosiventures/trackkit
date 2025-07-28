@@ -1,5 +1,5 @@
 import type { PlausibleConfig, PlausibleEvent } from './types';
-import type { Props } from '../../types';
+import type { PageContext, Props } from '../../types';
 import { BaseClient } from '../shared/base-client';
 import { 
   getPageUrl,
@@ -7,10 +7,10 @@ import {
   isLocalhost,
 } from '../shared/browser';
 import { logger } from '../../util/logger';
-import { AnalyticsError } from '../../errors';
 
 /**
  * Plausible-specific client implementation
+ * The facade handles consent, error management, and debug logging
  */
 export class PlausibleClient extends BaseClient<Required<PlausibleConfig>> {
   private lastPageview?: string;
@@ -29,6 +29,7 @@ export class PlausibleClient extends BaseClient<Required<PlausibleConfig>> {
         trackingEnabled: false,
         ...config.revenue,
       },
+      onError: config.onError ?? ((error) => { logger.error(error)}),
     };
     
     super(fullConfig, false); // Don't allow tracking when page is hidden
@@ -44,7 +45,7 @@ export class PlausibleClient extends BaseClient<Required<PlausibleConfig>> {
     
     // Additional Plausible-specific checks
     if (!this.shouldTrackPlausible(pageUrl)) return;
-    
+
     // Build Plausible event payload
     const payload = this.buildPayload(name, pageUrl, props);
     
@@ -59,7 +60,6 @@ export class PlausibleClient extends BaseClient<Required<PlausibleConfig>> {
     
     // Deduplicate repeated pageviews
     if (pageUrl === this.lastPageview) {
-      this.debug('Plausible: Duplicate pageview ignored', { url: pageUrl });
       return;
     }
     
@@ -87,13 +87,11 @@ export class PlausibleClient extends BaseClient<Required<PlausibleConfig>> {
   private shouldTrackPlausible(url: string): boolean {
     // Check localhost
     if (!this.config.trackLocalhost && isLocalhost()) {
-      this.debug('Plausible: localhost tracking disabled');
       return false;
     }
     
     // Check exclusions
     if (isUrlExcluded(url, this.config.exclude)) {
-      this.debug('Plausible: URL excluded from tracking', { url });
       return false;
     }
     
@@ -106,30 +104,33 @@ export class PlausibleClient extends BaseClient<Required<PlausibleConfig>> {
   private buildPayload(
     eventName: string,
     url: string,
-    props?: Props
+    props?: Props,
+    pageContext?: PageContext,
   ): PlausibleEvent {
     const payload: PlausibleEvent = {
-      n: eventName,
-      u: url,
-      d: this.config.domain,
-      r: this.browserData.referrer,
-      w: this.browserData.viewport.width,
+      name: eventName,
+      url,
+      domain: this.config.domain,
+      referrer: pageContext?.referrer || '',
     };
     
     if (this.config.hashMode) {
-      payload.h = 1;
+      payload.hashMode = 1;
     }
     
     // Process props
     const processedProps = this.processProps(props);
     if (processedProps && Object.keys(processedProps).length > 0) {
-      payload.m = processedProps;
+      payload.props = processedProps;
     }
     
     // Handle revenue tracking
     if (props?.revenue && this.config.revenue.trackingEnabled) {
-      payload.$ = Math.round(Number(props.revenue) * 100); // Convert to cents
-      payload.$$ = String(props.currency || this.config.revenue.currency);
+      payload.revenue = {
+        amount: Math.round(Number(props.revenue) * 100), // Convert to cents
+        currency: String(props.currency || this.config.revenue.currency),
+      }
+      
     }
     
     return payload;
@@ -160,30 +161,12 @@ export class PlausibleClient extends BaseClient<Required<PlausibleConfig>> {
   private async send(payload: PlausibleEvent): Promise<void> {
     const url = `${this.config.apiHost}${this.config.eventEndpoint}`;
     
-    this.debug('Sending Plausible event', { url, payload });
-    
-    try {
-      await this.transport.send(url, payload, {
-        method: 'POST',
-        headers: {
-          'X-Forwarded-For': '127.0.0.1', // Required by Plausible
-        },
-      });
-      
-      this.debug('Plausible event sent successfully');
-    } catch (error) {
-      const analyticsError = error instanceof AnalyticsError
-        ? error
-        : new AnalyticsError(
-            'Failed to send Plausible event',
-            'NETWORK_ERROR',
-            'plausible',
-            error
-          );
-          
-      this.handleError(analyticsError, 'Plausible event');
-      throw analyticsError;
-    }
+    await this.transport.send(url, payload, {
+      method: 'POST',
+      headers: {
+        'X-Forwarded-For': '127.0.0.1', // Required by Plausible
+      },
+    });
   }
   
   /**

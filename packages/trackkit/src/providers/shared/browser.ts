@@ -1,4 +1,6 @@
-import type { BrowserData } from './types';
+// import type { BrowserData } from './types';
+
+import { PageContext } from "../../types";
 
 /**
  * Check if code is running in a browser environment
@@ -12,31 +14,49 @@ export function isBrowser(): boolean {
 /**
  * Get current browser data
  */
-export function getBrowserData(): BrowserData {
-  if (!isBrowser()) {
-    return {
-      url: '',
-      referrer: '',
-      title: '',
-      viewport: { width: 0, height: 0 },
-      screen: { width: 0, height: 0 },
-      language: '',
-    };
-  }
+// export function getBrowserData(): BrowserData {
+//   if (!isBrowser()) {
+//     return {
+//       url: '',
+//       referrer: '',
+//       title: '',
+//       viewport: { width: 0, height: 0 },
+//       screen: { width: 0, height: 0 },
+//       language: '',
+//     };
+//   }
   
+//   return {
+//     url: window.location.pathname + window.location.search,
+//     referrer: document.referrer || '',
+//     title: document.title || '',
+//     viewport: {
+//       width: window.innerWidth || 0,
+//       height: window.innerHeight || 0,
+//     },
+//     screen: {
+//       width: window.screen?.width || 0,
+//       height: window.screen?.height || 0,
+//     },
+//     language: navigator.language || 'en',
+//   };
+// }
+
+export function getDocumentTitle(): string { return document.title || ''; }
+export function getInitialReferrer(): string { return document.referrer || ''; }
+export function getViewportSize(): { width: number; height: number } { return { width: window.innerWidth || 0, height: window.innerHeight || 0 }; }
+export function getScreenSize(): { width: number; height: number } { return { width: window.screen?.width || 0, height: window.screen?.height || 0 }; }
+export function getLanguage(): string { return navigator.language || 'en'; }
+
+export function getPageContext(): PageContext {
   return {
-    url: window.location.pathname + window.location.search,
-    referrer: document.referrer || '',
-    title: document.title || '',
-    viewport: {
-      width: window.innerWidth || 0,
-      height: window.innerHeight || 0,
-    },
-    screen: {
-      width: window.screen?.width || 0,
-      height: window.screen?.height || 0,
-    },
-    language: navigator.language || 'en',
+    url: getPageUrl(),
+    title: getDocumentTitle(),
+    referrer: getInitialReferrer(),
+    viewportSize: getViewportSize(),
+    screenSize: getScreenSize(),
+    language: getLanguage(),
+    timestamp: Date.now(),
   };
 }
 

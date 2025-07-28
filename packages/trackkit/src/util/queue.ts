@@ -1,10 +1,7 @@
-import type { Props } from '../types';
+import type { EventType, PageContext, Props } from '../types';
 import { logger } from './logger';
 
-/**
- * Queued event types
- */
-export type EventType = 'track' | 'pageview' | 'identify';
+
 
 /**
  * Queued event structure
@@ -14,6 +11,7 @@ export interface QueuedEvent {
   type: EventType;
   timestamp: number;
   args: unknown[];
+  pageContext: PageContext;
 }
 
 /**
@@ -83,7 +81,8 @@ export class EventQueue {
    */
   enqueue<T extends QueuedEventUnion['type']>(
     type: T,
-    args: Extract<QueuedEventUnion, { type: T }>['args']
+    args: Extract<QueuedEventUnion, { type: T }>['args'],
+    pageContext: PageContext
   ): string | undefined {
     if (this.isPaused) {
       logger.debug('Queue is paused, dropping event', { type });
@@ -95,6 +94,7 @@ export class EventQueue {
       type,
       timestamp: Date.now(),
       args,
+      pageContext,
     };
     
     // Check for overflow

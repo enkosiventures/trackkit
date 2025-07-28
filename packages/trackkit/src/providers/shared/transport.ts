@@ -1,7 +1,7 @@
 import type { TransportOptions } from './types';
 import { isBrowser, safeStringify } from './browser';
-import { logger } from '../../util/logger';
-import { AnalyticsError } from '../../errors';
+import { debugLog, logger } from '../../util/logger';
+import { AnalyticsError, dispatchError } from '../../errors';
 
 /**
  * Transport methods available
@@ -41,11 +41,13 @@ export class Transport {
       keepalive = true,
     } = options;
     
-    logger.debug('Transport.send', { url, method: this.method, data });
+    debugLog('Transport.send', { url, method: this.method, data });
     
     try {
       switch (this.method) {
         case 'beacon':
+          debugLog('Transport sending with beacon');
+          logger.info('Transport sending with beacon');
           // @ts-expect-error
           if (method === 'POST' && navigator.sendBeacon) {
             const success = await this.sendBeacon(url, data, headers);
@@ -56,10 +58,14 @@ export class Transport {
           break;
           
         case 'fetch':
+          debugLog('Transport sending with fetch');
+          logger.info('Transport sending with fetch');
           await this.sendFetch(url, data, { ...options, keepalive });
           break;
           
         case 'xhr':
+          debugLog('Transport sending with xhr');
+          logger.info('Transport sending with xhr');
           await this.sendXHR(url, data, options);
           break;
           

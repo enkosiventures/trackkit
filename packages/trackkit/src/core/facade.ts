@@ -1,12 +1,14 @@
-import type { AnalyticsInstance, AnalyticsOptions, Props } from '../types';
+import type { AnalyticsInstance, AnalyticsOptions, EventType, PageContext, Props } from '../types';
 import { dispatchError, AnalyticsError, setUserErrorHandler } from '../errors';
-import { logger } from '../util/logger';
+import { debugLog, logger } from '../util/logger';
 import { EventQueue, QueuedEventUnion } from '../util/queue';
 import { validateConfig, mergeConfig, getConsentConfig } from './config';
 import { loadProviderAsync } from './initialization';
 import { isSSR, hydrateSSRQueue, getSSRQueue, getSSRQueueLength } from '../util/ssr-queue';
 import { ConsentManager } from '../consent/ConsentManager';
 import type { StatefulProvider } from '../providers/stateful-wrapper';
+import { ensureNavigationSandbox } from '../providers/shared/navigationSandbox';
+import { getPageContext } from '../providers/shared/browser';
 
 
 /**
@@ -22,6 +24,8 @@ export class AnalyticsFacade implements AnalyticsInstance {
   private consent: ConsentManager | null = null;
   private config: AnalyticsOptions | null = null;
   private initPromise: Promise<void> | null = null;
+  private navUnsub: (() => void) | null = null;
+  private lastPageviewUrl: string | null = null;
   
   // Tracking state
   private initialPageviewSent = false;
@@ -42,7 +46,6 @@ export class AnalyticsFacade implements AnalyticsInstance {
   // ================ Public API ================
   
   init(options: AnalyticsOptions = {}): this {
-    console.warn("[DEBUG] Initializing facade");
     if (this.provider || this.initPromise) {
       logger.warn('Analytics already initialized');
 
@@ -55,26 +58,21 @@ export class AnalyticsFacade implements AnalyticsInstance {
     }
     
     try {
-      console.warn("[DEBUG] Beginning config init")
       const config = mergeConfig(options);
-      console.warn("[DEBUG] raw config", config);
 
       this.config = config;
       setUserErrorHandler(config.onError);
 
       validateConfig(config);
-      console.warn("[DEBUG] config validated")
 
       // Update queue with final config
       this.reconfigureQueue(config);
 
       // Create consent manager synchronously
-      console.warn("[DEBUG] creating consent manager")
       const consentConfig = getConsentConfig(config);
       this.consent = new ConsentManager(consentConfig);
 
       // Start async initialization
-      console.warn("[DEBUG] Config:", config);
       this.initPromise = this.initializeAsync(config)
         .catch(async (error) => {
           // Handle init failure by falling back to noop
@@ -102,6 +100,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
   }
 
   track(name: string, props?: Props, url?: string): void {
+    debugLog('Facade track called', name);
     this.execute('track', [name, props, url]);
   }
   
@@ -139,9 +138,11 @@ export class AnalyticsFacade implements AnalyticsInstance {
     
     // Clear queues
     this.clearAllQueues();
+
+    // Stop auto-tracking
+    this.stopAutotrack();
     
     logger.info('Analytics destroyed');
-    console.warn('[DEBUG] Analytics destroyed');
   }
   
   async waitForReady(): Promise<StatefulProvider> {
@@ -221,6 +222,9 @@ export class AnalyticsFacade implements AnalyticsInstance {
         this.flushAllQueues();
         this.sendInitialPageview();
       }
+
+      // Start auto-tracking if enabled
+      this.maybeStartAutotrack();
     });
     
     // Navigation callback for SPA tracking
@@ -259,23 +263,30 @@ export class AnalyticsFacade implements AnalyticsInstance {
 
   // ================ Queue Management ================
   
-  private execute(type: keyof AnalyticsInstance, args: unknown[]): void {
+  private execute(type: EventType, args: unknown[]): void {
+    debugLog('Executing:', type, args);
+
+    const pageContext = getPageContext();
+
     // SSR: always queue
     if (isSSR()) {
+      debugLog('execute failed as isSSR, queuing');
       getSSRQueue().push({
         id: `ssr_${Date.now()}_${Math.random()}`,
-        type: type as any,
+        type,
         timestamp: Date.now(),
         args,
+        pageContext,
       } as QueuedEventUnion);
       return;
     }
     
     // Check if we can send immediately
-    if (this.provider && this.canSend(type)) {
+    if (this.provider && this.canSend()) {
+      debugLog('provider and can send', this.provider, this.canSend());
       try {
         // @ts-expect-error - dynamic dispatch
-        this.provider[type](...args);
+        this.provider[type](...args, pageContext);
       } catch (error) {
         dispatchError(new AnalyticsError(
           `Error executing ${type}`,
@@ -291,6 +302,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
     const consentStatus = this.consent?.getStatus();
     
     if (consentStatus === 'denied') {
+      debugLog('consent denied, dropping event');
       // Drop events when explicitly denied
       this.consent?.incrementDroppedDenied();
       logger.debug(`Event dropped due to consent denial: ${type}`, { args });
@@ -298,8 +310,13 @@ export class AnalyticsFacade implements AnalyticsInstance {
     }
     
     // Queue while pending or provider not ready
-    const eventId = this.queue.enqueue(type as any, args as any);
-    
+    debugLog('Enqueuing')
+    const eventId = this.queue.enqueue(
+      type,
+      args as any,
+      pageContext,
+    );
+
     if (eventId) {
       this.consent?.incrementQueued();
       logger.debug(`Event queued: ${type}`, { 
@@ -315,7 +332,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
     }
   }
   
-  private canSend(type: keyof AnalyticsInstance): boolean {
+  private canSend(): boolean {
     // No consent manager = allow all
     if (!this.consent) return true;
     
@@ -443,6 +460,57 @@ export class AnalyticsFacade implements AnalyticsInstance {
     
     // This goes through the provider directly since we already checked consent
     this.provider.pageview(url);
+  }
+
+  // ================ Navigation Handling ================
+
+  private maybeStartAutotrack() {
+    if (!this.config?.autoTrack) return;
+    if (this.navUnsub) return; // idempotent
+
+    const { isDomainAllowed, isUrlExcluded, getPageUrl } = require('../providers/shared/browser');
+    const sandbox = ensureNavigationSandbox(window);
+
+    const dispatch = (url: string) => {
+      // consent gate
+      if (this.consent && !this.consent.isGranted()) {
+
+        const consentStatus = this.consent?.getStatus();
+      
+        if (consentStatus === 'denied') {
+          logger.debug(`Url dropped due to consent denial: ${url}`);
+        } else {
+          // optionally buffer until grant
+          // this.consent.onChange((status, prevStatus) => dispatch(url));
+        }
+        return;
+      }
+      // environment checks
+      if (!isDomainAllowed(this.config?.domains)) return;
+      if (isUrlExcluded(url, this.config?.exclude)) return;
+
+      if (this.lastPageviewUrl === url) return; // dedupe
+      this.lastPageviewUrl = url;
+
+      this.provider?.pageview?.(url);
+    };
+
+    // initial pageview
+    if (!this.initialPageviewSent) {
+      const first = getPageUrl();
+      dispatch(first);
+      this.initialPageviewSent = true;
+    }
+
+    // subscribe to SPA navigations
+    this.navUnsub = sandbox.subscribe(dispatch);
+  }
+
+  private stopAutotrack() {
+    this.navUnsub?.();
+    this.navUnsub = null;
+    this.lastPageviewUrl = null;
+    this.initialPageviewSent = false;
   }
 
   // ================ Error Handling ================

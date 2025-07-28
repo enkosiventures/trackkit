@@ -9,7 +9,6 @@ export * from './types';
 // Browser utilities
 export {
   isBrowser,
-  getBrowserData,
   getPageUrl,
   getPathname,
   isDoNotTrackEnabled,
@@ -20,12 +19,6 @@ export {
   getScreenResolution,
   safeStringify,
 } from './browser';
-
-// Navigation tracking
-export {
-  NavigationTracker,
-  createNavigationTracker,
-} from './navigation';
 
 // Transport layer
 export {
@@ -47,3 +40,22 @@ export {
   validateNumber,
   createValidationError,
 } from './validation';
+
+// Storage utilities  
+export {
+  Storage,
+  createStorage,
+  tempStorage,
+  persistentStorage,
+  type StorageOptions,
+} from './storage';
+
+// Batching utilities
+export {
+  EventBatcher,
+  RateLimiter,
+  debounce,
+  throttle,
+  type BatchEvent,
+  type BatchConfig,
+} from './batching';

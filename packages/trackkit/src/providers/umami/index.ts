@@ -1,9 +1,8 @@
 import type { ProviderFactory, ProviderInstance } from '../types';
 import type { AnalyticsOptions, Props } from '../../types';
 import { UmamiClient } from './client';
-import { validateUUID, createValidationError } from '../shared/validation';
+import { validateUUID } from '../shared/validation';
 import { isBrowser } from '../shared/browser';
-import { createNavigationTracker } from '../shared/navigation';
 import { logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';
 
@@ -69,10 +68,6 @@ function create(options: AnalyticsOptions): ProviderInstance {
     cache: options.cache ?? false,
   });
   
-  // Navigation tracking
-  let navigationTracker: ReturnType<typeof createNavigationTracker> | null = null;
-  let navigationCallback: ((url: string) => void) | undefined;
-  
   return {
     name: 'umami',
     
@@ -85,52 +80,27 @@ function create(options: AnalyticsOptions): ProviderInstance {
         hostUrl: options.host || 'https://cloud.umami.is',
         autoTrack: options.autoTrack ?? true,
       });
-      
-      // Setup automatic pageview tracking
-      if (options.autoTrack !== false && navigationCallback) {
-        navigationTracker = createNavigationTracker((url) => {
-          client.updateBrowserData();
-          navigationCallback!(url);
-        });
-      }
-    },
-    
-    /**
-     * Set navigation callback from facade
-     */
-    _setNavigationCallback(callback: (url: string) => void) {
-      navigationCallback = callback;
-      
-      // If already initialized and auto-tracking is enabled, start tracking
-      if (options.autoTrack !== false && !navigationTracker) {
-        navigationTracker = createNavigationTracker((url) => {
-          client.updateBrowserData();
-          callback(url);
-        });
-      }
     },
     
     /**
      * Track custom event
      */
-    track(name: string, props?: Props, url?: string) {
-      client.sendEvent(name, props, url).catch(error => {
-        logger.error('Failed to track Umami event', error);
-        options.onError?.(error);
-      });
+    async track(name: string, props?: Props, url?: string) {
+      // Async errors will be caught by facade
+      // client.sendEvent(name, props, url).catch(error => {
+      //   throw error; // Re-throw for facade to catch
+      // });
+      // Let errors bubble up naturally
+      await client.sendEvent(name, props, url);
     },
     
     /**
      * Track pageview
      */
-    pageview(url?: string) {
-      client.updateBrowserData();
-      client.sendPageview(url).catch(error => {
-        logger.error('Failed to track Umami pageview', error);
-        options.onError?.(error);
-      });
+    async pageview(url?: string) {
+      await client.sendPageview(url);
     },
-    
+
     /**
      * Identify user (not supported by Umami)
      */
@@ -143,8 +113,6 @@ function create(options: AnalyticsOptions): ProviderInstance {
      */
     destroy() {
       logger.debug('Destroying Umami provider');
-      navigationTracker?.stop();
-      navigationTracker = null;
       client.destroy();
     },
   };

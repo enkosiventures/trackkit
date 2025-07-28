@@ -1,5 +1,3 @@
-import type { BaseClientConfig } from '../shared/types';
-
 /**
  * GA4 configuration options
  */
@@ -9,12 +7,6 @@ export interface GA4Config {
    * @example 'G-XXXXXXXXXX'
    */
   measurementId: string;
-  
-  /**
-   * Send events to debug endpoint
-   * @default false
-   */
-  debug?: boolean;
   
   /**
    * Custom API secret for Measurement Protocol
@@ -49,16 +41,18 @@ export interface GA4Config {
   transport?: 'beacon' | 'xhr' | 'fetch';
   
   /**
-   * Error callback
+   * Error callback for async operations
+   * The facade passes its error handler here
    */
   onError?: (error: Error) => void;
 }
 
 /**
  * Internal GA4 client configuration
+ * Merges GA4Config with required fields
  */
-export interface GA4ClientConfig extends BaseClientConfig, Required<Omit<GA4Config, 'onError'>> {
-  // Inherits debug and onError from BaseClientConfig
+export interface GA4ClientConfig extends Required<GA4Config> {
+  // All fields from GA4Config are required
 }
 
 /**

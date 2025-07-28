@@ -31,8 +31,7 @@ export async function loadProvider(
   options: AnalyticsOptions,
   // onReady?: (provider?: StatefulProvider) => void,
 ): Promise<StatefulProvider> {
-  console.warn(`[DEBUG] Loading provider: ${name}`);
-  // logger.debug(`Loading provider: ${name}`);
+  logger.debug(`Loading provider: ${name}`);
   
   const loader = providerRegistry.get(name);
   

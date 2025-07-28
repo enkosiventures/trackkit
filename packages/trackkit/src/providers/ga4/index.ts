@@ -1,15 +1,32 @@
 import type { ProviderFactory, ProviderInstance } from '../types';
-import type { AnalyticsOptions, Props } from '../../types';
+import type { AnalyticsOptions, PageContext, Props } from '../../types';
 import { GA4Client } from './client';
 import { validateGA4MeasurementId } from '../shared/validation';
-import { createNavigationTracker } from '../shared/navigation';
 import { logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';
+
+/**
+ * GA4-specific options that extend AnalyticsOptions
+ */
+interface GA4AnalyticsOptions extends AnalyticsOptions {
+  /**
+   * Custom dimensions mapping
+   */
+  customDimensions?: Record<string, string>;
+  
+  /**
+   * Custom metrics mapping
+   */
+  customMetrics?: Record<string, string>;
+}
 
 /**
  * Create GA4 provider instance
  */
 function create(options: AnalyticsOptions): ProviderInstance {
+  // Cast to GA4-specific options
+  const ga4Options = options as GA4AnalyticsOptions;
+  
   // Validate measurement ID
   const measurementIdValidation = validateGA4MeasurementId(options.siteId || '');
   
@@ -23,20 +40,14 @@ function create(options: AnalyticsOptions): ProviderInstance {
   
   const measurementId = measurementIdValidation.parsed!;
   
-  // Create client
+  // Create client (pass debug flag from facade for debug endpoint)
   const client = new GA4Client({
     measurementId,
-    debug: options.debug,
     apiSecret: options.apiSecret,
     transport: options.transport as any,
-    customDimensions: options.customDimensions,
-    customMetrics: options.customMetrics,
-    onError: options.onError,
-  });
-  
-  // Navigation tracking
-  let navigationTracker: ReturnType<typeof createNavigationTracker> | null = null;
-  let navigationCallback: ((url: string) => void) | undefined;
+    customDimensions: ga4Options.customDimensions || {},
+    customMetrics: ga4Options.customMetrics || {},
+  }, options.debug); // Use debug endpoint if facade is in debug mode
   
   return {
     name: 'ga4',
@@ -47,55 +58,27 @@ function create(options: AnalyticsOptions): ProviderInstance {
     async _init() {
       logger.info('Initializing GA4 provider', {
         measurementId,
-        debug: options.debug,
         transport: options.transport || 'beacon',
       });
-      
-      // Setup navigation tracking
-      if (options.autoTrack !== false && navigationCallback) {
-        navigationTracker = createNavigationTracker((url) => {
-          client.updateBrowserData();
-          navigationCallback!(url);
-        });
-      }
-    },
-    
-    /**
-     * Set navigation callback from facade
-     */
-    _setNavigationCallback(callback: (url: string) => void) {
-      navigationCallback = callback;
-      
-      // If already initialized and auto-tracking is enabled, start tracking
-      if (options.autoTrack !== false && !navigationTracker) {
-        navigationTracker = createNavigationTracker((url) => {
-          client.updateBrowserData();
-          callback(url);
-        });
-      }
     },
     
     /**
      * Track custom event
      */
-    track(name: string, props?: Props, url?: string) {
+    async track(name: string, props?: Props, url?: string, category?: string, pageContext?: PageContext) {
       // Map common trackkit events to GA4 events
       const mappedProps = mapTrackitPropsToGA4(name, props);
-      
-      client.sendEvent(name, mappedProps, url).catch(error => {
-        logger.error('Failed to send GA4 event', error);
-        options.onError?.(error);
-      });
+
+      // Let errors bubble up to facade
+      await client.sendEvent(name, mappedProps, url, pageContext);
     },
     
     /**
      * Track pageview
      */
-    pageview(url?: string) {
-      client.sendPageview(url).catch(error => {
-        logger.error('Failed to send GA4 pageview', error);
-        options.onError?.(error);
-      });
+    async pageview(url?: string, pageContext?: PageContext) {
+      // Let errors bubble up to facade
+      await client.sendPageview(url, pageContext);
     },
     
     /**
@@ -110,8 +93,6 @@ function create(options: AnalyticsOptions): ProviderInstance {
      */
     destroy() {
       logger.debug('Destroying GA4 provider');
-      navigationTracker?.stop();
-      navigationTracker = null;
       client.destroy();
     },
   };
@@ -161,9 +142,6 @@ const ga4Provider: ProviderFactory = {
   meta: {
     name: 'ga4',
     version: '2.0.0',
-    consentDefaults: {
-      requireExplicit: true, // GA4 requires explicit consent by default
-    },
   },
 };
 
