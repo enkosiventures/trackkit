@@ -226,7 +226,7 @@ export interface AnalyticsInstance {
    * @param props - Optional event properties
    * @param url - Optional URL override
    * @param category - Optional event category for grouping
-   * @param ctx - Optional page context for the event
+   * @param pageContext - Optional page context for the event
    */
   track(name: string, props?: Props, url?: string, category?: string, pageContext?: PageContext): void;
 

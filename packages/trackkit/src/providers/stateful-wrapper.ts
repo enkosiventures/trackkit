@@ -1,7 +1,7 @@
 import type { AnalyticsInstance, AnalyticsOptions } from '../types';
 import type { ProviderInstance } from './types';
 import { StateMachine } from '../util/state';
-import { logger } from '../util/logger';
+import { debugLog, logger } from '../util/logger';
 import { AnalyticsError } from '../errors';
 
 /**
@@ -69,7 +69,9 @@ export class StatefulProvider implements AnalyticsInstance {
    * Initialize the provider
    */
   async init(): Promise<void> {
+    debugLog(`[STATEFUL] Initializing provider: ${this.provider.name}`);
     if (this.state.getState() !== 'idle') {
+      debugLog(`[STATEFUL] Provider already initialized: ${this.provider.name}`);
       logger.warn('Provider already initialized');
       return;
     }
@@ -79,9 +81,11 @@ export class StatefulProvider implements AnalyticsInstance {
     try {
       // Call provider's init if it exists
       if (this.provider._init) {
+        debugLog(`[STATEFUL] Calling provider _init for: ${this.provider.name}`);
         await this.provider._init();
       }
       
+      debugLog(`[STATEFUL] Provider initialized: ${this.provider.name}`);
       this.state.transition('READY');
     } catch (error) {
       this.state.transition('ERROR');

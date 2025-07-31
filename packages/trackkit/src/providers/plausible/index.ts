@@ -5,6 +5,7 @@ import { validateDomain } from '../shared/validation';
 import { isBrowser } from '../shared/browser';
 import { debugLog, logger } from '../../util/logger';
 import { AnalyticsError } from '../../errors';
+import { PageContext } from '../../types';
 
 /**
  * Set up Plausible outbound auto-tracking features
@@ -127,18 +128,18 @@ function create(options: AnalyticsOptions): ProviderInstance {
     /**
      * Track custom event
      */
-    async track(name: string, props?: Props, url?: string) {
+    async track(name: string, props?: Props, url?: string, category?: string, pageContext?: PageContext) {
       debugLog('starting tracking event')
       // Let errors bubble up to facade
-      await client.sendEvent(name, props, url);
+      await client.sendEvent(name, props, url, pageContext);
     },
     
     /**
      * Track pageview
      */
-    async pageview(url?: string) {
+    async pageview(url?: string, pageContext?: PageContext) {
       // Let errors bubble up to facade
-      await client.sendPageview(url);
+      await client.sendPageview(url, pageContext);
     },
     
     /**

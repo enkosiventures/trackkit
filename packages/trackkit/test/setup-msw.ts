@@ -5,9 +5,27 @@ import { http, HttpResponse } from 'msw';
  * Mock Umami API endpoints
  */
 export const handlers = [
-  // Successful response
+  // Successful Umami response
   http.post('https://cloud.umami.is/api/send', async ({ request }) => {
     console.warn('Mock Umami API called:', request.url);
+    const body = await request.json();
+
+    // Validate payload
+    // @ts-ignore
+    if (!body?.website) {
+      return new HttpResponse(JSON.stringify({ error: 'Missing website ID' }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    }
+
+    return HttpResponse.json({ ok: true });
+  }),
+
+  http.post('https://plausible.io/api/event', async ({ request }) => {
+    console.warn('Mock Plausible API called:', request.url);
     const body = await request.json();
 
     // Validate payload

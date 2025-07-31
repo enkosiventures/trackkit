@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventQueue } from '../../../src/util/queue';
+import { getPageContext } from '../../../src/providers/shared/browser';
+
+const pageContext = getPageContext();
 
 describe('EventQueue', () => {
   let queue: EventQueue;
@@ -14,8 +17,8 @@ describe('EventQueue', () => {
   
   describe('enqueue', () => {
     it('adds events to queue', () => {
-      const id1 = queue.enqueue('track', ['event1']);
-      const id2 = queue.enqueue('pageview', ['/page']);
+      const id1 = queue.enqueue('track', ['event1'], pageContext);
+      const id2 = queue.enqueue('pageview', ['/page'], pageContext);
       
       expect(queue.size).toBe(2);
       expect(id1).toBeTruthy();
@@ -27,10 +30,10 @@ describe('EventQueue', () => {
       const onOverflow = vi.fn();
       queue = new EventQueue({ ...config, onOverflow });
       
-      queue.enqueue('track', ['event1']);
-      queue.enqueue('track', ['event2']);
-      queue.enqueue('track', ['event3']);
-      queue.enqueue('track', ['event4']); // Overflow
+      queue.enqueue('track', ['event1'], pageContext);
+      queue.enqueue('track', ['event2'], pageContext);
+      queue.enqueue('track', ['event3'], pageContext);
+      queue.enqueue('track', ['event4'], pageContext);
       
       expect(queue.size).toBe(3);
       expect(onOverflow).toHaveBeenCalledWith(
@@ -42,7 +45,7 @@ describe('EventQueue', () => {
     
     it('drops events when paused', () => {
       queue.pause();
-      const id = queue.enqueue('track', ['event']);
+      const id = queue.enqueue('track', ['event'], pageContext);
       
       expect(id).toBeUndefined();
       expect(queue.size).toBe(0);
@@ -51,8 +54,8 @@ describe('EventQueue', () => {
   
   describe('flush', () => {
     it('returns and clears all events', () => {
-      queue.enqueue('track', ['event1']);
-      queue.enqueue('track', ['event2']);
+      queue.enqueue('track', ['event1'], pageContext);
+      queue.enqueue('track', ['event2'], pageContext);
       
       const events = queue.flush();
       
@@ -70,9 +73,9 @@ describe('EventQueue', () => {
   
   describe('remove', () => {
     it('removes events matching predicate', () => {
-      queue.enqueue('track', ['keep']);
-      queue.enqueue('pageview', ['/remove']);
-      queue.enqueue('track', ['keep2']);
+      queue.enqueue('track', ['keep'], pageContext);
+      queue.enqueue('pageview', ['/remove'], pageContext);
+      queue.enqueue('track', ['keep2'], pageContext);
       
       const removed = queue.remove(e => e.type === 'pageview');
       
@@ -84,11 +87,11 @@ describe('EventQueue', () => {
   
   describe('pause/resume', () => {
     it('pauses and resumes queueing', () => {
-      queue.enqueue('track', ['before']);
+      queue.enqueue('track', ['before'], pageContext);
       queue.pause();
-      queue.enqueue('track', ['during']);
+      queue.enqueue('track', ['during'], pageContext);
       queue.resume();
-      queue.enqueue('track', ['after']);
+      queue.enqueue('track', ['after'], pageContext);
       
       expect(queue.size).toBe(2); // 'during' was dropped
       const events = queue.getEvents();
@@ -106,7 +109,7 @@ describe('EventQueue', () => {
         oldestEventAge: null,
       });
       
-      queue.enqueue('track', ['event']);
+      queue.enqueue('track', ['event'], pageContext);
       const state2 = queue.getState();
       
       expect(state2.size).toBe(1);

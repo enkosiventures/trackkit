@@ -1,4 +1,4 @@
-import type { BaseAnalyticsClient, BrowserData } from './types';
+import type { BaseAnalyticsClient } from './types';
 import type { PageContext, Props } from '../../types';
 import { isBrowser, isPageHidden } from './browser';
 import { Transport, createTransport } from './transport';

@@ -57,14 +57,3 @@ export interface UmamiPayload {
   name?: string;
   data?: Record<string, unknown>;
 }
-
-/**
- * Browser environment data
- */
-export interface BrowserData {
-  screen: string;
-  language: string;
-  title: string;
-  url: string;
-  referrer: string;
-}

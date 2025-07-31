@@ -6,7 +6,8 @@ import {
   isDomainAllowed,
 } from '../shared/browser';
 import { AnalyticsError } from '../../errors';
-import { logger } from '../../util/logger';
+import { debugLog, logger } from '../../util/logger';
+import { getSize } from '../shared/utils';
 
 /**
  * Umami-specific client implementation
@@ -40,7 +41,7 @@ export class UmamiClient extends BaseClient<Required<UmamiConfig>> {
       website: this.config.websiteId,
       hostname: window.location.hostname,
       language: pageContext?.language,
-      screen: `${pageContext?.screenSize?.width}x${pageContext?.screenSize?.height}`,
+      screen: getSize(pageContext?.screenSize, pageContext?.viewportSize),
       title: pageContext?.title,
       url: url || pageContext?.url,
       referrer: pageContext?.referrer,
@@ -62,7 +63,7 @@ export class UmamiClient extends BaseClient<Required<UmamiConfig>> {
       website: this.config.websiteId,
       hostname: window.location.hostname,
       language: pageContext?.language,
-      screen: `${pageContext?.screenSize?.width}x${pageContext?.screenSize?.height}`,
+      screen: getSize(pageContext?.screenSize, pageContext?.viewportSize),
       title: pageContext?.title,
       url: url || pageContext?.url,
       referrer: pageContext?.referrer,
@@ -94,11 +95,13 @@ export class UmamiClient extends BaseClient<Required<UmamiConfig>> {
    * Send data to Umami API
    */
   private async send(type: 'pageview' | 'event', payload: UmamiPayload): Promise<void> {
+    debugLog('Sending Umami event', { type, payload }, this.config);
     const endpoint = this.getEndpoint();
     const cacheParam = this.config.cache ? `?cache=${Date.now()}` : '';
     const url = `${endpoint}/api/send${cacheParam}`;
+    debugLog('Umami API URL', url);
     
-    await this.transport.send(url, payload, {
+    await this.transport.send(url, { payload, type }, {
       method: 'POST',
       headers: {
         'User-Agent': 'Trackkit/1.0',

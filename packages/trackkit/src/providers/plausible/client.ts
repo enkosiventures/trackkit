@@ -6,7 +6,7 @@ import {
   isUrlExcluded,
   isLocalhost,
 } from '../shared/browser';
-import { logger } from '../../util/logger';
+import { debugLog, logger } from '../../util/logger';
 
 /**
  * Plausible-specific client implementation
@@ -38,24 +38,28 @@ export class PlausibleClient extends BaseClient<Required<PlausibleConfig>> {
   /**
    * Send event to Plausible
    */
-  async sendEvent(name: string, props?: Props, url?: string): Promise<void> {
+  async sendEvent(name: string, props?: Props, url?: string, pageContext?: PageContext): Promise<void> {
+    debugLog('PlausibleClient: sendEvent', { name, props, url, pageContext });
     if (!this.shouldTrack()) return;
     
+    debugLog('PlausibleClient: tracking enabled');
     const pageUrl = url || getPageUrl(this.config.hashMode);
     
     // Additional Plausible-specific checks
     if (!this.shouldTrackPlausible(pageUrl)) return;
+    debugLog('PlausibleClient: tracking conditions met', { pageUrl, props });
 
     // Build Plausible event payload
-    const payload = this.buildPayload(name, pageUrl, props);
+    const payload = this.buildPayload(name, pageUrl, props, pageContext);
     
+    debugLog('Sending Plausible event', { payload });
     await this.send(payload);
   }
   
   /**
    * Send pageview to Plausible
    */
-  async sendPageview(url?: string): Promise<void> {
+  async sendPageview(url?: string, pageContext?: PageContext): Promise<void> {
     const pageUrl = url || getPageUrl(this.config.hashMode);
     
     // Deduplicate repeated pageviews
@@ -64,7 +68,8 @@ export class PlausibleClient extends BaseClient<Required<PlausibleConfig>> {
     }
     
     this.lastPageview = pageUrl;
-    await this.sendEvent('pageview', undefined, pageUrl);
+    debugLog('Sending pageview', { url: pageUrl, pageContext });
+    await this.sendEvent('pageview', undefined, pageUrl, pageContext);
   }
   
   /**
