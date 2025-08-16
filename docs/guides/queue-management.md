@@ -1,99 +1,93 @@
 # Queue Management
 
-Trackkit automatically queues events in several scenarios to ensure no data is lost.
+Trackkit buffers events when it’s *not safe* to send yet, then replays them in order once conditions are met.
 
-## Queue Scenarios
+## When We Queue
 
-### 1. Pre-initialization Queue
-
-Events tracked before `init()` are automatically queued:
-
-```typescript
-// These calls are queued
-track('early_event');
-pageview('/landing');
-
-// Initialize - queued events are processed
-const analytics = init({ provider: 'umami' });
+1) **Provider not ready (async load)**
+```ts
+init({ provider: 'umami' });
+// Immediately
+track('clicked');
+// If provider still initializing, this event is queued.
 ```
 
-### 2. Provider Loading Queue
+2. **Consent pending**
 
-While providers are loading asynchronously, events are queued:
-
-```typescript
-const analytics = init({ provider: 'umami' });
-
-// This might be queued if provider is still loading
-track('quick_event');
-
-// Wait for ready if you need synchronous behavior
-await waitForReady();
-track('guaranteed_processed');
+```ts
+init({ /* consent defaults to "pending" in your policy */ });
+track('signup_submit'); // queued
+grantConsent();         // flushes the queue in order
 ```
 
-### 3. Consent Pending Queue
+3. **SSR hydration**
 
-Events are queued when consent is not yet granted:
+* Events collected on the server are injected into the page and **replayed** after the provider is ready and consent allows it.
 
-```typescript
-const analytics = init();
+> Best practice: call `init()` as early as possible on the client. Pre-init calls in the browser are not guaranteed to buffer unless an instance has been created.
 
-// Queued until consent granted
-track('waiting_for_consent');
+---
 
-// Events are flushed
-analytics.setConsent('granted');
-```
+## Configuring the Queue
 
-## Queue Configuration
-
-```typescript
+```ts
 init({
-  queueSize: 100, // Maximum events to queue (default: 50)
-  onError: (error) => {
-    if (error.code === 'QUEUE_OVERFLOW') {
-      console.warn('Analytics queue full');
+  queueSize: 100, // default 50
+  onError: (err) => {
+    if (err.code === 'QUEUE_OVERFLOW') {
+      console.warn('Analytics queue full; oldest events dropped');
     }
-  }
+  },
 });
 ```
 
-## Queue Monitoring
+When the in-memory queue exceeds `queueSize`, Trackkit drops oldest events and emits a single `QUEUE_OVERFLOW` error describing what was dropped.
 
-For debugging, access queue state:
+---
 
-```typescript
+## Observability
+
+Use the public diagnostics surface:
+
+```ts
 const analytics = init({ debug: true });
-const state = (analytics as any).getState();
 
-console.log({
-  queueSize: state.queue.size,
-  isPaused: state.queue.isPaused,
-  providerState: state.provider
-});
+const diag = analytics.getDiagnostics();
+/*
+{
+  id: 'AF_xxx',
+  hasProvider: true,
+  providerReady: true,
+  queueState: { ... },
+  facadeQueueSize: 0,
+  ssrQueueSize: 0,
+  totalQueueSize: 0,
+  initializing: false,
+  provider: 'umami',
+  consent: 'granted',
+  debug: true,
+  lastSentUrl: '/current',
+  lastPlannedUrl: '/current'
+}
+*/
 ```
 
-## Server-Side Rendering (SSR)
+---
 
-In SSR environments, events are collected in a global queue:
+## SSR Flow
 
-```typescript
-// Server-side
-import { track, serializeSSRQueue } from 'trackkit';
+On the **server**, collect events and serialize into the HTML (using your helper or API):
 
-track('server_render', { page: '/product' });
+```ts
+// Server
+import { track /*, serializeSSRQueue */ } from 'trackkit/ssr';
 
-// In your HTML template
-const html = `
-  <!DOCTYPE html>
-  <html>
-    <head>
-      ${serializeSSRQueue()}
-    </head>
-    ...
-  </html>
-`;
+track('server_render', { route: '/product/123' });
+
+// In your template <head>:
+${/* serializeSSRQueue() or your equivalent */''}
 ```
 
-The client automatically processes SSR events on initialization.
+On the **client**, Trackkit automatically hydrates and replays SSR events *after* the provider is ready and consent allows it. If consent is pending, SSR events are held until consent is granted.
+
+> If you’re not using a helper, ensure you inject a script tag that initializes the SSR queue in the shape Trackkit expects. See the SSR guide for examples.

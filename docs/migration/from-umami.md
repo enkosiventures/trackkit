@@ -1,20 +1,20 @@
 # Migrating from Vanilla Umami to Trackkit
 
-This guide helps you migrate from the standard Umami script tag to Trackkit's Umami provider.
+This guide shows how to move from the standard Umami `<script>` tag to Trackkit’s Umami provider.
 
 ## Before: Script Tag
 
 ```html
 <!-- Traditional Umami -->
-<script async defer 
-  src="https://analytics.example.com/script.js" 
+<script async defer
+  src="https://analytics.example.com/script.js"
   data-website-id="94db1cb1-74f4-4a40-ad6c-962362670409"
   data-domains="example.com,www.example.com"
   data-auto-track="true">
 </script>
 
 <script>
-  // Custom events with global umami object
+  // Custom events via the global `umami`
   document.getElementById('buy-button').addEventListener('click', () => {
     umami.track('purchase-button');
   });
@@ -23,349 +23,197 @@ This guide helps you migrate from the standard Umami script tag to Trackkit's Um
 
 ## After: Trackkit
 
-### Installation
+### 1) Install
 
 ```bash
 npm install trackkit
 ```
 
-### Environment Configuration
+### 2) Configure via environment (recommended)
 
-```bash
-# .env
+```env
+# .env (Vite example)
 VITE_TRACKKIT_PROVIDER=umami
 VITE_TRACKKIT_SITE=94db1cb1-74f4-4a40-ad6c-962362670409
 VITE_TRACKKIT_HOST=https://analytics.example.com
+VITE_TRACKKIT_DEBUG=false
 ```
 
-### Code Changes
+### 3) Initialize in code
 
-```typescript
+```ts
 import { init, track } from 'trackkit';
 
-// Initialize (usually in your app entry point)
 const analytics = init({
+  // Exact matches only (no wildcards at Stage 6)
   domains: ['example.com', 'www.example.com'],
-  autoTrack: true, // Automatic pageview tracking
+
+  // Autotrack SPA pageviews (History API + popstate)
+  autoTrack: true,
 });
 
-// Custom events - same API
-document.getElementById('buy-button').addEventListener('click', () => {
+// Custom events — same mental model as Umami
+document.getElementById('buy-button')?.addEventListener('click', () => {
   track('purchase-button');
 });
 ```
 
+> Trackkit loads no third-party `<script>` tags. Network calls go directly to your Umami host.
+
+---
+
 ## Key Differences
 
-### 1. No External Scripts
+### 1) No external scripts
 
-Trackkit bundles the Umami logic, eliminating:
-- External script requests
-- CORS issues  
-- Ad blocker interference
-- CSP complications
+* ✅ Fewer CSP headaches (`connect-src` only; `script-src` not required for the tracker)
+* ✅ Less ad-blocker interference (especially when you self-host)
+* ✅ Smaller render-blocking footprint
 
-### 2. Consent Management
-
-```typescript
-// Built-in consent handling
-import { setConsent } from 'trackkit';
-
-// No events sent until consent granted
-setConsent('denied'); // Initial state
-
-// Your consent banner logic
-onUserConsent(() => {
-  setConsent('granted'); // Events start flowing
-});
-```
-
-### 3. TypeScript Support
-
-```typescript
-import { track } from 'trackkit';
-
-// Full type safety
-track('purchase', {
-  product_id: 'SKU-123',
-  price: 29.99,
-  currency: 'USD'
-});
-```
-
-### 4. SPA-Friendly
-
-Trackkit automatically handles:
-- History API navigation
-- Hash changes
-- Dynamic page titles
-- Proper referrer tracking
-
-No manual `umami.track()` calls needed for navigation.
-
-### 5. Error Handling
-
-```typescript
-init({
-  onError: (error) => {
-    console.error('Analytics error:', error);
-    // Send to error tracking service
-  }
-});
-```
-
-## Advanced Migration
-
-### Custom Domains
-
-```typescript
-// Exact match
-domains: ['app.example.com']
-
-// Wildcard subdomains  
-domains: ['*.example.com']
-
-// Multiple domains
-domains: ['example.com', 'example.org']
-```
-
-### Disable Auto-Tracking
-
-```typescript
-init({
-  autoTrack: false // Manual pageview control
-});
-
-// Track manually
-import { pageview } from 'trackkit';
-router.afterEach((to) => {
-  pageview(to.path);
-});
-```
-
-### Server-Side Rendering
-
-```typescript
-// server.js
-import { track, serializeSSRQueue } from 'trackkit/ssr';
-
-// Track server-side events
-track('server_render', { path: req.path });
-
-// In HTML template
-const html = `
-  <head>
-    ${serializeSSRQueue()}
-  </head>
-`;
-```
-
-## Testing Your Migration
-
-1. **Check Network Tab**: Verify events sent to your Umami instance
-2. **Console Logs**: Enable `debug: true` to see all events
-3. **Umami Dashboard**: Confirm events appear correctly
-
-## Rollback Plan
-
-If you need to temporarily rollback:
-
-```typescript
-// Keep both during transition
-if (window.location.search.includes('use-trackkit')) {
-  // Trackkit version
-  import('trackkit').then(({ init }) => init());
-} else {
-  // Legacy Umami script
-  const script = document.createElement('script');
-  script.src = 'https://analytics.example.com/script.js';
-  script.setAttribute('data-website-id', 'your-id');
-  document.head.appendChild(script);
-}
-```
-
-## Common Issues
-
-### Events Not Sending
-
-1. Check consent state: `setConsent('granted')`
-2. Verify domain whitelist includes current domain
-3. Ensure Do Not Track is handled as expected
-4. Check browser console for errors with `debug: true`
-
-### Different Event Counts
-
-Trackkit may show more accurate counts due to:
-- Better SPA navigation tracking
-- Proper handling of quick navigation
-- Consent-aware event queueing
-
-### CSP Errors
-
-Update your Content Security Policy:
+**CSP example**
 
 ```
 connect-src 'self' https://analytics.example.com;
 ```
 
-No `script-src` needed since Trackkit is bundled!
+### 2) Consent built in
+
+Trackkit queues while consent is pending and flushes after grant.
+
+```ts
+import { grantConsent, denyConsent } from 'trackkit';
+
+// Set initial policy (optional; defaults to "pending")
+denyConsent();
+
+// Later, when the user accepts:
+grantConsent(); // queued events are flushed
 ```
 
-### 3.2 Provider Comparison (`docs/providers/umami.md`)
+> By default, Trackkit **respects Do Not Track**. You can disable that with `doNotTrack: false` (not recommended).
 
-```markdown
-# Umami Provider
+### 3) TypeScript-first DX
 
-The Umami provider integrates with Umami Analytics, a privacy-focused, open-source analytics solution.
-
-## Features
-
-- ✅ No cookies required
-- ✅ GDPR compliant by default
-- ✅ Automatic pageview tracking
-- ✅ Custom event support
-- ✅ Do Not Track support
-- ✅ Domain whitelisting
-
-## Configuration
-
-### Basic Setup
-
-```typescript
-import { init } from 'trackkit';
-
-init({
-  provider: 'umami',
-  site: 'your-website-id',
-  host: 'https://your-umami-instance.com', // Optional
-});
-```
-
-### All Options
-
-```typescript
-init({
-  provider: 'umami',
-  site: 'your-website-id',
-  host: 'https://cloud.umami.is', // Default
-  autoTrack: true,    // Auto-track pageviews
-  doNotTrack: true,   // Respect DNT header
-  domains: ['example.com'], // Domain whitelist
-  cache: false,       // Cache busting
-});
-```
-
-## API Usage
-
-### Track Custom Events
-
-```typescript
+```ts
 import { track } from 'trackkit';
 
-// Simple event
-track('newsletter_signup');
-
-// Event with properties
 track('purchase', {
-  product: 'T-Shirt',
+  product_id: 'SKU-123',
   price: 29.99,
   currency: 'USD',
 });
-
-// Event with custom URL
-track('download', { file: 'guide.pdf' }, '/downloads');
 ```
 
-### Manual Pageviews
+### 4) SPA-friendly pageviews
 
-```typescript
-import { pageview } from 'trackkit';
+With `autoTrack: true`, Trackkit listens to `pushState/replaceState/popstate` and de-dupes duplicate URLs.
 
-// Track current page
-pageview();
+* **Manual pageview** (rare): Trackkit’s `pageview()` uses the **current** URL by design. For a virtual pageview:
 
-// Track specific URL
-pageview('/virtual/thank-you');
-```
+  ```ts
+  // Update history, then call pageview()
+  window.history.pushState({}, '', '/virtual/thank-you');
+  import { pageview } from 'trackkit';
+  pageview();
+  ```
 
-## Limitations
+### 5) Errors are surfaced
 
-- **No User Identification**: Umami doesn't support user tracking
-- **No Session Tracking**: Each event is independent
-- **Limited Properties**: Event data must be simple key-value pairs
-
-## Self-Hosting
-
-To avoid ad blockers and improve privacy:
-
-1. Host Umami on your domain
-2. Configure Trackkit:
-
-```typescript
+```ts
 init({
-  provider: 'umami',
-  site: 'your-site-id',
-  host: 'https://analytics.yourdomain.com',
+  onError: (error) => {
+    console.error('Analytics error:', error.code, error.message);
+    // e.g., forward to Sentry
+  },
 });
 ```
 
-3. Update CSP if needed:
+---
 
-```
-connect-src 'self' https://analytics.yourdomain.com;
-```
+## Advanced Migration
 
-## Debugging
+### Domain allowlist
 
-Enable debug mode to see all events:
+Stage 6 uses **exact string matches** (no wildcards or regex):
 
-```typescript
+```ts
 init({
-  provider: 'umami',
-  site: 'your-site-id',
+  domains: ['example.com', 'www.example.com', 'app.example.com'],
+});
+```
+
+*If you omit `domains`, domain filtering is skipped (other policies still apply).*
+
+### Disable auto-tracking
+
+```ts
+import { init, pageview } from 'trackkit';
+
+init({ autoTrack: false });
+
+// Manually report pageviews (uses current URL):
+router.afterEach(() => pageview());
+```
+
+### Server-Side Rendering (SSR)
+
+Trackkit records events server-side into a global queue and replays them client-side on init. If you’re using SSR, serialize the queue into the HTML and let the client hydrate it on load. (If you’re not using SSR, you can ignore this.)
+
+---
+
+## Testing the migration
+
+1. **Network tab**: verify requests are sent to `https://analytics.example.com`.
+2. **Console**: `debug: true` prints send/queue decisions and errors.
+3. **Umami dashboard**: confirm pageviews and events appear as expected.
+
+```ts
+init({
   debug: true,
+  provider: 'umami',
+  site: '94db1cb1-74f4-4a40-ad6c-962362670409',
+  host: 'https://analytics.example.com',
 });
 ```
 
-Check browser console for:
-- Event payloads
-- Network requests
-- Error messages
+---
 
-## Best Practices
+## Rollback plan
 
-1. **Use Environment Variables**
-   ```bash
-   VITE_TRACKKIT_PROVIDER=umami
-   VITE_TRACKKIT_SITE=your-id
-   VITE_TRACKKIT_HOST=https://analytics.example.com
-   ```
+You can temporarily keep both implementations and flip with a flag:
 
-2. **Implement Consent Flow**
-   ```typescript
-   // Start with consent denied
-   setConsent('denied');
-   
-   // After user accepts
-   setConsent('granted');
-   ```
+```ts
+const useTrackkit = new URLSearchParams(location.search).has('use-trackkit');
 
-3. **Track Meaningful Events**
-   ```typescript
-   // Good: Specific, actionable
-   track('checkout_completed', { value: 99.99 });
-   
-   // Avoid: Too generic
-   track('click');
-   ```
+if (useTrackkit) {
+  import('trackkit').then(({ init }) => init());
+} else {
+  const s = document.createElement('script');
+  s.async = true;
+  s.defer = true;
+  s.src = 'https://analytics.example.com/script.js';
+  s.setAttribute('data-website-id', '94db1cb1-74f4-4a40-ad6c-962362670409');
+  document.head.appendChild(s);
+}
+```
 
-4. **Handle Errors**
-   ```typescript
-   init({
-     onError: (error) => {
-       if (error.code === 'NETWORK_ERROR') {
-         // Umami server might be down
-       }
-     }
-   });
-   ```
+---
+
+## Common issues
+
+### “Events not sending”
+
+* Ensure consent is granted: `grantConsent()`
+* Check your `domains` array (exact matches only)
+* DNT may be blocking on purpose (default); set `doNotTrack: false` to ignore
+* Look for validation/debug logs with `debug: true`
+
+### “Counts differ vs script tag”
+
+Trackkit may:
+
+* De-dupe duplicate pageviews on rapid SPA transitions
+* Avoid sending without consent / with DNT
+* Filter more consistently by domain policy
+
+---

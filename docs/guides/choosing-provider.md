@@ -1,726 +1,244 @@
 # Choosing an Analytics Provider
 
-Trackkit supports multiple analytics providers. Here's how to choose the right one for your needs.
+Trackkit supports multiple analytics providers behind one stable API. This guide helps you pick the best fit for your product and constraints.
 
-## Provider Comparison
+## At-a-glance comparison
 
 | Feature | Umami | Plausible | Google Analytics 4 |
-|---------|-------|-----------|-------------------|
-| **Privacy** | ✅ GDPR compliant | ✅ GDPR compliant | ⚠️ Requires consent |
-| **Cookies** | ❌ Cookieless | ❌ Cookieless | ✅ Uses cookies |
-| **Open Source** | ✅ Yes | ✅ Yes | ❌ No |
-| **Self-Hosting** | ✅ Yes | ✅ Yes | ❌ No |
-| **Cost** | Free (self-hosted) | $9+/month | Free with limits |
-| **User Tracking** | ❌ No | ❌ No | ✅ Yes |
-| **Custom Events** | ✅ Yes | ✅ Yes (Goals) | ✅ Yes |
-| **Revenue Tracking** | ❌ No | ✅ Yes | ✅ Yes |
-| **Real-time Data** | ✅ Yes | ⚠️ 5min delay | ✅ Yes |
-| **Data Retention** | Unlimited | Unlimited | 14 months |
-| **Bundle Size** | ~1.5 KB | ~2.5 KB | ~1 KB |
+|--------|:-----:|:---------:|:------------------:|
+| **Privacy-first** | ✅ | ✅ | ⚠️ Requires consent (EU) |
+| **Cookieless by default** | ✅ | ✅ | ❌ (can limit cookies via Consent Mode) |
+| **Open source** | ✅ | ✅ | ❌ |
+| **Self-hosting** | ✅ | ✅ | ❌ |
+| **Cost (hosted)** | N/A (self-host) | Paid plans | Free tier (limits apply) |
+| **User-level tracking** | ❌ | ❌ | ✅ |
+| **Custom events** | ✅ | ✅ (Goals) | ✅ |
+| **Revenue tracking** | ⚠️ via custom events | ✅ via goals (if enabled) | ✅ |
+| **Realtime** | ✅ | Near-realtime (slight delay) | ✅ |
+| **Data retention** | Your DB (unlimited if self-host) | Your DB (self-host) / vendor policy (cloud) | Configurable (typ. up to 14 months) |
+| **Adapter size (approx.)** | ~1.5 kB | ~2.5 kB | ~1 kB |
 
-## Decision Tree
+> Sizes are Trackkit adapter budgets, not exact byte counts.
+
+---
+
+## Decision guide
 
 ```
-Need user-level tracking?
-├─ Yes → Google Analytics 4
-└─ No → Privacy important?
-    ├─ Critical → Self-hosting required?
-    │   ├─ Yes → Umami
-    │   └─ No → Plausible
-    └─ Not Critical → Need advanced features?
-        ├─ Yes → Google Analytics 4
-        └─ No → Plausible (simplest)
-```
 
-## Provider Details
+Need user-level analytics (user journeys, audiences)?
+├─ Yes → Google Analytics 4 (GA4)
+└─ No → Is strict privacy & data control a priority?
+├─ Yes → Will you self-host?
+│   ├─ Yes → Umami
+│   └─ No  → Plausible (hosted)
+└─ No  → Prefer deeper features/Google Ads integration?
+├─ Yes → GA4
+└─ No  → Plausible (simplest path)
+
+````
+
+---
+
+## Provider details
 
 ### Umami
 
-**Best for:** Privacy-conscious sites that want full data control
+**Best for:** Privacy-conscious sites and SaaS apps that want full control and self-hosting.
 
-**Pros:**
-- Complete data ownership
-- No personal data collection
-- Simple, clean interface
-- Lightweight tracker
-- Real-time analytics
+**Pros**
+- Full data ownership
+- Cookieless by default
+- Lightweight script + simple UI
+- Realtime metrics
 
-**Cons:**
-- Requires self-hosting
-- Limited advanced features
-- No user journey tracking
-- No built-in goals/conversions
+**Cons**
+- You run and maintain the stack
+- Fewer built-in marketing features
+- No user-level tracking
 
-**Configuration:**
-```typescript
+**Trackkit config**
+```ts
 init({
   provider: 'umami',
-  site: 'your-website-id',
-  host: 'https://analytics.yourdomain.com',
+  site: 'your-website-id',             // aka "website"
+  host: 'https://analytics.yourdomain.com', // your Umami host (if not cloud)
+  // autoTrack, domains, exclude, etc. as needed
 });
-```
+````
+
+---
 
 ### Plausible
 
-**Best for:** Privacy-focused sites wanting managed hosting
+**Best for:** Privacy-focused sites that prefer managed hosting (or advanced self-hosting).
 
-**Pros:**
-- GDPR compliant by default
-- Simple setup
-- Goal tracking
-- Revenue tracking
-- Clean, focused UI
-- Managed hosting available
+**Pros**
 
-**Cons:**
-- Paid service ($9+/month)
-- 5-minute data delay
-- No user tracking
-- Limited segmentation
+* GDPR-friendly defaults, cookieless
+* Goals & (optional) revenue tracking
+* Clean, focused UI
+* Hosted or self-hosted
 
-**Configuration:**
-```typescript
+**Cons**
+
+* Hosted plans are paid
+* Slight delay on dashboards
+* No user-level tracking
+
+**Trackkit config**
+
+```ts
 init({
   provider: 'plausible',
   site: 'yourdomain.com',
-  host: 'https://plausible.io', // Or self-hosted
-  revenue: {
-    currency: 'USD',
-    trackingEnabled: true,
-  },
+  // host: 'https://plausible.yourdomain.com', // if self-hosted
+  // If your Plausible setup uses revenue goals, send revenue props on events
 });
 ```
 
-### Google Analytics 4
+> **Revenue:** If you’ve configured revenue goals in Plausible, send revenue/currency in `track()` props; the adapter will forward them appropriately. Exact mapping depends on your Plausible goal setup.
 
-**Best for:** Sites needing advanced analytics and user tracking
+---
 
-**Pros:**
-- Free tier generous
-- Advanced segmentation
-- User journey tracking
-- Integration with Google Ads
-- Machine learning insights
-- Audience building
+### Google Analytics 4 (GA4)
 
-**Cons:**
-- Privacy concerns
-- Complex interface
-- Requires consent in EU
-- Learning curve
-- Data sampling on free tier
+**Best for:** Products needing user journeys, advanced segmentation, Google Ads integration, and ML-powered insights.
 
-**Configuration:**
-```typescript
+**Pros**
+
+* Rich analysis, audiences, and funnels
+* Tight Google Ads/Marketing integration
+* Generous free tier
+* Realtime
+
+**Cons**
+
+* Privacy/consent management required (esp. EU)
+* Interface complexity & learning curve
+* Sampling/limits on free tier
+
+**Trackkit config**
+
+```ts
 init({
-  provider: 'ga',
-  site: 'G-XXXXXXXXXX',
-  // Optional: for server-side tracking
-  apiSecret: 'your-api-secret',
+  provider: 'ga4',
+  measurementId: 'G-XXXXXXXXXX', // required
+  // apiSecret: 'your-measurement-protocol-secret', // optional (advanced)
+  // autoTrack, defaultProps, etc.
 });
 ```
 
-## Multi-Provider Setup
+> GA4 usually sets cookies unless you restrict storage via Consent Mode. Ensure you implement consent correctly for your region.
 
-You can use multiple providers simultaneously:
+---
 
-```typescript
-// Primary: Privacy-friendly for all users
-init({
-  provider: 'plausible',
-  site: 'example.com',
-});
+## “Can I run more than one provider?”
 
-// Secondary: GA4 for users who consent to marketing
-if (userConsentsToMarketing) {
-  const ga = init({
-    provider: 'ga',
-    site: 'G-XXXXXXXXXX',
-  });
-  ga.identify(userId);
-}
-```
+**Stage 6:** Trackkit supports **one active provider per SDK instance**.
+Running two providers simultaneously via the same singleton is not supported.
 
-## Migration Considerations
+**Common workarounds**
 
-### From Universal Analytics to GA4
-- Different data model (events vs pageviews)
-- New measurement IDs (G- prefix)
-- Some metrics calculated differently
-- Historical data won't transfer
+* **Server-side fan-out:** Send events to your backend and relay to multiple vendors.
+* **App-level composition:** If/when Trackkit exposes multi-instance APIs, you can initialize two facades and call both. (Roadmap item—watch the repo.)
 
-### From GA4 to Privacy-Friendly
-- Expect lower user counts (no cross-site tracking)
-- Simpler but less detailed reports
-- No user-level data
-- Faster, lighter website
+---
 
-### Testing Multiple Providers
-```typescript
-// A/B test providers
+## Migration notes
+
+### From Universal Analytics → GA4
+
+* GA4’s data model is **event-based**; expect renaming/remapping.
+* Measurement IDs use the `G-` prefix.
+* Some metrics differ; historical UA data won’t carry over.
+
+### From GA4 → privacy-first (Plausible / Umami)
+
+* Lower user counts (no user-level tracking)
+* Simpler reports, faster load
+* Easier consent story
+
+**Testing**
+
+```ts
+// A/B test providers (dev/stage only)
 const provider = Math.random() > 0.5 ? 'plausible' : 'umami';
 init({ provider, site: 'your-site' });
 ```
 
-## Recommendations by Use Case
+---
 
-### E-commerce Sites
-**Recommended:** Google Analytics 4
-- Revenue tracking
-- Enhanced e-commerce
-- User journey analysis
-- Integration with Google Ads
+## Recommendations by use case
 
-### Blogs & Content Sites
-**Recommended:** Plausible
-- Simple metrics
-- Fast loading
-- Privacy-friendly
-- Affordable
+* **E-commerce** → **GA4**
+  Enhanced e-commerce, audiences, Ads integration, attribution
 
-### SaaS Applications
-**Recommended:** Umami (self-hosted)
-- Data privacy
-- Custom events
-- No data limits
-- Full control
+* **Blogs / Marketing sites** → **Plausible**
+  Clean metrics, privacy-first, managed hosting option
 
-### Landing Pages
-**Recommended:** Plausible
-- Quick setup
-- Essential metrics only
-- Good for conversions
-- Lightweight
+* **SaaS / Internal tools (self-hosted)** → **Umami**
+  Data control, cookieless analytics, simple dashboard
 
-## Performance Impact
+* **Landing pages / Campaigns** → **Plausible**
+  Quick setup, lightweight, goal-centric
 
-Load time impact (gzipped):
-- No provider: 0 KB
-- GA4: ~1 KB
-- Umami: ~1.5 KB  
-- Plausible: ~2.5 KB
+---
 
-All providers use lazy loading, so only the selected provider is downloaded.
+## Performance
 
-## Privacy & Compliance
+Approximate added payload (gzipped) when the provider is initialized:
 
-### GDPR Compliance
+* GA4: \~1 kB
+* Umami: \~1.5 kB
+* Plausible: \~2.5 kB
 
-**Umami & Plausible:**
-- No consent banner required
-- No personal data collected
-- No cookies used
+Trackkit lazy-loads only the selected provider.
 
-**Google Analytics 4:**
-- Requires consent in EU
-- Must disclose data collection
-- Implement consent mode
+---
 
-### CCPA Compliance
+## Privacy & compliance
 
-All providers can be configured for CCPA:
-```typescript
-if (userState === 'California' && userOptedOut) {
-  // Don't initialize analytics
+* **Umami / Plausible**: Cookieless by default; many teams operate without a consent banner (verify with your legal counsel).
+* **GA4**: Typically requires consent in the EU. Implement consent mode and disclose data collection in your privacy policy.
+
+**CCPA example**
+
+```ts
+if (userIsCalifornia && userOptedOut) {
+  // Skip init entirely
 } else {
   init({ provider: 'your-choice' });
 }
 ```
 
-## Cost Analysis
+---
 
-### Monthly Costs by Traffic
+## Practical configuration examples
 
-| Monthly Pageviews | Umami | Plausible | GA4 |
-|-------------------|-------|-----------|-----|
-| < 10k | $5* | $9 | Free |
-| 10k-100k | $5* | $19 | Free |
-| 100k-1M | $5* | $39-69 | Free |
-| 1M-10M | $5* | $99-169 | Free** |
-| 10M+ | $5* | Custom | Free** |
+### Domains & excludes
 
-\* Self-hosting costs only
-\** May hit sampling limits
-
-## Technical Requirements
-
-### Umami Self-Hosting
-- PostgreSQL or MySQL database
-- Node.js server
-- ~1GB RAM minimum
-- SSL certificate
-
-### Plausible Self-Hosting
-- PostgreSQL database
-- ClickHouse database
-- 4GB+ RAM recommended
-- More complex than Umami
-
-### Google Analytics 4
-- No hosting required
-- Google account
-- Accept Terms of Service
-```
-
-### 5.2 Migration Guides
-
-Create `docs/migration/from-ga4.md`:
-
-```markdown
-# Migrating from Google Analytics 4 to Trackkit
-
-## Installation
-
-```bash
-npm install trackkit
-```
-
-## Before: gtag Implementation
-
-```html
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-XXXXXXXXXX');
-  
-  // Custom events
-  gtag('event', 'purchase', {
-    value: 29.99,
-    currency: 'USD',
-    items: [{
-      item_id: 'SKU-123',
-      item_name: 'T-Shirt',
-      price: 29.99,
-      quantity: 1
-    }]
-  });
-</script>
-```
-
-## After: Trackkit Implementation
-
-```typescript
-import { init, track } from 'trackkit';
-
-// Initialize
-init({
-  provider: 'ga',
-  site: 'G-XXXXXXXXXX',
-});
-
-// Same events, cleaner API
-track('purchase', {
-  value: 29.99,
-  currency: 'USD',
-  items: [{
-    item_id: 'SKU-123',
-    item_name: 'T-Shirt',
-    price: 29.99,
-    quantity: 1
-  }]
-});
-```
-
-## Key Differences
-
-### 1. No External Scripts
-- ✅ Better performance (no render blocking)
-- ✅ Works with strict CSP
-- ✅ No more gtag/dataLayer globals
-
-### 2. Simplified Consent Mode
-
-Before:
-```javascript
-gtag('consent', 'default', {
-  'analytics_storage': 'denied',
-  'ad_storage': 'denied'
-});
-
-// After user consent
-gtag('consent', 'update', {
-  'analytics_storage': 'granted',
-  'ad_storage': 'granted'
-});
-```
-
-After:
-```typescript
-import { setConsent } from 'trackkit';
-
-// Just one method
-setConsent('granted'); // or 'denied'
-```
-
-### 3. TypeScript Support
-
-```typescript
-// Full type safety
-track('add_to_cart', {
-  currency: 'USD', // ✅ Autocomplete
-  value: 19.99,
-  items: [{
-    item_id: 'SKU-456',
-    item_name: 'Hat',
-    price: 19.99,
-    quantity: 1
-  }]
-});
-```
-
-### 4. Automatic Error Handling
-
-```typescript
-init({
-  provider: 'ga',
-  site: 'G-XXXXXXXXXX',
-  onError: (error) => {
-    console.error('Analytics error:', error);
-    // Send to error tracking
-  }
-});
-```
-
-## Event Mapping
-
-| gtag Event | Trackkit Event |
-|------------|----------------|
-| `gtag('event', 'page_view')` | `pageview()` |
-| `gtag('event', 'purchase', {...})` | `track('purchase', {...})` |
-| `gtag('event', 'login')` | `track('login')` |
-| `gtag('set', {user_id: '123'})` | `identify('123')` |
-
-## Advanced Features
-
-### Server-Side Tracking
-
-```typescript
-// Add API secret for Measurement Protocol
-init({
-  provider: 'ga',
-  site: 'G-XXXXXXXXXX',
-  apiSecret: 'your-api-secret', // From GA4 UI
-});
-```
-
-### Custom Dimensions
-
-```typescript
-// Define once
-init({
-  provider: 'ga',
-  site: 'G-XXXXXXXXXX',
-  customDimensions: {
-    'plan_type': 'dimension1',
-    'user_role': 'dimension2',
-  }
-});
-
-// Use anywhere
-track('upgrade', {
-  plan_type: 'premium', // Automatically mapped to dimension1
-  user_role: 'admin',   // Automatically mapped to dimension2
-});
-```
-
-### Debug Mode
-
-```typescript
-// Enable GA4 validation
-init({
-  provider: 'ga',
-  site: 'G-XXXXXXXXXX',
-  debug: true, // Sends to debug endpoint
-});
-```
-
-## Testing Your Migration
-
-1. **Install Trackkit alongside gtag**
-```typescript
-// Temporarily run both
-gtag('event', 'test_event');
-track('test_event');
-```
-
-2. **Compare in GA4 Realtime**
-- Both events should appear
-- Verify parameters match
-
-3. **Remove gtag**
-```html
-<!-- Remove these -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  // ... rest of gtag code
-</script>
-```
-
-## Common Issues
-
-### Events Not Appearing
-
-1. Check consent state: `setConsent('granted')`
-2. Verify Measurement ID format: `G-XXXXXXXXXX`
-3. Enable debug mode to see validation errors
-4. Check browser DevTools network tab
-
-### Missing User Properties
-
-GA4 requires explicit user ID setting:
-```typescript
-identify('user-123'); // Sets user_id for all future events
-```
-
-### Different Metrics
-
-Some metrics may differ because Trackkit:
-- Doesn't use cookies (unless GA4 adds them)
-- Has better bot detection
-- Handles SPAs differently
-
-## Rollback Plan
-
-Keep gtag code commented:
-```html
-<!-- Trackkit backup
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
--->
-```
-
-If issues arise, uncomment and remove Trackkit temporarily.
-```
-
-Create `docs/migration/from-plausible.md`:
-
-```markdown
-# Migrating from Plausible Analytics to Trackkit
-
-## Before: Plausible Script
-
-```html
-<script defer data-domain="yourdomain.com" 
-  src="https://plausible.io/js/script.js"></script>
-
-<script>
-  // Custom events  
-  window.plausible = window.plausible || function() { 
-    (window.plausible.q = window.plausible.q || []).push(arguments) 
-  }
-  
-  plausible('Signup', {props: {plan: 'premium'}});
-</script>
-```
-
-## After: Trackkit
-
-```typescript
-import { init, track } from 'trackkit';
-
+```ts
 init({
   provider: 'plausible',
-  site: 'yourdomain.com',
+  site: 'example.com',
+  domains: ['example.com', 'www.example.com'],     // allowlist
+  exclude: ['/admin', '/preview'],                 // drop matches
+  autoTrack: true,                                 // SPA nav
+  includeHash: false,                              // strip #hash
 });
-
-// Same API, better DX
-track('Signup', { plan: 'premium' });
 ```
 
-## Configuration Options
+### GA4 with consent
 
-### Self-Hosted Plausible
-
-```typescript
+```ts
 init({
-  provider: 'plausible',
-  site: 'yourdomain.com',
-  host: 'https://analytics.yourdomain.com',
-});
-```
-
-### Hash-Based Routing
-
-```typescript
-init({
-  provider: 'plausible',
-  site: 'yourdomain.com',
-  includeHash: true, // For SPAs using hash routing
-});
-```
-
-### Revenue Tracking
-
-```typescript
-init({
-  provider: 'plausible',
-  site: 'yourdomain.com',
-  revenue: {
-    currency: 'EUR',
-    trackingEnabled: true,
-  },
+  provider: 'ga4',
+  measurementId: 'G-XXXX',
+  // Respect browser DNT by default; override only if your policy allows:
+  doNotTrack: true,
 });
 
-// Track revenue
-track('Purchase', {
-  revenue: 99.99,
-  currency: 'EUR',
-});
-```
-
-### Exclude Paths
-
-```typescript
-init({
-  provider: 'plausible',
-  site: 'yourdomain.com',
-  exclude: [
-    '/admin/*',
-    '/api/*',
-    '*/preview',
-  ],
-});
-```
-
-## Feature Parity
-
-| Plausible Feature | Trackkit Support |
-|-------------------|------------------|
-| Pageview tracking | ✅ Automatic |
-| Custom events | ✅ `track()` |
-| Revenue goals | ✅ With config |
-| Outbound links | ✅ Auto-tracked |
-| File downloads | ✅ Auto-tracked |
-| 404 tracking | ✅ Auto-tracked |
-| Hash-based routing | ✅ `includeHash` |
-| Exclusions | ✅ `exclude` |
-| Custom domains | ✅ `host` |
-
-## Enhanced Features
-
-### TypeScript Support
-
-```typescript
-// Type-safe event properties
-track('Signup', {
-  plan: 'premium',
-  interval: 'monthly',
-  addons: ['ssl', 'cdn'],
-});
-```
-
-### Consent Management
-
-```typescript
-// Built-in GDPR compliance
-import { setConsent } from 'trackkit';
-
-// No tracking until consent
-track('event'); // Queued
-
-// User consents
-setConsent('granted');
-// Queued events sent automatically
-```
-
-### Error Handling
-
-```typescript
-init({
-  provider: 'plausible',
-  site: 'yourdomain.com',
-  onError: (error) => {
-    if (error.code === 'NETWORK_ERROR') {
-      // Plausible might be blocked
-    }
-  },
-});
-```
-
-## Testing Migration
-
-### 1. Run Both in Parallel
-
-```html
-<!-- Keep Plausible -->
-<script defer data-domain="yourdomain.com" 
-  src="https://plausible.io/js/script.js"></script>
-
-<!-- Add Trackkit -->
-<script type="module">
-  import { init } from 'trackkit';
-  init({ provider: 'plausible', site: 'yourdomain.com' });
-</script>
-```
-
-### 2. Verify in Dashboard
-
-- Check both events appear
-- Compare unique visitors
-- Verify goals tracked
-
-### 3. Remove Plausible Script
-
-```html
-<!-- Remove this -->
-<script defer data-domain="yourdomain.com" 
-  src="https://plausible.io/js/script.js"></script>
-```
-
-## Differences to Note
-
-### Event Names
-
-Plausible is case-sensitive for events:
-- `'Signup'` ≠ `'signup'`
-- Be consistent with naming
-
-### Property Constraints
-
-Plausible requires string values:
-```typescript
-// Trackkit handles conversion
-track('Event', {
-  number: 123,      // Converted to "123"
-  boolean: true,    // Converted to "true"
-  object: { x: 1 }, // Ignored
-});
-```
-
-### No User Identification
-
-Neither Plausible nor Trackkit's Plausible adapter support user tracking:
-```typescript
-identify('user-123'); // No-op with Plausible
-```
-
-## Advanced Configuration
-
-### Custom Props Defaults
-
-```typescript
-init({
-  provider: 'plausible',
-  site: 'yourdomain.com',
-  defaultProps: {
-    version: '2.0',
-    environment: 'production',
-  },
-});
-
-// All events include default props
-track('Feature Used'); // Includes version & environment
-```
-
-### Localhost Development
-
-```typescript
-init({
-  provider: 'plausible',
-  site: 'yourdomain.com',
-  trackLocalhost: true, // Enable in development
-});
+// later, when user consents:
+grantConsent();
 ```
