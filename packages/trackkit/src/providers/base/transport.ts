@@ -1,5 +1,5 @@
-import { debugLog } from "../../../util/logger";
-import { stripEmptyFields } from "../../shared/utils";
+import { debugLog } from "../../util/logger";
+import { stripEmptyFields } from "../shared/utils";
 
 /**
  * Shared transport layer used by all providers.

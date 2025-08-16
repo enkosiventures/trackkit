@@ -1,4 +1,4 @@
-import { PageContext, ProviderInstance, ProviderType } from '../../../types';
+import { PageContext, ProviderInstance, ProviderType } from '../../types';
 import { send, type TransportMethod } from './transport';
 
 

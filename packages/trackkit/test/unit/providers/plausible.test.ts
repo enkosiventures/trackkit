@@ -1,14 +1,14 @@
 /// <reference types="vitest" />
 import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
-import plausible from '../../../src/providers/new/plausible';
+import plausible from '../../../src/providers/plausible';
 import type { PageContext } from '../../../src/types';
 
 // IMPORTANT: mock the adapter transport so we can capture calls deterministically
-import * as transport from '../../../src/providers/new/base/transport';
+import * as transport from '../../../src/providers/base/transport';
 
-vi.mock('../../../src/providers/new/base/transport', async () => {
-  const actual = await vi.importActual<typeof import('../../../src/providers/new/base/transport')>(
-    '../../../src/providers/new/base/transport'
+vi.mock('../../../src/providers/base/transport', async () => {
+  const actual = await vi.importActual<typeof import('../../../src/providers/base/transport')>(
+    '../../../src/providers/base/transport'
   );
   return {
     ...actual,

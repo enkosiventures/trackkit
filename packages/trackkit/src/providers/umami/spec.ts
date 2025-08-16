@@ -1,6 +1,6 @@
-import { UMAMI_ENDPOINT, UMAMI_HOST } from '../../../constants';
-import { PageContext, ProviderOptions, UmamiOptions } from '../../../types';
-import { displaySizeFromContext } from '../../shared/browser';
+import { UMAMI_ENDPOINT, UMAMI_HOST } from '../../constants';
+import { PageContext, ProviderOptions, UmamiOptions } from '../../types';
+import { displaySizeFromContext } from '../shared/browser';
 import { createConfigProvider, type ProviderSpec } from '../base/adapter';
 
 

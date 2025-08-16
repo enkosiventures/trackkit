@@ -17,7 +17,7 @@ describe('Umami provider / client', () => {
       new Response('ok', { status: 202 })
     );
 
-    const umami = (await import('../../../src/providers/new/umami')).default;
+    const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
     const ctx: PageContext = {
       url: '/a',
@@ -61,7 +61,7 @@ describe('Umami provider / client', () => {
       })
     );
 
-    const umami = (await import('../../../src/providers/new/umami')).default;
+    const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
 
     // Provide ctx with an explicit url + viewport to avoid 0x0 defaults
@@ -93,7 +93,7 @@ describe('Umami provider / client', () => {
       })
     );
 
-    const umami = (await import('../../../src/providers/new/umami')).default;
+    const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({
       provider: 'umami',
       website: TEST_SITE_ID.umami,
@@ -110,7 +110,7 @@ describe('Umami provider / client', () => {
       http.post('*', () => new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' }))
     );
 
-    const umami = (await import('../../../src/providers/new/umami')).default;
+    const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
 
     await expect(
@@ -128,7 +128,7 @@ describe('Umami provider / client', () => {
       })
     );
 
-    const umami = (await import('../../../src/providers/new/umami')).default;
+    const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami }, /* cache */ true);
 
     const sendBeaconSpy = vi.fn(() => true);
@@ -154,7 +154,7 @@ describe('Umami provider / client', () => {
 
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
 
-    const umami = (await import('../../../src/providers/new/umami')).default;
+    const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami }, /* cache */ true);
     await instance.track('test', { value: 42 }, { url: '/', viewportSize: { width: 1, height: 1 } });
 
@@ -165,7 +165,7 @@ describe('Umami provider / client', () => {
 
 
   it('identify is a safe no-op', async () => {
-    const umami = (await import('../../../src/providers/new/umami')).default;
+    const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
     const ctx: PageContext = {
         url: '/a',
@@ -180,7 +180,7 @@ describe('Umami provider / client', () => {
   });
 
   it('destroy() is idempotent', async () => {
-    const umami = (await import('../../../src/providers/new/umami')).default;
+    const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
     expect(() => instance.destroy()).not.toThrow();
     expect(() => instance.destroy()).not.toThrow();

@@ -26,13 +26,13 @@ const hoisted = vi.hoisted(() => ({
 }));
 
 // Mock the transport using the hoisted mock
-vi.mock('../../../src/providers/new/base/transport', () => ({
+vi.mock('../../../src/providers/base/transport', () => ({
   // @ts-expect-error
   send: (...args: any[]) => hoisted.sendMock(...(args as any)),
 }));
 
 describe('GA4 client (mapping & endpoints)', () => {
-  let createGA4Client: typeof import('../../../src/providers/new/ga4/client').createGA4Client;
+  let createGA4Client: typeof import('../../../src/providers/ga4/client').createGA4Client;
 
   const getFirstReq = () => {
     // help TS: treat calls as any[][]
@@ -43,7 +43,7 @@ describe('GA4 client (mapping & endpoints)', () => {
 
   beforeAll(async () => {
     // Import after mocks are set
-    ({ createGA4Client } = await import('../../../src/providers/new/ga4/client'));
+    ({ createGA4Client } = await import('../../../src/providers/ga4/client'));
   });
 
   beforeEach(() => {
@@ -176,15 +176,15 @@ describe('GA4 client (mapping & endpoints)', () => {
 // Group 2: Transport behavior tests (real transport; no transport mock)
 // ───────────────────────────────────────────────────────────────────────────────
 describe('GA4 client (transport behavior)', () => {
-  let createGA4Client: typeof import('../../../src/providers/new/ga4/client').createGA4Client;
+  let createGA4Client: typeof import('../../../src/providers/ga4/client').createGA4Client;
   let fetchSpy: any;
 
   beforeEach(async () => {
     // Ensure a clean module graph without the transport mock
     vi.resetModules();
-    vi.doUnmock('../../../src/providers/new/base/transport');
+    vi.doUnmock('../../../src/providers/base/transport');
 
-    ({ createGA4Client } = await import('../../../src/providers/new/ga4/client'));
+    ({ createGA4Client } = await import('../../../src/providers/ga4/client'));
 
     fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
   });

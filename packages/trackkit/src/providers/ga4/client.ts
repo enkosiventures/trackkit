@@ -1,5 +1,5 @@
-import { GA4Options, PageContext, ProviderInstance, ProviderOptions } from '../../../types';
-import { debugLog } from '../../../util/logger';
+import { GA4Options, PageContext, ProviderInstance, ProviderOptions } from '../../types';
+import { debugLog } from '../../util/logger';
 import { send, type TransportMethod } from '../base/transport';
 
 /**

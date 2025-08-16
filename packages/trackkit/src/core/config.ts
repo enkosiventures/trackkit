@@ -5,7 +5,7 @@ import type { FacadeOptions, InitOptions, ProviderOptions, ProviderType, Resolve
 import { DEFAULT_BATCH_SIZE, DEFAULT_BATCH_TIMEOUT, DEFAULT_CACHING, DEFAULT_ERROR_HANDLER, DEFAULT_QUEUE_SIZE } from '../constants';
 import { error } from 'console';
 import { debugLog, logger } from '../util/logger';
-import { UmamiOptions } from '../providers/new/umami';
+import { UmamiOptions } from '../providers/umami';
 
 const FACADE_DEFAULTS: FacadeOptions = {
   queueSize: DEFAULT_QUEUE_SIZE,
