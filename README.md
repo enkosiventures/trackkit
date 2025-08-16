@@ -1,179 +1,134 @@
-# **Root README `trackkit/`**
+# TrackKit
 
 ```txt
-TrackKit – tiny, privacy-first telemetry for the modern web
-───────────────────────────────────────────────────────────
-Core SDK   •   React & Vue wrappers   •   Plug-in ecosystem
-MV3-safe   •   <6 kB browser bundle   •   No remote scripts
+Trackkit — tiny, privacy-first web analytics
+────────────────────────────────────────────
+Core SDK • Built-in Umami/Plausible/GA4 • SSR-aware
+MV3-safe • No remote scripts • <6 kB browser core
 ```
 
-## Why TrackKit?
+## Why Trackkit?
 
-* **Minimal blast-radius** – page-view + custom events in 6 kB.
-* **Cookie-less by default** – no banner needed for Umami & Plausible.
-* **Plug-in architecture** – bolt on heavier providers (Amplitude, PostHog) when you *need* cohorts & pathing.
-* **Runs everywhere** – React / Vue, service-workers, Node, Cloudflare Workers, Chrome extensions (MV3).
-* **Server-side Rendering (SSR)** – Built-in support for SSR environments.
-* **Multi-provider Analytics** – Flexible architecture supports multiple providers simultaneously (e.g., mirroring critical events).
+* **Privacy-first**: cookieless by default for Umami & Plausible; consent-aware for GA4.
+* **No remote scripts**: CSP-friendly, safe for MV3 extensions, workers, and strict sites.
+* **Small & fast**: tree-shakeable core; adapters load lazily.
+* **Multi-provider**: run Umami/Plausible for everyone and layer GA4 for consented users.
+* **SSR aware**: queue on the server, hydrate and replay on the client.
+* **DX matters**: typed API, debug logs, queue inspection, provider state machine.
 
 ## Packages in this monorepo
 
-| Package             | NPM scope                   | Purpose                                                       |
-| ------------------- | --------------------------- | ------------------------------------------------------------- |
-| **Core**            | `trackkit`                  | Provider-agnostic runtime & built-ins (Umami, Plausible, GA4) |
-| **React wrapper**   | `trackkit-react`            | `<AnalyticsProvider/>`, `useAnalytics` & `usePageview`        |
-| **Vue wrapper**     | `trackkit-vue`              | `AnalyticsPlugin`, `useAnalytics`, `usePageview`              |
-| **Plug-in API**     | `trackkit-plugin-api`       | `ProviderAdapter` interface + dev helpers                     |
-| **Example plug-in** | `trackkit-plugin-amplitude` | Amplitude v9 adapter (opt-in, 30 kB)                          |
+| Package                   | Path                                 | Purpose                                                       |
+| ------------------------- | ------------------------------------ | ------------------------------------------------------------- |
+| **Core SDK**              | `packages/trackkit`                  | Provider-agnostic runtime + built-ins (Umami, Plausible, GA4) |
+| (Optional) React wrapper  | `packages/trackkit-react`            | `<AnalyticsProvider />`, hooks                                |
+| (Optional) Vue wrapper    | `packages/trackkit-vue`              | Plugin + composables                                          |
+| (Optional) Plugin API     | `packages/trackkit-plugin-api`       | Adapter interface & dev helpers                               |
+| (Optional) Example plugin | `packages/trackkit-plugin-amplitude` | Amplitude adapter (opt-in)                                    |
 
-*(All packages are MIT-licensed.)*
+> If you only need the core SDK, install `trackkit` and ignore the rest.
 
-### Detailed Package Docs
-
-- [Trackkit Core](./packages/trackkit/README.md)
-- [React Wrapper](./packages/trackkit-react/README.md)
-- [Vue Wrapper](./packages/trackkit-vue/README.md)
-- [Plug-in API](./packages/trackkit-plugin-api/README.md)
-- [Amplitude Plugin](./packages/trackkit-plugin-amplitude/README.md)
-
-
-## Quick start – core
+## Quick start (core)
 
 ```bash
-npm i trackkit            # or pnpm add trackkit
+npm i trackkit     # or: pnpm add trackkit  /  yarn add trackkit
 ```
 
 ```ts
-import { init, track } from 'trackkit';
+import { init, track, pageview } from 'trackkit';
 
-init({
-  provider:  'umami',                     // 'plausible' | 'ga' | 'none'
-  siteId:    'de305d54-75b4-431b-adb2',
-  host:      'https://cloud.umami.is'     // optional
+const analytics = init({
+  provider: 'umami',           // 'umami' | 'plausible' | 'ga' | 'noop'
+  site: 'de305d54-75b4-431b-adb2',
+  host: 'https://cloud.umami.is', // optional; set if self-hosting / custom domain
+  debug: true,
 });
 
-track('cta_clicked', { plan:'pro' });
+// send events
+pageview();                                 // infers current URL
+track('cta_clicked', { plan: 'pro' });      // custom event
 ```
 
-### Chrome-extension CSP
-
-```jsonc
-"content_security_policy": {
-  "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' \
-    https://cloud.umami.is \
-    https://plausible.io \
-    https://www.google-analytics.com \
-    https://api2.amplitude.com \
-    https://regionconfig.amplitude.com"
-}
-```
-
-*Adjust depending on used providers*
-
-Full API & env-var matrix → [`packages/trackkit/README.md`](packages/trackkit/README.md).
-
-## Adding a heavy provider (Amplitude example)
-
-```bash
-npm i trackkit-plugin-amplitude amplitude-js
-```
+### Consent (EU-friendly defaults)
 
 ```ts
-import amp from 'trackkit-plugin-amplitude';
-import { registerProvider, init } from 'trackkit';
+import { init, setConsent } from 'trackkit';
 
-registerProvider(amp);                   // one line
-init({ provider:'amplitude', siteId:AMP_KEY, host:'https://api2.amplitude.com'});
-```
-
-## Repository structure
-
-```
-packages/
-  trackkit/                 core
-  trackkit-react/           react wrapper
-  trackkit-vue/             vue wrapper
-  trackkit-plugin-api/      adapter interface & helpers
-  trackkit-plugin-amplitude/ example plug-in
-examples/
-  vite-site/                demo SPA
-  mv3-extension/            demo Chrome extension
-```
-
-### Scripts
-
-| Command             | What it does                        |
-| ------------------- | ----------------------------------- |
-| `pnpm build`        | tsup → rollup – builds all packages |
-| `pnpm test`         | vitest unit suites + size-limit     |
-| `pnpm size`         | gzip size report for every artefact |
-| `pnpm lint`         | eslint + prettier                   |
-| `pnpm example:site` | run Vite demo                       |
-| `pnpm example:ext`  | build & launch MV3 CRX in Chromium  |
-
-CI -- GitHub Actions matrix: Node 18/20; Playwright e2e for SPA + extension; size-limit gate (core ≤ 6 kB, each plug-in ≤ 35 kB).
-
-## Contributing
-
-1. `pnpm i`
-2. `pnpm dev` (watches all packages)
-3. Keep bundle budgets green (`pnpm size`).
-4. Commit style: **Conventional Commits**.
-5. New provider? `pnpm dlx trackkit-plugin-api new-plugin posthog`.
-
-## Licence
-
-MIT © Enkosi Ventures
-
----
-
-# **Core README `packages/trackkit/`**
-
-## TrackKit (core)
-
-| Feature      | Detail                                              |
-| ------------ | --------------------------------------------------- |
-| Bundle       | **5.7 kB** (Umami/Plausible/GA built-ins)           |
-| Runtimes     | Browser, service-worker, Node, CF Worker            |
-| MV3 safe     | No remote scripts, HSTS respect                     |
-| Consent hook | `setConsent('granted' \| 'denied')` (GA / plug-ins) |
-
-### Install
-
-```bash
-npm i trackkit
-```
-
-### Init
-
-```ts
 init({
-  provider:   'plausible',             // 'umami' | 'ga' | 'none'
-  siteId:     'trackkit.dev',          // plausible: domain
-  host:       'https://plausible.io',  // correct host for given provider
-  queueSize:  50
+  provider: 'ga',
+  site: 'G-XXXXXXXXXX',
+  consent: {
+    initialStatus: 'pending',      // 'pending' | 'granted' | 'denied'
+    requireExplicit: true,         // default: true
+    allowEssentialOnDenied: false, // default: false
+  },
 });
+
+// later, from your banner:
+setConsent('granted'); // or 'denied'
 ```
 
-### API
-
-| Function                    | Notes                              |
-| --------------------------- | ---------------------------------- |
-| `track(name, props?, url?)` | Custom event                       |
-| `pageview(url?)`            | Auto-default = `location.pathname` |
-| `identify(userId)`          | `null` clears                      |
-| `setConsent(state)`         | GA / plug-in aware                 |
+> When **pending**, events queue in memory; when **granted**, Trackkit flushes the queue; when **denied**, non-essential events are dropped.
 
 ### Environment variables
 
-| Var                 | Example | Purpose            |
-| ------------------- | ------- | ------------------ |
-| `TRACKKIT_PROVIDER` | `umami` | Build-time default |
-| `TRACKKIT_SITE_ID`  | UUID    | —                  |
-| `TRACKKIT_HOST`     | url     | —                  |
-| `TRACKKIT_QUEUE`    | `50`    | Buffer length      |
+Trackkit reads build-time/public env vars (with common bundler prefixes):
 
-### CSP cheatsheet
+| Var                   | Meaning                                                     |
+| --------------------- | ----------------------------------------------------------- |
+| `TRACKKIT_PROVIDER`   | default provider (`umami` \| `plausible` \| `ga` \| `noop`) |
+| `TRACKKIT_SITE`       | provider site/measurement ID                                |
+| `TRACKKIT_HOST`       | analytics host (self-host/custom domain)                    |
+| `TRACKKIT_QUEUE_SIZE` | max buffered events (default: 50)                           |
+| `TRACKKIT_DEBUG`      | `true`/`false`                                              |
+
+**Bundlers:**
+
+* Vite → `VITE_TRACKKIT_*`
+* CRA → `REACT_APP_TRACKKIT_*`
+* Next.js → `NEXT_PUBLIC_TRACKKIT_*`
+
+### Multi-provider (mirror critical events)
+
+```ts
+import { init, track, setConsent } from 'trackkit';
+
+// privacy baseline for all users
+const priv = init({ provider: 'plausible', site: 'example.com' });
+
+// add GA4 only if user consents to marketing
+setConsent('pending');
+function onConsentGranted() {
+  const ga = init({ provider: 'ga', site: 'G-XXXXXXXXXX' });
+  // mirror important events
+  track('signup_completed', { plan: 'pro' });
+}
+```
+
+### SSR hydration
+
+**Server:**
+
+```ts
+import { track } from 'trackkit';
+// …during render:
+track('server_render', { path: req.path });
+```
+
+**HTML template:**
+
+```html
+<head>
+  <!-- inject SSR queue -->
+  {{ serializeSSRQueue() }}
+</head>
+```
+
+**Client:** Trackkit hydrates and replays SSR events on `init()` when consent allows.
+
+### CSP / MV3
+
+Add the providers you use to `connect-src`. Example:
 
 ```jsonc
 "connect-src": [
@@ -184,11 +139,25 @@ init({
 ]
 ```
 
-### Size limits
+### Repo scripts
 
-* Browser build: **≤ 6 kB** gzip
-* Worker build (incl. @umami/node): **≤ 20 kB**
+| Command      | What it does                   |
+| ------------ | ------------------------------ |
+| `pnpm build` | Build all packages             |
+| `pnpm test`  | Vitest unit/integration suites |
+| `pnpm lint`  | ESLint + Prettier              |
+| `pnpm size`  | Gzip size budget report        |
 
-CI fails if budgets exceeded.
+## Contributing
+
+1. `pnpm i`
+2. `pnpm dev` (watch mode)
+3. Keep bundle budgets green (`pnpm size`).
+4. Conventional Commits, please.
+5. New provider? See **Provider Adapter API** in docs.
+
+## License
+
+MIT © Enkosi Ventures
 
 ---
