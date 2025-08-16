@@ -10,7 +10,7 @@ import { init, grantConsent, denyConsent, getConsent } from 'trackkit';
 // Initialize with explicit consent required (default)
 init({
   provider: 'umami',
-  siteId: 'your-site-id',
+  site: 'your-site-id',
   consent: {
     requireExplicit: true,
     policyVersion: '1.0', // Optional: for version tracking

@@ -17,7 +17,7 @@ const analytics = new UmamiAnalytics({
 ```javascript
 // .env file
 VITE_TRACKKIT_PROVIDER=umami
-VITE_TRACKKIT_SITE_ID=abc-123
+VITE_TRACKKIT_SITE=abc-123
 VITE_TRACKKIT_HOST=https://analytics.example.com
 
 // Your code

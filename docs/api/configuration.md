@@ -7,7 +7,7 @@ Trackkit can be configured through environment variables or programmatically.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `TRACKKIT_PROVIDER` | Analytics provider to use | `noop` |
-| `TRACKKIT_SITE_ID` | Provider-specific site identifier | - |
+| `TRACKKIT_SITE` | Provider-specific site identifier | - |
 | `TRACKKIT_HOST` | Custom analytics host | Provider default |
 | `TRACKKIT_QUEUE_SIZE` | Maximum events to buffer | `50` |
 | `TRACKKIT_DEBUG` | Enable debug logging | `false` |

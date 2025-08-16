@@ -55,7 +55,7 @@ Need user-level tracking?
 ```typescript
 init({
   provider: 'umami',
-  siteId: 'your-website-id',
+  site: 'your-website-id',
   host: 'https://analytics.yourdomain.com',
 });
 ```
@@ -82,7 +82,7 @@ init({
 ```typescript
 init({
   provider: 'plausible',
-  siteId: 'yourdomain.com',
+  site: 'yourdomain.com',
   host: 'https://plausible.io', // Or self-hosted
   revenue: {
     currency: 'USD',
@@ -114,7 +114,7 @@ init({
 ```typescript
 init({
   provider: 'ga',
-  siteId: 'G-XXXXXXXXXX',
+  site: 'G-XXXXXXXXXX',
   // Optional: for server-side tracking
   apiSecret: 'your-api-secret',
 });
@@ -128,14 +128,14 @@ You can use multiple providers simultaneously:
 // Primary: Privacy-friendly for all users
 init({
   provider: 'plausible',
-  siteId: 'example.com',
+  site: 'example.com',
 });
 
 // Secondary: GA4 for users who consent to marketing
 if (userConsentsToMarketing) {
   const ga = init({
     provider: 'ga',
-    siteId: 'G-XXXXXXXXXX',
+    site: 'G-XXXXXXXXXX',
   });
   ga.identify(userId);
 }
@@ -159,7 +159,7 @@ if (userConsentsToMarketing) {
 ```typescript
 // A/B test providers
 const provider = Math.random() > 0.5 ? 'plausible' : 'umami';
-init({ provider, siteId: 'your-site' });
+init({ provider, site: 'your-site' });
 ```
 
 ## Recommendations by Use Case
@@ -308,7 +308,7 @@ import { init, track } from 'trackkit';
 // Initialize
 init({
   provider: 'ga',
-  siteId: 'G-XXXXXXXXXX',
+  site: 'G-XXXXXXXXXX',
 });
 
 // Same events, cleaner API
@@ -376,7 +376,7 @@ track('add_to_cart', {
 ```typescript
 init({
   provider: 'ga',
-  siteId: 'G-XXXXXXXXXX',
+  site: 'G-XXXXXXXXXX',
   onError: (error) => {
     console.error('Analytics error:', error);
     // Send to error tracking
@@ -401,7 +401,7 @@ init({
 // Add API secret for Measurement Protocol
 init({
   provider: 'ga',
-  siteId: 'G-XXXXXXXXXX',
+  site: 'G-XXXXXXXXXX',
   apiSecret: 'your-api-secret', // From GA4 UI
 });
 ```
@@ -412,7 +412,7 @@ init({
 // Define once
 init({
   provider: 'ga',
-  siteId: 'G-XXXXXXXXXX',
+  site: 'G-XXXXXXXXXX',
   customDimensions: {
     'plan_type': 'dimension1',
     'user_role': 'dimension2',
@@ -432,7 +432,7 @@ track('upgrade', {
 // Enable GA4 validation
 init({
   provider: 'ga',
-  siteId: 'G-XXXXXXXXXX',
+  site: 'G-XXXXXXXXXX',
   debug: true, // Sends to debug endpoint
 });
 ```
@@ -523,7 +523,7 @@ import { init, track } from 'trackkit';
 
 init({
   provider: 'plausible',
-  siteId: 'yourdomain.com',
+  site: 'yourdomain.com',
 });
 
 // Same API, better DX
@@ -537,7 +537,7 @@ track('Signup', { plan: 'premium' });
 ```typescript
 init({
   provider: 'plausible',
-  siteId: 'yourdomain.com',
+  site: 'yourdomain.com',
   host: 'https://analytics.yourdomain.com',
 });
 ```
@@ -547,8 +547,8 @@ init({
 ```typescript
 init({
   provider: 'plausible',
-  siteId: 'yourdomain.com',
-  hashMode: true, // For SPAs using hash routing
+  site: 'yourdomain.com',
+  includeHash: true, // For SPAs using hash routing
 });
 ```
 
@@ -557,7 +557,7 @@ init({
 ```typescript
 init({
   provider: 'plausible',
-  siteId: 'yourdomain.com',
+  site: 'yourdomain.com',
   revenue: {
     currency: 'EUR',
     trackingEnabled: true,
@@ -576,7 +576,7 @@ track('Purchase', {
 ```typescript
 init({
   provider: 'plausible',
-  siteId: 'yourdomain.com',
+  site: 'yourdomain.com',
   exclude: [
     '/admin/*',
     '/api/*',
@@ -595,7 +595,7 @@ init({
 | Outbound links | ✅ Auto-tracked |
 | File downloads | ✅ Auto-tracked |
 | 404 tracking | ✅ Auto-tracked |
-| Hash-based routing | ✅ `hashMode` |
+| Hash-based routing | ✅ `includeHash` |
 | Exclusions | ✅ `exclude` |
 | Custom domains | ✅ `host` |
 
@@ -631,7 +631,7 @@ setConsent('granted');
 ```typescript
 init({
   provider: 'plausible',
-  siteId: 'yourdomain.com',
+  site: 'yourdomain.com',
   onError: (error) => {
     if (error.code === 'NETWORK_ERROR') {
       // Plausible might be blocked
@@ -652,7 +652,7 @@ init({
 <!-- Add Trackkit -->
 <script type="module">
   import { init } from 'trackkit';
-  init({ provider: 'plausible', siteId: 'yourdomain.com' });
+  init({ provider: 'plausible', site: 'yourdomain.com' });
 </script>
 ```
 
@@ -704,7 +704,7 @@ identify('user-123'); // No-op with Plausible
 ```typescript
 init({
   provider: 'plausible',
-  siteId: 'yourdomain.com',
+  site: 'yourdomain.com',
   defaultProps: {
     version: '2.0',
     environment: 'production',
@@ -720,7 +720,7 @@ track('Feature Used'); // Includes version & environment
 ```typescript
 init({
   provider: 'plausible',
-  siteId: 'yourdomain.com',
+  site: 'yourdomain.com',
   trackLocalhost: true, // Enable in development
 });
 ```

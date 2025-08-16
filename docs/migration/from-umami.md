@@ -34,7 +34,7 @@ npm install trackkit
 ```bash
 # .env
 VITE_TRACKKIT_PROVIDER=umami
-VITE_TRACKKIT_SITE_ID=94db1cb1-74f4-4a40-ad6c-962362670409
+VITE_TRACKKIT_SITE=94db1cb1-74f4-4a40-ad6c-962362670409
 VITE_TRACKKIT_HOST=https://analytics.example.com
 ```
 
@@ -236,7 +236,7 @@ import { init } from 'trackkit';
 
 init({
   provider: 'umami',
-  siteId: 'your-website-id',
+  site: 'your-website-id',
   host: 'https://your-umami-instance.com', // Optional
 });
 ```
@@ -246,7 +246,7 @@ init({
 ```typescript
 init({
   provider: 'umami',
-  siteId: 'your-website-id',
+  site: 'your-website-id',
   host: 'https://cloud.umami.is', // Default
   autoTrack: true,    // Auto-track pageviews
   doNotTrack: true,   // Respect DNT header
@@ -304,7 +304,7 @@ To avoid ad blockers and improve privacy:
 ```typescript
 init({
   provider: 'umami',
-  siteId: 'your-site-id',
+  site: 'your-site-id',
   host: 'https://analytics.yourdomain.com',
 });
 ```
@@ -322,7 +322,7 @@ Enable debug mode to see all events:
 ```typescript
 init({
   provider: 'umami',
-  siteId: 'your-site-id',
+  site: 'your-site-id',
   debug: true,
 });
 ```
@@ -337,7 +337,7 @@ Check browser console for:
 1. **Use Environment Variables**
    ```bash
    VITE_TRACKKIT_PROVIDER=umami
-   VITE_TRACKKIT_SITE_ID=your-id
+   VITE_TRACKKIT_SITE=your-id
    VITE_TRACKKIT_HOST=https://analytics.example.com
    ```
 
