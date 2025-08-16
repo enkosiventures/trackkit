@@ -1,4 +1,3 @@
-// packages/trackkit/test/integration/consent-flow.test.ts
 /// <reference types="vitest" />
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
@@ -16,7 +15,6 @@ import {
   getDiagnostics,
   flushIfReady,
   hasQueuedEvents,
-  getInstance,
 } from '../../src';
 import { getFacade } from '../../src/core/facade-singleton';
 import { createStatefulMock } from '../helpers/providers';

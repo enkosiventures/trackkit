@@ -1,6 +1,6 @@
-import type { AnalyticsInstance, EventType, FacadeOptions, InitOptions, PageContext, Props, ProviderOptions, ProviderType } from '../types';
+import type { AnalyticsInstance, EventType, FacadeOptions, InitOptions, PageContext, Props, ProviderOptions } from '../types';
 import { dispatchError, AnalyticsError, setUserErrorHandler } from '../errors';
-import { createLogger, debugLog, logger, setGlobalLogger } from '../util/logger';
+import { createLogger, logger, setGlobalLogger } from '../util/logger';
 import { EventQueue, QueuedEventUnion } from '../util/queue';
 import { validateConfig, mergeConfig, getConsentConfig } from './config';
 import { isSSR, hydrateSSRQueue, getSSRQueue, getSSRQueueLength } from '../util/ssr-queue';
@@ -14,6 +14,10 @@ import { DEFAULT_CATEGORY, ESSENTIAL_CATEGORY } from '../constants';
 import { getProviderMetadata } from '../providers/metadata';
 import { loadProvider } from '../providers/loader';
 
+
+const facadeDebugLog = (message: string, ...args: unknown[]): void => {
+  logger.debug(`[FACADE] ${message}`, ...args);
+}
 
 type SendDecision = { 
   ok: boolean;
@@ -33,7 +37,6 @@ export class AnalyticsFacade implements AnalyticsInstance {
   private queue: EventQueue;
   private provider: StatefulProvider | null = null;
   private consent: ConsentManager | null = null;
-  // private config: AnalyticsOptions | null = null;
   private initPromise: Promise<void> | null = null;
   private currentUserId: string | null = null;
   private config: FacadeOptions | null = null;
@@ -66,40 +69,37 @@ export class AnalyticsFacade implements AnalyticsInstance {
   // ================ Public API ================
   
   init(options: InitOptions = {}): this {
-    debugLog('============ AnalyticsFacade.init called ============', options);
-    debugLog("Analytics Facade:", this.id);
+    facadeDebugLog("Initializing analytics facade:", this.id);
     if (this.provider || this.initPromise) {
       logger.warn('Analytics already initialized');
       return this;
     }
     
     try {
-      
-      debugLog("[FACADE] Initializing analytics facade", options);
       const resolved = mergeConfig(options);
 
       // Set config before validation to ensure noop provider still has
       // access to any valid user-provided options as well as default fallbacks
       this.config = resolved.facadeOptions;
       this.providerConfig = resolved.providerOptions;
-      debugLog("[FACADE] Config merged", resolved);
+      facadeDebugLog("Config merged", resolved);
 
       this.configureLogger(this.config);
 
       setUserErrorHandler(this.config?.onError);
-      debugLog("[FACADE] User error handler set", this.config?.onError);
+      facadeDebugLog("User error handler set", this.config?.onError);
 
       validateConfig(resolved);
-      debugLog("[FACADE] Config validated");
+      facadeDebugLog("Config validated");
 
       // Update queue with final config
       this.reconfigureQueue(this.config);
-      debugLog("[FACADE] Queue reconfigured", this.queue);
+      facadeDebugLog("Queue reconfigured", this.queue);
 
       // Create consent manager synchronously
       const consentConfig = getConsentConfig(this.config, this.providerConfig?.provider);
       this.consent = new ConsentManager(consentConfig);
-      debugLog("[FACADE] Consent manager created", this.consent.getStatus());
+      facadeDebugLog("Consent manager created", this.consent.getStatus());
 
       // Start async initialization
       this.initPromise = this.initializeAsync()
@@ -129,7 +129,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
   }
 
   track(name: string, props?: Props, category: ConsentCategory = DEFAULT_CATEGORY): void {
-    debugLog('Facade track called', name, props, category);
+    facadeDebugLog('Facade track called', name, props, category);
     this.execute({type: 'track', args: [name, props], category});
   }
   
@@ -143,7 +143,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
   }
 
   destroy(): void {
-    debugLog('[FACADE] [DESTROY] AnalyticsFacade.destroy called');
+    facadeDebugLog('[DESTROY] AnalyticsFacade.destroy called');
     // Destroy provider
     try {
       this.provider?.destroy();
@@ -222,7 +222,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
 
       // If tests (or app) injected a provider meanwhile, don't overwrite it.
       if (this.provider) {
-        logger.debug('[FACADE] Provider already present; discarding loaded provider');
+        facadeDebugLog('Provider already present; discarding loaded provider');
         try { loaded.destroy(); } catch {}
         // Still wire consent callbacks to the existing provider if needed.
         this.setupConsentCallbacks();
@@ -282,7 +282,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
       logger.info('Provider ready, checking for consent and queued events');
       
       // Flush queues if consent granted
-      debugLog("[FACADE] Provider ready callback called", {
+      facadeDebugLog("Provider ready callback called", {
         provider: this.provider?.name,
         consentManager: this.consent,
         consentStatus: this.consent?.getStatus(),
@@ -301,7 +301,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
       }
 
       // Start auto-tracking if enabled
-      debugLog("[FACADE] maybeStartAutotrack called in onReady");
+      facadeDebugLog("maybeStartAutotrack called in onReady");
       this.maybeStartAutotrack();
     });
   }
@@ -309,23 +309,23 @@ export class AnalyticsFacade implements AnalyticsInstance {
   private setupConsentCallbacks(): void {
     if (!this.consent) {
       logger.warn('No consent manager available, skipping consent setup');
-      debugLog("[FACADE] No consent manager available, skipping consent setup");
+      facadeDebugLog("No consent manager available, skipping consent setup");
       return;
     }
     
     this.consent.onChange((status, prevStatus) => {
-      debugLog("[FACADE] Consent changed callback called. Consent manager status:", status);
-      debugLog("[FACADE] This provider:", this.provider);
+      facadeDebugLog("Consent changed callback called. Consent manager status:", status);
+      facadeDebugLog("This provider:", this.provider);
       logger.info('Consent changed', { from: prevStatus, to: status });
       
       if (status === 'granted' && this.provider) {
         // Check if provider is ready
         const providerReady = this.provider.getState().provider === 'ready';
         
-        debugLog("[FACADE] Provider status:", this.provider.getState());
-        debugLog("[FACADE] Provider ready state:", providerReady);
+        facadeDebugLog("Provider status:", this.provider.getState());
+        facadeDebugLog("Provider ready state:", providerReady);
         if (providerReady) {
-          debugLog("[FACADE] consent granted with provider ready")
+          facadeDebugLog("consent granted with provider ready")
           // Flush queued events
           if (this.getTotalQueueSize() > 0) {
             this.flushAllQueues();
@@ -349,7 +349,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
 
     // SSR: always queue
     if (isSSR()) {
-      logger.debug('execute failed as isSSR, queuing');
+      facadeDebugLog('execute failed as isSSR, queuing');
       getSSRQueue().push({
         id: `ssr_${Date.now()}_${Math.random()}`,
         type,
@@ -363,22 +363,22 @@ export class AnalyticsFacade implements AnalyticsInstance {
 
     // Check if duplicate pageview
     if (type === 'pageview' && this.lastPlannedUrl === resolvedUrl) {
-      logger.debug('execute aborted duplicate pageview', { url: resolvedUrl });
+      facadeDebugLog('execute aborted duplicate pageview', { url: resolvedUrl });
       return;
     }
     
     // Check if we can send immediately
-    debugLog("[FACADE] [EXEC] config:", this.config);
+    facadeDebugLog("[EXEC] config:", this.config);
     const decision = this.shouldSend(type, category, resolvedUrl);
     if (this.provider && decision.ok) {
-      logger.debug('Provider ready & policy pass', {
+      facadeDebugLog('Provider ready & policy pass', {
         provider: this.provider?.name,
         state: this.provider?.getState().provider,
       });
       try {
         // @ts-expect-error - dynamic dispatch
         this.provider[type](...args, pageContext);
-        debugLog("Current provider:", this.provider?.name);
+        facadeDebugLog("Current provider:", this.provider?.name);
         this.onExecuteSuccess(type, resolvedUrl);
       } catch (error) {
         dispatchError(new AnalyticsError(
@@ -390,15 +390,15 @@ export class AnalyticsFacade implements AnalyticsInstance {
       }
       return;
     } else {
-      logger.debug(
+      facadeDebugLog(
         `Provider not ready or should not send ${type}`,
         { type, args, url: resolvedUrl, shouldSend: decision.ok, reason: decision.reason },
       );
-      debugLog(
+      facadeDebugLog(
         `Provider not ready or should not send ${type}`,
         { type, args, url: resolvedUrl, shouldSend: decision.ok, reason: decision.reason },
       );
-      debugLog("provider", this.provider);
+      facadeDebugLog("provider", this.provider);
     }
 
     // Determine if we should queue or drop
@@ -408,7 +408,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
     if (policyBlocked) {
       if (decision.reason === 'consent-denied') {
         this.consent?.incrementDroppedDenied();
-        logger.debug(`Event dropped due to consent denial: ${type}`, { args });
+        facadeDebugLog(`Event dropped due to consent denial: ${type}`, { args });
       }
       dispatchError(new AnalyticsError(
         `Event blocked by policy (${decision.reason})`,
@@ -429,7 +429,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
 
       if (eventId) {
         this.consent?.incrementQueued();
-        logger.debug(`Event queued: ${type}`, { 
+        facadeDebugLog(`Event queued: ${type}`, { 
           eventId, 
           queueSize: this.queue.size,
           reason: !this.provider ? 'no provider' : 'consent pending'
@@ -449,15 +449,15 @@ export class AnalyticsFacade implements AnalyticsInstance {
     // Essential events will be permitted by this.shouldSend if allowEssentialOnDenied is true
     const consentStatus = this.consent?.getStatus();
     if (consentStatus === 'denied') { 
-      debugLog('consent denied, dropping event');
+      facadeDebugLog('consent denied, dropping event');
       this.consent?.incrementDroppedDenied();
-      logger.debug(`Event dropped due to consent denial: ${type}`, { args });
+      facadeDebugLog(`Event dropped due to consent denial: ${type}`, { args });
       return;
     }
   }
 
   private onExecuteSuccess(type: EventType, url: string): void {
-    logger.debug(`Execution successful for ${type}`, { url });
+    facadeDebugLog(`Execution successful for ${type}`, { url });
     if (type === 'pageview') {
       this.lastPlannedUrl = url; 
       this.lastSentUrl = url; // used for SPA referrer
@@ -468,7 +468,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
   private shouldSend(type: EventType, category: ConsentCategory, url?: string): SendDecision {
     // Environment/SSR
     if (!isBrowser()) return { ok: false, reason: 'not-browser' };
-    debugLog("[SHOULD_SEND] isBrowser check passed", { type, category, url });
+    facadeDebugLog("[SHOULD_SEND] isBrowser check passed", { type, category, url });
 
     // Consent
     if (!this.consent?.isAllowed(category)) {
@@ -479,25 +479,25 @@ export class AnalyticsFacade implements AnalyticsInstance {
       return { ok: false, reason: 'consent-pending' };
       }
     }
-    debugLog("[SHOULD_SEND] Consent check passed", { type, category, url });
+    facadeDebugLog("[SHOULD_SEND] Consent check passed", { type, category, url });
 
     // DNT (respect by default)
     if (this.config?.doNotTrack !== false && isDoNotTrackEnabled()) return { ok: false, reason: 'dnt' };
-    debugLog("[SHOULD_SEND] DNT check passed", { type, category, url });
+    facadeDebugLog("[SHOULD_SEND] DNT check passed", { type, category, url });
 
     // Localhost policy (default: provider-set)
     const meta = getProviderMetadata(this.providerConfig?.provider || 'noop');
     const allowLocalhostDefault = meta?.trackLocalhost ?? true;
     const allowLocalhost = this.config?.trackLocalhost ?? allowLocalhostDefault;
     if (!allowLocalhost && isLocalhost()) return { ok: false, reason: 'localhost' };
-    debugLog("[SHOULD_SEND] Localhost check passed", { type, category, url });
+    facadeDebugLog("[SHOULD_SEND] Localhost check passed", { type, category, url });
 
     // Pageview-specific filters
     if (type === 'pageview') {
       if (!isDomainAllowed(this.config?.domains)) return { ok: false, reason: 'domain-not-allowed' };
       if (url && isUrlExcluded(url, this.config?.exclude)) return { ok: false, reason: 'url-excluded' };
     }
-    debugLog("[SHOULD_SEND] Domain and URL checks passed", { type, category, url });
+    facadeDebugLog("[SHOULD_SEND] Domain and URL checks passed", { type, category, url });
 
     // Provider readiness is checked by caller (we know if this.provider exists)
     return { ok: true, reason: 'ok' };
@@ -510,7 +510,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
     }
 
     // Then flush facade queue
-    debugLog("[FACADE] Flushing facade queue", this.queue);
+    facadeDebugLog("Flushing facade queue", this.queue);
     this.flushFacadeQueue();
   }
 
@@ -532,7 +532,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
     logger.info(`Flushing queued facade events`);
     const queuedEvents = this.queue.flush();
 
-    debugLog(`[FACADE] Flushing facade queue ${this.id}`, { queuedEvents }, this.queue);
+    facadeDebugLog(`Flushing facade queue ${this.id}`, { queuedEvents }, this.queue);
     this.replayEvents(queuedEvents);
   }
   
@@ -544,7 +544,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
     logger.info(`Replaying ${events.length} events through provider ${this.provider.name}`);
 
     for (const event of events) {
-      debugLog("[FACADE] Replaying queued event", { event });
+      facadeDebugLog("Replaying queued event", { event });
       const { type, args, category, pageContext } = event;
       try {
         this.execute({ type, args, category, url: pageContext?.url });
@@ -665,7 +665,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
   }
 
   private maybeStartAutotrack() {
-    logger.debug('maybeStartAutotrack called', {
+    facadeDebugLog('maybeStartAutotrack called', {
       autoTrack: this.config?.autoTrack,
       isBrowser: isBrowser(),
       navUnsub: this.navUnsub,
@@ -677,7 +677,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
     logger.info('Starting autotracking');
     const sandbox = ensureNavigationSandbox(window);
     this.navUnsub = sandbox.subscribe((url: string) => {
-      debugLog(`[FACADE] [AUTOTRACK] url: ${url}, consent status: ${this.consent?.getStatus()}`);
+      facadeDebugLog(`[AUTOTRACK] url: ${url}, consent status: ${this.consent?.getStatus()}`);
       if (!this.consent?.isAllowed(DEFAULT_CATEGORY)) {
         // Pre-consent SPA navigations are **not** scheduled
         return;
@@ -832,7 +832,7 @@ export class AnalyticsFacade implements AnalyticsInstance {
 
   flushIfReady(): void {
     if (this.provider && this.consent?.getStatus() === 'granted' && this.hasQueuedEvents()) {
-      debugLog("[FACADE] flushIfReady called, flushing all queues");
+      facadeDebugLog("flushIfReady called, flushing all queues");
       this.flushAllQueues();
     }
   }

@@ -1,6 +1,5 @@
-// packages/trackkit/test/unit/util/env.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { readEnvConfig, parseEnvBoolean, parseEnvNumber } from '../../../src/util/env';
+import { readEnvConfig } from '../../../src/util/env';
 
 describe('Environment configuration', () => {
   const originalEnv = process.env;
@@ -19,8 +18,6 @@ describe('Environment configuration', () => {
     process.env = originalEnv;
     (global as any).window = originalWindow;
   });
-
-  // existing tests …
 
   it('reads window.__TRACKKIT_ENV__ and prefers it over process.env', () => {
     process.env.TRACKKIT_PROVIDER = 'umami';

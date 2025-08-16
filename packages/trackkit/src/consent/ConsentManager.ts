@@ -1,6 +1,6 @@
 import { STORAGE_KEY } from '../constants';
 import { isBrowser } from '../util/env';
-import { debugLog, logger } from '../util/logger';
+import { logger } from '../util/logger';
 import { ConsentCategory, ConsentOptions, ConsentSnapshot, ConsentStatus, ConsentStoredState, Listener } from './types';
 
 
@@ -32,9 +32,7 @@ export class ConsentManager {
       const raw = window.localStorage.getItem(this.opts.storageKey);
       this.storageAvailable = true;
       if (!raw) {
-        // If explicit consent NOT required we may auto‑grant (implicit) on first track.
-        // this.status = this.opts.requireExplicit ? 'pending' : 'granted'; // still pending until we see a track (implicit promotion hook)
-        this.status = 'pending'; // always start as pending
+        this.status = 'pending';
         return;
       }
       const parsed: ConsentStoredState = JSON.parse(raw);
@@ -82,7 +80,6 @@ export class ConsentManager {
    * - Non-essential only when granted
    */
   isAllowed(category: ConsentCategory = 'analytics'): boolean {
-    debugLog('[CONSENT] isAllowed', { category, status: this.status, allowEssentialOnDenied: this.opts.allowEssentialOnDenied });
     if (category === 'essential') {
       // allowed unless explicitly denied AND not allowed-by-config
       return this.status !== 'denied' || this.opts.allowEssentialOnDenied;

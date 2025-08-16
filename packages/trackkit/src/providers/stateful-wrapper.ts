@@ -1,6 +1,6 @@
 import type { ProviderInstance } from '../types';
 import { StateMachine } from '../util/state';
-import { debugLog, logger } from '../util/logger';
+import { logger } from '../util/logger';
 import { AnalyticsError } from '../errors';
 
 /**
@@ -68,9 +68,8 @@ export class StatefulProvider implements ProviderInstance {
    * Initialize the provider
    */
   async init(): Promise<void> {
-    debugLog(`[STATEFUL] Initializing provider: ${this.provider.name}`);
+    logger.debug(`Initializing provider: ${this.provider.name}`);
     if (this.state.getState() !== 'idle') {
-      debugLog(`[STATEFUL] Provider already initialized: ${this.provider.name}`);
       logger.warn('Provider already initialized');
       return;
     }
@@ -78,9 +77,10 @@ export class StatefulProvider implements ProviderInstance {
     this.state.transition('INIT');
     
     try {
-      debugLog(`[STATEFUL] Provider initialized: ${this.provider.name}`);
+      logger.debug(`Provider initialized: ${this.provider.name}`);
       this.state.transition('READY');
     } catch (error) {
+      logger.error(`Provider initialization failed: ${this.provider.name}`, error);
       this.state.transition('ERROR');
       throw error;
     }

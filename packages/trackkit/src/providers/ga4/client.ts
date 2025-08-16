@@ -1,5 +1,4 @@
 import { GA4Options, PageContext, ProviderInstance, ProviderOptions } from '../../types';
-import { debugLog } from '../../util/logger';
 import { send, type TransportMethod } from '../base/transport';
 
 /**
@@ -112,8 +111,6 @@ export function createGA4Client(options: ProviderOptions): ProviderInstance {
     if (consent && (consent.ad_user_data || consent.ad_personalization)) {
       payload.consent = consent; // GA4 MP consent object
     }
-
-    debugLog(`[ga4] Sending ${enhancedEvents.length} events to ${endpoint}`, payload);
 
     const res = await send({ method, url: endpoint, headers, body: payload, maxBeaconBytes: 64_000 });
     if (!res.ok) {

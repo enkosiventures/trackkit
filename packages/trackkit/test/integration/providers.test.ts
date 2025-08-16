@@ -3,9 +3,9 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach } from
 import { server } from '../setup/msw';
 import { http, HttpResponse } from 'msw';
 import { init, track, destroy, waitForReady, grantConsent, pageview } from '../../src';
-import { debugLog } from '../../src/util/logger';
 import { TEST_SITE_ID } from '../setup/providers';
 import { UMAMI_ENDPOINT, UMAMI_HOST } from '../../src/constants';
+import { testLog } from '../helpers/core';
 // import { installBeaconPolyfill } from '../setup/install-beacon-polyfill';
 
 
@@ -139,7 +139,7 @@ describe('Provider Integration', () => {
       let requests: any[] = [];
       server.use(
         http.post('*', async ({ request }) => {
-          debugLog('Intercepted request to ${name} API');
+          testLog('Intercepted request to ${name} API');
           requests.push(await request.json());
           return HttpResponse.json({ ok: true });
         })
@@ -177,7 +177,7 @@ describe('Provider Integration', () => {
       let requests: any[] = [];
       server.use(
         http.post('*', async ({ request }) => {
-          debugLog('Intercepted request to ${name} API');
+          testLog('Intercepted request to ${name} API');
           requests.push(await request.json());
           return HttpResponse.json({ ok: true });
         })
@@ -246,10 +246,10 @@ describe('Provider Integration', () => {
       expect(requests).toBe(0);
 
       // Destroy and switch to real provider
-      debugLog('[TEST] Destroying no-op provider');
+      testLog('[TEST] Destroying no-op provider');
       destroy();
       
-      debugLog('[TEST] Switching to provider:', name);
+      testLog('[TEST] Switching to provider:', name);
       init({
         ...config,
         autoTrack: false,
@@ -259,7 +259,7 @@ describe('Provider Integration', () => {
       await waitForReady();
       
       grantConsent();
-      debugLog('[TEST] Switched to provider:', name);
+      testLog('[TEST] Switched to provider:', name);
       track('provider_event');
       
       await new Promise(resolve => setTimeout(resolve, 100));

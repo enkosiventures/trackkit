@@ -1,5 +1,5 @@
 /**
- * Core consent state - intentionally minimal
+ * Core consent state
  */
 export type ConsentStatus = 'pending' | 'granted' | 'denied';
 

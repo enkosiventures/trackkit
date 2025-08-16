@@ -1,12 +1,9 @@
 /// <reference types="vitest" />
-import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { denyConsent, grantConsent, init, waitForReady, destroy } from '../../src';
 import { createFacade } from '../helpers/providers';
 import { navigate } from '../helpers/navigation';
 import { tick } from '../helpers/core';
-import { g } from 'vitest/dist/chunks/suite.d.FvehnV49.js';
-import { debugLog } from '../../src/util/logger';
-import noopProvider from '../../src/providers/noop';
 
 // @vitest-environment jsdom
 

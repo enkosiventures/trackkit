@@ -1,5 +1,5 @@
 import type { ConsentSnapshot, ConsentStatus } from './types';
-import { debugLog, logger } from '../util/logger';
+import { logger } from '../util/logger';
 import { getFacade } from '../core/facade-singleton';
 
 
@@ -17,9 +17,9 @@ export function grantConsent(): void {
     return;
   }
   
-  debugLog('Granting analytics consent');
+  logger.debug('Granting analytics consent');
   consent.grant();
-  debugLog('Flushing queued events after consent granted');
+  logger.debug('Flushing queued events after consent granted');
   facade.flushIfReady();
 }
 

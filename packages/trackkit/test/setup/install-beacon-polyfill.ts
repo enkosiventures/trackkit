@@ -1,5 +1,3 @@
-import { beforeAll, afterAll, afterEach, vi } from 'vitest';
-
 /**
  * Install a minimal sendBeacon polyfill that forwards to fetch so MSW can intercept.
  * Not global by default: call this in integration tests only.

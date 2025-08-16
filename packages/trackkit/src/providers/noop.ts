@@ -1,7 +1,5 @@
-import { ConsentCategory } from '../consent/types';
-import { DEFAULT_CACHING } from '../constants';
 import { PageContext, Props, ProviderInstance, ProviderOptions } from '../types';
-import { debugLog, logger } from '../util/logger';
+import { logger } from '../util/logger';
 import { stripEmptyFields } from './shared/utils';
 import { ProviderFactory,  } from './types';
 
@@ -21,12 +19,7 @@ function create(
    * Log method call in debug mode
    */
   const log = (method: string, ...args: unknown[]) => {
-    debugLog("Logging no-op method call");
     if (!!debug) {
-      debugLog(
-        `[no-op] ${method}`,
-        ...args,
-      );
       logger.debug(`[no-op] ${method}`, ...args);
     }
   };
@@ -35,12 +28,10 @@ function create(
     name: 'noop',
     
     track(name: string, props: Props, pageContext: PageContext): void {
-      debugLog('no-op track', { name, props, pageContext: stripEmptyFields(pageContext) });
       log('track', { name, props, pageContext: stripEmptyFields(pageContext) });
     },
     
     pageview(pageContext: PageContext): void {
-      debugLog('[PAGEVIEW] no-op pageview', { pageContext: stripEmptyFields(pageContext) });
       log('pageview', { pageContext: stripEmptyFields(pageContext) });
     },
     

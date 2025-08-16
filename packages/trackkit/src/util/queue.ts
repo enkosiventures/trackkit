@@ -1,7 +1,7 @@
 import { ConsentCategory } from '../consent/types';
 import { DEFAULT_CATEGORY } from '../constants';
 import type { EventType, PageContext, Props } from '../types';
-import { debugLog, logger } from './logger';
+import { logger } from './logger';
 
 
 
@@ -103,13 +103,13 @@ export class EventQueue {
     };
 
     // Check for overflow
-    debugLog('Enqueuing event', {
+    logger.debug('Enqueuing event', {
       event,
       maxSize: this.config.maxSize,
       queueLength: this.queue.length,
     });
     if (this.queue.length >= this.config.maxSize) {
-      debugLog('[OVERFLOW] Queue overflow detected');
+      logger.debug('[OVERFLOW] Queue overflow detected');
       const dropped = this.queue.splice(0, this.queue.length - this.config.maxSize + 1);
       
       logger.warn(`Queue overflow, dropping ${dropped.length} oldest events`);

@@ -1,11 +1,10 @@
-import { readEnvConfig, parseEnvBoolean, parseEnvNumber } from '../util/env';
+import { readEnvConfig } from '../util/env';
 import { getProviderMetadata } from '../providers/metadata';
 import { AnalyticsError } from '../errors';
 import type { FacadeOptions, InitOptions, ProviderOptions, ProviderType, ResolvedOptions } from '../types';
 import { DEFAULT_BATCH_SIZE, DEFAULT_BATCH_TIMEOUT, DEFAULT_CACHING, DEFAULT_ERROR_HANDLER, DEFAULT_QUEUE_SIZE } from '../constants';
-import { error } from 'console';
-import { debugLog, logger } from '../util/logger';
-import { UmamiOptions } from '../providers/umami';
+import { logger } from '../util/logger';
+
 
 const FACADE_DEFAULTS: FacadeOptions = {
   queueSize: DEFAULT_QUEUE_SIZE,
@@ -21,34 +20,6 @@ const FACADE_DEFAULTS: FacadeOptions = {
   transport: 'auto',
   onError: DEFAULT_ERROR_HANDLER,
 };
-
-/** Type guards (handy inside config/validation). */
-// export const isUmami = (o: AnalyticsOptions): o is FacadeOptions & UmamiOptions => o.provider === 'umami';
-// export const isPlausible = (o: AnalyticsOptions): o is FacadeOptions & Plausi => o.provider === 'plausible';
-// export const isGA4 = (o: AnalyticsOptions): o is FacadeOptions & GA4Options => o.provider === 'ga4';
-
-
-// function normalizedProvider(options: AnalyticsOptions) {
-//   if (isPlausible(options)) {
-//     return { provider: 'plausible' as const, domain: options.domain ?? options.site, host: options.host, revenue: options.revenue };
-//   }
-//   if (isUmami(options)) {
-//     return { provider: 'umami' as const, website: options.website ?? options.site!, host: options.host };
-//   }
-//   if (isGA4(options)) {
-//     return { provider: 'ga4' as const, measurementId: options.measurementId ?? options.site!, host: options.host,
-//              apiSecret: options.apiSecret, customDimensions: options.customDimensions, customMetrics: options.customMetrics };
-//   }
-//   return { provider: 'noop' as const };
-// }
-
-// function normalizeSiteAlias(opts: AnalyticsOptions): ProviderOptions {
-//   const p = opts.provider ?? 'noop';
-//   if (p === 'plausible') return { provider: 'plausible', domain: opts.domain ?? opts.site! , host: opts.host, revenue: opts.revenue };
-//   if (p === 'umami')     return { provider: 'umami',     website: opts.website ?? opts.site!, host: opts.host };
-//   if (p === 'ga4')       return { provider: 'ga4',       measurementId: opts.measurementId ?? opts.site!, host: opts.host, apiSecret: opts.apiSecret, customDimensions: opts.customDimensions, customMetrics: opts.customMetrics };
-//   return { provider: 'noop' };
-// }
 
 function extractProviderOptions(options: InitOptions): ProviderOptions {
   switch (options.provider) {
@@ -80,19 +51,6 @@ function extractProviderOptions(options: InitOptions): ProviderOptions {
       return { provider: 'noop' };
   }
 }
-
-// export function mergeConfig(options: AnalyticsOptions): AnalyticsOptions {
-//   const envConfig = readEnvConfig();
-//   const config = {
-//     ...DEFAULT_OPTIONS,
-//     ...envConfig,
-//     ...options,
-//   };
-//   return {
-//     ...config,
-//     ...normalizeSite(config),
-//   };
-// }
 
 export function mergeConfig(userOptions: InitOptions): ResolvedOptions {
   const env = readEnvConfig();
@@ -152,7 +110,6 @@ export function validateConfig({ providerOptions }: ResolvedOptions): void {
   }
 
   if (errorMessage) {
-    debugLog(`Invalid config: ${errorMessage}`);
     logger.error(`Invalid config: ${errorMessage}`);
     throw new AnalyticsError(
       errorMessage,

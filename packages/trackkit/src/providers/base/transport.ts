@@ -1,4 +1,4 @@
-import { debugLog } from "../../util/logger";
+import { logger } from "../../util/logger";
 import { stripEmptyFields } from "../shared/utils";
 
 /**
@@ -71,17 +71,16 @@ export async function send(req: TransportRequest): Promise<Response> {
     ...(req.headers || {}),
   };
 
-  debugLog('Transport.send', {
+  logger.debug('Transport.send', {
     method,
     url: finalUrl,
     headers,
-    body: strippedBody,
     maxBeaconBytes,
     signal: req.signal ? 'exists' : 'none',
     cacheBust: bustCache,
     wantBeacon,
   });
-  debugLog('Transport.body', strippedBody);
+  logger.debug('Transport.body', strippedBody);
 
   // Prepare payload
   const serialized =
@@ -115,6 +114,5 @@ export async function send(req: TransportRequest): Promise<Response> {
     signal: signal ?? undefined,
   };
 
-  debugLog('Transport.fetch');
   return fetch(finalUrl, init);
 }
