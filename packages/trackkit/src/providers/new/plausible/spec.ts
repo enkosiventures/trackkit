@@ -23,6 +23,8 @@ function normalizeHost(host?: string): string {
 const plausibleSpec: ProviderSpec<PlausibleOptions> = {
   name: 'plausible',
 
+  version: '1.0.0',
+
   defaults: (options: ProviderOptions) => {
     const plausibleOptions = options as PlausibleOptions;
     const domain = plausibleOptions.domain?.trim();

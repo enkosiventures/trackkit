@@ -1,4 +1,4 @@
-import { InitOptions, PageContext, ProviderInstance } from '../../../types';
+import { PageContext, ProviderInstance, ProviderType } from '../../../types';
 import { send, type TransportMethod } from './transport';
 
 
@@ -7,7 +7,9 @@ import { send, type TransportMethod } from './transport';
  * This consolidates 90% of provider differences into tiny “spec” modules.
  */
 export type ProviderSpec<ProviderOptions> = {
-  name: string;
+  name: ProviderType;
+
+  version: string;
 
   /** Normalize/validate options; apply defaults. Throw for missing required fields. */
   defaults: (options: ProviderOptions) => ProviderOptions;
@@ -101,5 +103,10 @@ export function createConfigProvider<ProviderOptions>(spec: ProviderSpec<Provide
 
       return instance;
     },
+
+    meta: {
+      name: spec.name,
+      version: spec.version,
+    }
   };
 }

@@ -26,6 +26,8 @@ export function getUmamiPageContext(pageContext: PageContext): Record<string, un
 const umamiSpec: ProviderSpec<UmamiOptions> = {
   name: 'umami',
 
+  version: '1.0.0',
+
   defaults: (options: ProviderOptions) => {
     const website = (options as UmamiOptions).website?.trim();
     if (!website) throw new Error('[umami] "website" is required');

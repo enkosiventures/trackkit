@@ -2,7 +2,6 @@
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest';
 import { server } from '../../setup/msw';
 import { http, HttpResponse } from 'msw';
-import umamiProvider from '../../../src/providers/new/umami';
 import type { PageContext } from '../../../src';
 import { TEST_SITE_ID } from '../../setup/providers';
 
