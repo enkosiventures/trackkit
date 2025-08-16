@@ -1,19 +1,32 @@
-import { AnalyticsOptions, Props } from '../types';
-import { logger } from '../util/logger';
-import { ProviderFactory, ProviderInstance } from './types';
+import { ConsentCategory } from '../consent/types';
+import { DEFAULT_CACHING } from '../constants';
+import { PageContext, Props, ProviderInstance, ProviderOptions } from '../types';
+import { debugLog, logger } from '../util/logger';
+import { stripEmptyFields } from './shared/utils';
+import { ProviderFactory,  } from './types';
+
 
 /**
  * Create a no-op analytics instance
  * Used as default provider and fallback for errors
  */
-function create(options: AnalyticsOptions): ProviderInstance {
+function create(
+  options: ProviderOptions,
+  cache?: boolean,
+  debug?: boolean,
+): ProviderInstance {
   logger.debug('Creating no-op provider instance', options);
 
   /**
    * Log method call in debug mode
    */
   const log = (method: string, ...args: unknown[]) => {
-    if (options.debug) {
+    debugLog("Logging no-op method call");
+    if (!!debug) {
+      debugLog(
+        `[no-op] ${method}`,
+        ...args,
+      );
       logger.debug(`[no-op] ${method}`, ...args);
     }
   };
@@ -21,12 +34,14 @@ function create(options: AnalyticsOptions): ProviderInstance {
   return {
     name: 'noop',
     
-    track(name: string, props?: Props, url?: string): void {
-      log('track', { name, props, url });
+    track(name: string, props: Props, pageContext: PageContext): void {
+      debugLog('no-op track', { name, props, pageContext: stripEmptyFields(pageContext) });
+      log('track', { name, props, pageContext: stripEmptyFields(pageContext) });
     },
     
-    pageview(url?: string): void {
-      log('pageview', { url });
+    pageview(pageContext: PageContext): void {
+      debugLog('[PAGEVIEW] no-op pageview', { pageContext: stripEmptyFields(pageContext) });
+      log('pageview', { pageContext: stripEmptyFields(pageContext) });
     },
     
     identify(userId: string | null): void {

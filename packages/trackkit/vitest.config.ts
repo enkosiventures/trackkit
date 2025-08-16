@@ -7,9 +7,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: [
-      'test/setup-sandbox.ts',
-      'test/setup-msw.ts',
-      'test/setup-umami.ts'
+      'test/setup/sandbox.ts',
+      'test/setup/msw.ts',
+      'test/setup/providers.ts'
     ],
     restoreMocks: true,
     clearMocks: true,

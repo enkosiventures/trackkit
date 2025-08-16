@@ -1,43 +1,14 @@
 
 import { init } from '../../src';
+import { DEFAULT_ERROR_HANDLER } from '../../src/constants';
 import { StatefulProvider } from '../../src/providers/stateful-wrapper';
-import { ProviderInstance } from '../../src/providers/types';
-import type { AnalyticsOptions, PageContext } from '../../src/types'; // <-- adjust path
+import { ProviderInstance } from '../../src/types';
+import type { InitOptions, PageContext, ProviderOptions } from '../../src/types'; // <-- adjust path
 
-/** A provider that just records calls. Satisfies your ProviderInstance signature. */
-// export class MockProvider implements ProviderInstance {
-//   name = 'stub';
-//   pageviewCalls: Array<{ url: string; pageContext?: PageContext }> = [];
-//   eventCalls: Array<{ name: string; props?: Record<string, unknown>; url?: string; category?: string; pageContext?: PageContext }> = [];
-//   identifyCalls: Array<string | null> = [];
-
-//   // match your current ProviderInstance signatures:
-//   pageview(url: string, pageContext?: PageContext): void {
-//     this.pageviewCalls.push({ url, pageContext });
-//   }
-
-//   track(
-//     name: string,
-//     props?: Record<string, unknown>,
-//     url?: string,
-//     category?: string,
-//     pageContext?: PageContext
-//   ): void {
-//     this.eventCalls.push({ name, props, url, category, pageContext });
-//   }
-
-//   identify(userId: string | null): void {
-//     this.identifyCalls.push(userId);
-//   }
-
-//   destroy(): void {
-//     // no-op
-//   }
-// }
 
 export class MockProvider implements ProviderInstance {
-  name = 'stub';
-  pageviewCalls: Array<{ url: string; pageContext?: PageContext }> = [];
+  name = 'noop';
+  pageviewCalls: Array<PageContext | undefined> = [];
   eventCalls: Array<{ name: string; props?: Record<string, unknown>; url?: string; category?: string; pageContext?: PageContext }> = [];
   identifyCalls: Array<string | null> = [];
   private initPromise?: Promise<void>;
@@ -48,18 +19,16 @@ export class MockProvider implements ProviderInstance {
     await new Promise(resolve => setTimeout(resolve, 10));
   }
 
-  pageview(url: string, pageContext?: PageContext): void {
-    this.pageviewCalls.push({ url, pageContext });
+  pageview(pageContext?: PageContext): void {
+    this.pageviewCalls.push(pageContext);
   }
 
   track(
     name: string,
     props?: Record<string, unknown>,
-    url?: string,
-    category?: string,
     pageContext?: PageContext
   ): void {
-    this.eventCalls.push({ name, props, url, category, pageContext });
+    this.eventCalls.push({ name, props, pageContext });
   }
 
   identify(userId: string | null): void {
@@ -75,19 +44,10 @@ export class MockProvider implements ProviderInstance {
  * Build a real StatefulProvider that wraps our ProviderDouble.
  * Returns both so tests can assert on the double’s recorded calls.
  */
-// export function createStatefulMock(opts: Partial<AnalyticsOptions> = {}) {
-//   const provider = new MockProvider();
-
-//   // Supply whatever options your StatefulProvider expects.
-//   const defaultOptions = { onError: undefined } as unknown as AnalyticsOptions;
-//   const stateful = new StatefulProvider(provider, { ...defaultOptions, ...opts });
-
-//   return { stateful, provider };
-// }
-export async function createStatefulMock(opts: Partial<AnalyticsOptions> = {}) {
+export async function createStatefulMock() {
   const provider = new MockProvider();
-  const defaultOptions = { onError: undefined } as unknown as AnalyticsOptions;
-  const stateful = new StatefulProvider(provider, { ...defaultOptions, ...opts });
+  const defaultOptions = { onError: undefined } as unknown as ProviderOptions;
+  const stateful = new StatefulProvider(provider, DEFAULT_ERROR_HANDLER);
   
   // Initialize the stateful provider
   await stateful.init();
@@ -96,13 +56,14 @@ export async function createStatefulMock(opts: Partial<AnalyticsOptions> = {}) {
 }
 
 
-export async function createFacade(opts: Partial<AnalyticsOptions> = {}, grantConstent = false) {
-  const { stateful, provider } = await createStatefulMock(opts);
+export async function createFacade(opts: Partial<InitOptions> = {}) {
+  const { stateful, provider } = await createStatefulMock();
 
   const facade = await init({
     autoTrack: true,
     domains: ['localhost'],
     trackLocalhost: true,
+    consent: { disablePersistence: true },
     ...opts,
   });
 

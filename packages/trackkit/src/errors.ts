@@ -9,6 +9,7 @@ export type ErrorCode =
   | 'INVALID_CONFIG'
   | 'INVALID_ENVIRONMENT'
   | 'CONSENT_REQUIRED'
+  | 'POLICY_BLOCKED'
   | 'UNKNOWN';
 
 export class AnalyticsError extends Error {

@@ -1,5 +1,5 @@
-import type { AnalyticsInstance, AnalyticsOptions } from '../types';
-import { StatefulProvider } from './stateful-wrapper';
+import { ConsentCategory } from '../consent/types';
+import type { ProviderInstance, ProviderOptions } from '../types';
 
 /**
  * Internal provider lifecycle state
@@ -13,8 +13,8 @@ export interface ProviderFactory {
   /**
    * Create a new analytics instance
    */
-  create(options: AnalyticsOptions): ProviderInstance;
-  
+  create(options: ProviderOptions, cache?: boolean, debug?: boolean): ProviderInstance;
+
   /**
    * Provider metadata
    */
@@ -30,24 +30,6 @@ export interface ProviderFactory {
 export type SyncLoader = () => ProviderFactory;
 export type AsyncLoader = () => Promise<ProviderFactory>;
 export type ProviderLoader = SyncLoader | AsyncLoader;
-
-/**
- * Extended analytics instance with provider internals
- */
-export interface ProviderInstance extends AnalyticsInstance {
-  name: string;
-  
-  /**
-   * Provider-specific initialization (optional)
-   */
-  _init?(): Promise<void>;
-
-  /**
-   * Set callback for navigation events (optional)
-   * Used by providers that detect client-side navigation
-   */
-  _setNavigationCallback?(callback: (url: string) => void): void;
-}
 
 /**
  * Consent configuration for providers
@@ -74,7 +56,7 @@ export interface ProviderConsentConfig {
   /**
    * Categories this provider uses
    */
-  categories?: Array<'essential' | 'analytics' | 'marketing' | 'preferences'>;
+  categories?: Array<ConsentCategory>;
   
   /**
    * Provider-specific consent hints

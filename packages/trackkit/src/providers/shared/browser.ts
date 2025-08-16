@@ -9,20 +9,61 @@ export function isBrowser(): boolean {
          typeof window.navigator !== 'undefined';
 }
 
-export function getDocumentTitle(): string { return isBrowser() ? document.title || '' : ''; }
-export function getInitialReferrer(): string { return isBrowser() ? document.referrer || '' : ''; }
-export function getViewportSize(): { width: number; height: number } { return isBrowser() ? { width: window.innerWidth || 0, height: window.innerHeight || 0 } : { width: 0, height: 0 }; }
-export function getScreenSize(): { width: number; height: number } { return isBrowser() ? { width: window.screen?.width || 0, height: window.screen?.height || 0 } : { width: 0, height: 0 }; }
-export function getLanguage(): string { return isBrowser() ? navigator.language || 'en' : 'en'; }
+export function getDocumentTitle(): string | undefined { return isBrowser() ? document.title : undefined; }
+export function getInitialReferrer(): string | undefined { return isBrowser() ? document.referrer : undefined; }
+// export function getViewportSize(): { width: number; height: number } { return isBrowser() ? { width: window.innerWidth || 0, height: window.innerHeight || 0 } : { width: 0, height: 0 }; }
+// export function getScreenSize(): { width: number; height: number } { return isBrowser() ? { width: window.screen?.width || 0, height: window.screen?.height || 0 } : { width: 0, height: 0 }; }
+// export function getLanguage(): string { return isBrowser() ? navigator.language || navigator.languages?.[0] || 'en' : 'en'; }
+// export function getHostname(): string { return isBrowser() ? window.location.hostname || '' : ''; }
 
-export function getPageContext(): PageContext {
+function getHostname(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try { return window.location.hostname || undefined; } catch { return undefined; }
+}
+
+function getLanguage(): string | undefined {
+  if (typeof navigator === 'undefined') return undefined;
+  return navigator.language || (Array.isArray(navigator.languages) ? navigator.languages[0] : undefined) || undefined;
+}
+
+function getScreenSize(): { width: number; height: number } | undefined {
+  if (typeof window === 'undefined' || !window.screen) return undefined;
+  const { width, height } = window.screen;
+  return { width, height };
+}
+
+function getViewportSize(): { width: number; height: number } | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const w = Math.max(0, Number(window.innerWidth || 0));
+  const h = Math.max(0, Number(window.innerHeight || 0));
+  return { width: w, height: h };
+}
+
+/** Prefer screenSize; fall back to viewportSize; omit if invalid/zero. */
+export function displaySizeFromContext(ctx: PageContext): string | undefined {
+  const asStr = (w?: number, h?: number) =>
+    w && h && w > 0 && h > 0 ? `${w}x${h}` : undefined;
+
+  return (
+    asStr(ctx.screenSize?.width, ctx.screenSize?.height) ??
+    asStr(ctx.viewportSize?.width, ctx.viewportSize?.height)
+  );
+}
+
+export function getPageContext(url?: string): PageContext {
+  const viewport = getViewportSize();
+  const screen = getScreenSize();
+
   return {
-    url: getPageUrl(),
+    url: url ?? getPageUrl(),
     title: getDocumentTitle(),
     referrer: getInitialReferrer(),
-    viewportSize: getViewportSize(),
-    screenSize: getScreenSize(),
-    language: getLanguage(),
+    viewportSize:
+      viewport && viewport.width > 0 && viewport.height > 0 ? viewport : undefined,
+    screenSize:
+      screen && screen.width > 0 && screen.height > 0 ? screen : undefined,
+    language: getLanguage() || undefined,
+    hostname: getHostname(),
     timestamp: Date.now(),
   };
 }
@@ -31,9 +72,9 @@ export function getPageContext(): PageContext {
  * Get full page URL
  */
 export function getPageUrl(includeHash = false): string {
-  if (!isBrowser()) return '';
+  if (!isBrowser()) return '/';
   
-  const url = window.location.href;
+  const url = window.location.pathname + window.location.search + window.location.hash;
   return includeHash ? url : url.replace(/#.*$/, '');
 }
 

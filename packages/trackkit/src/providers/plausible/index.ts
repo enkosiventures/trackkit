@@ -1,5 +1,5 @@
-import type { ProviderFactory, ProviderInstance } from '../types';
-import type { AnalyticsOptions, Props } from '../../types';
+import type { ProviderFactory } from '../types';
+import type { AnalyticsOptions, Props, ProviderInstance } from '../../types';
 import { PlausibleClient } from './client';
 import { validateDomain } from '../shared/validation';
 import { isBrowser } from '../shared/browser';

@@ -3,6 +3,8 @@
  */
 export type ConsentStatus = 'pending' | 'granted' | 'denied';
 
+export type ConsentCategory = 'essential' | 'analytics' | 'marketing' | 'preferences' | 'functional';
+
 /**
  * Consent state with metadata
  */
@@ -38,6 +40,12 @@ export interface ConsentOptions {
    * @default true
    */
   requireExplicit?: boolean;
+
+  /**
+   * Determine if we allow essential events when consent is denied
+   * @default false
+   */
+  allowEssentialOnDenied?: boolean;
   
   /**
    * Current policy/version. If stored version < this => re‑prompt (reset to pending).

@@ -1,485 +1,243 @@
-// /// <reference types="vitest" />
-// import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-// import ga4Provider from '../../../src/providers/ga4';
-// import type { AnalyticsOptions } from '../../../src/types';
+/// <reference types="vitest" />
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
+import type { PageContext } from '../../../src/types';
 
-// // @vitest-environment jsdom
+// ───────────────────────────────────────────────────────────────────────────────
+// Shared helpers
+// ───────────────────────────────────────────────────────────────────────────────
+const makeCtx = (over: Partial<PageContext> = {}): PageContext => ({
+  url: '/page',
+  referrer: '',
+  title: 'Title',
+  language: 'en-US',
+  viewportSize: { width: 1024, height: 768 },
+  screenSize: { width: 1920, height: 1080 },
+  timestamp: Date.now(),
+  ...over,
+});
 
-// describe('GA4 Provider', () => {
-//   let fetchSpy: any;
-//   let sendBeaconSpy: any;
-  
-//   beforeEach(() => {
-//     // Mock fetch
-//     fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
-//       new Response('{}', { status: 200 })
-//     );
-    
-//     // Mock sendBeacon
-//     sendBeaconSpy = vi.fn().mockReturnValue(true);
-//     Object.defineProperty(navigator, 'sendBeacon', {
-//       value: sendBeaconSpy,
-//       configurable: true,
-//     });
-    
-//     // Mock localStorage
-//     const localStorageMock = {
-//       getItem: vi.fn(),
-//       setItem: vi.fn(),
-//       removeItem: vi.fn(),
-//       clear: vi.fn(),
-//     };
-//     Object.defineProperty(window, 'localStorage', {
-//       value: localStorageMock,
-//       configurable: true,
-//     });
-    
-//     // Mock sessionStorage
-//     const sessionStorageMock = {
-//       getItem: vi.fn(),
-//       setItem: vi.fn(),
-//       removeItem: vi.fn(),
-//       clear: vi.fn(),
-//     };
-//     Object.defineProperty(window, 'sessionStorage', {
-//       value: sessionStorageMock,
-//       configurable: true,
-//     });
-//   });
-  
-//   afterEach(() => {
-//     fetchSpy.mockRestore();
-//     delete (navigator as any).sendBeacon;
-//     vi.clearAllMocks();
-//   });
-  
-//   describe('initialization', () => {
-//     it('validates measurement ID format', () => {
-//       const invalidIds = [
-//         '',
-//         'invalid',
-//         'UA-123456-1', // Old Universal Analytics format
-//         'G-ABC', // Too short
-//         'G-ABCDEFGHIJK', // Too long
-//         'g-abcdefghij', // Lowercase
-//       ];
-      
-//       invalidIds.forEach(siteId => {
-//         expect(() => {
-//           ga4Provider.create({ siteId });
-//         }).toThrow('Invalid GA4 Measurement ID');
-//       });
-      
-//       expect(() => {
-//         ga4Provider.create({ siteId: 'G-XXXXXXXXXX' });
-//       }).not.toThrow();
-//     });
-    
-//     it('accepts various measurement ID formats', () => {
-//       const validIds = [
-//         'G-XXXXXXXXXX',
-//         'G-ABC123DEF4',
-//         'G-1234567890',
-//       ];
-      
-//       validIds.forEach(siteId => {
-//         expect(() => {
-//           ga4Provider.create({ siteId });
-//         }).not.toThrow();
-//       });
-//     });
-    
-//     it('extracts measurement ID from tag manager format', () => {
-//       const instance = ga4Provider.create({ 
-//         siteId: 'GTM-XXXXX/G-ABC123DEF4/other-stuff' 
-//       });
-      
-//       instance.track('test');
-      
-//       const url = sendBeaconSpy.mock.calls[0][0];
-//       expect(url).toContain('measurement_id=G-ABC123DEF4');
-//     });
-    
-//     it('has correct metadata with consent defaults', () => {
-//       expect(ga4Provider.meta).toEqual({
-//         name: 'ga4',
-//         version: '2.0.0',
-//       });
-//     });
-//   });
-  
-//   describe('tracking', () => {
-//     it('sends events via Measurement Protocol', async () => {
-//       const instance = ga4Provider.create({ 
-//         siteId: 'G-TEST123456',
-//         apiSecret: 'test-secret',
-//       });
-      
-//       instance.track('test_event', { value: 42, custom_param: 'test' });
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(sendBeaconSpy).toHaveBeenCalled();
-//       const [url, blob] = sendBeaconSpy.mock.calls[0];
-      
-//       expect(url).toContain('google-analytics.com/mp/collect');
-//       expect(url).toContain('measurement_id=G-TEST123456');
-//       expect(url).toContain('api_secret=test-secret');
-      
-//       // Parse blob data
-//       const payload = JSON.parse(await blob.text());
-//       expect(payload).toMatchObject({
-//         client_id: expect.stringMatching(/^\d+\.[a-z0-9]+$/),
-//         timestamp_micros: expect.any(Number),
-//         events: [{
-//           name: 'test_event',
-//           params: expect.objectContaining({
-//             value: 42,
-//             custom_param: 'test',
-//             engagement_time_msec: 100,
-//             session_id: expect.any(String),
-//             page_location: expect.any(String),
-//             screen_resolution: expect.stringMatching(/^\d+x\d+$/),
-//           }),
-//         }],
-//       });
-//     });
-    
-//     it('maps standard event names', async () => {
-//       const instance = ga4Provider.create({ siteId: 'G-TEST123456' });
-      
-//       const eventMappings = [
-//         ['add_to_cart', 'add_to_cart'],
-//         ['purchase', 'purchase'],
-//         ['login', 'login'],
-//         ['custom_event', 'custom_event'], // Unmapped events pass through
-//       ];
-      
-//       for (const [input, expected] of eventMappings) {
-//         instance.track(input);
-        
-//         const payload = JSON.parse(await sendBeaconSpy.mock.calls[0][1].text());
-//         expect(payload.events[0].name).toBe(expected);
-        
-//         sendBeaconSpy.mockClear();
-//       }
-//     });
-    
-//     it('processes ecommerce parameters', async () => {
-//       const instance = ga4Provider.create({ siteId: 'G-TEST123456' });
-      
-//       instance.track('add_to_cart', {
-//         item_id: 'SKU-123',
-//         item_name: 'Blue T-Shirt',
-//         price: 29.99,
-//         quantity: 2,
-//       });
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const payload = JSON.parse(await sendBeaconSpy.mock.calls[0][1].text());
-//       expect(payload.events[0].params.items).toEqual([{
-//         item_id: 'SKU-123',
-//         item_name: 'Blue T-Shirt',
-//         price: 29.99,
-//         quantity: 2,
-//       }]);
-//     });
-    
-//     it('sends pageview with proper parameters', async () => {
-//       const instance = ga4Provider.create({ siteId: 'G-TEST123456' });
-      
-//       instance.pageview('/test-page');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const payload = JSON.parse(await sendBeaconSpy.mock.calls[0][1].text());
-      
-//       expect(payload.events[0]).toMatchObject({
-//         name: 'page_view',
-//         params: expect.objectContaining({
-//           page_location: '/test-page',
-//           page_title: expect.any(String),
-//           page_referrer: expect.any(String),
-//         }),
-//       });
-//     });
-    
-//     it('uses debug endpoint when debug is enabled', async () => {
-//       // Mock debug response
-//       fetchSpy.mockResolvedValue(
-//         new Response(JSON.stringify({
-//           validationMessages: []
-//         }), { status: 200 })
-//       );
-      
-//       const instance = ga4Provider.create({ 
-//         siteId: 'G-TEST123456',
-//         debug: true,
-//       });
-      
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const url = fetchSpy.mock.calls[0][0];
-//       expect(url).toContain('debug/mp/collect');
-//     });
-    
-//     it('handles different transport methods', async () => {
-//       const instance = ga4Provider.create({ 
-//         siteId: 'G-TEST123456',
-//         transport: 'fetch',
-//       });
-      
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(fetchSpy).toHaveBeenCalled();
-//       expect(sendBeaconSpy).not.toHaveBeenCalled();
-//     });
-    
-//     it('falls back to fetch when beacon fails', async () => {
-//       sendBeaconSpy.mockReturnValue(false);
-      
-//       const instance = ga4Provider.create({ 
-//         siteId: 'G-TEST123456',
-//         transport: 'beacon',
-//       });
-      
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(sendBeaconSpy).toHaveBeenCalled();
-//       expect(fetchSpy).toHaveBeenCalled(); // Fallback
-//     });
-//   });
-  
-//   describe('user identification', () => {
-//     it('sets user ID for tracking', async () => {
-//       const instance = ga4Provider.create({ siteId: 'G-TEST123456' });
-      
-//       instance.identify('user-123');
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const payload = JSON.parse(await sendBeaconSpy.mock.calls[0][1].text());
-//       expect(payload.user_id).toBe('user-123');
-//     });
-    
-//     it('clears user ID when null passed', async () => {
-//       const instance = ga4Provider.create({ siteId: 'G-TEST123456' });
-      
-//       instance.identify('user-123');
-//       instance.identify(null);
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const payload = JSON.parse(await sendBeaconSpy.mock.calls[0][1].text());
-//       expect(payload.user_id).toBeUndefined();
-//     });
-//   });
-  
-//   describe('session management', () => {
-//     it('generates consistent session ID', async () => {
-//       const instance = ga4Provider.create({ siteId: 'G-TEST123456' });
-      
-//       instance.track('event1');
-//       instance.track('event2');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const payload1 = JSON.parse(await sendBeaconSpy.mock.calls[0][1].text());
-//       const payload2 = JSON.parse(await sendBeaconSpy.mock.calls[1][1].text());
-      
-//       expect(payload1.events[0].params.session_id).toBe(
-//         payload2.events[0].params.session_id
-//       );
-//     });
-    
-//     it('respects session timeout', async () => {
-//       vi.useFakeTimers();
-      
-//       const instance = ga4Provider.create({ 
-//         siteId: 'G-TEST123456',
-//         sessionTimeout: 1, // 1 minute for testing
-//       });
-      
-//       instance.track('event1');
-//       const payload1 = JSON.parse(await sendBeaconSpy.mock.calls[0][1].text());
-//       const sessionId1 = payload1.events[0].params.session_id;
-      
-//       // Advance time past session timeout
-//       vi.advanceTimersByTime(2 * 60 * 1000);
-      
-//       instance.track('event2');
-//       const payload2 = JSON.parse(await sendBeaconSpy.mock.calls[1][1].text());
-//       const sessionId2 = payload2.events[0].params.session_id;
-      
-//       expect(sessionId1).not.toBe(sessionId2);
-      
-//       vi.useRealTimers();
-//     });
-//   });
-  
-//   describe('custom dimensions and metrics', () => {
-//     it('maps custom dimensions', async () => {
-//       const instance = ga4Provider.create({ 
-//         siteId: 'G-TEST123456',
-//         customDimensions: {
-//           plan_type: 'custom_dimension_1',
-//           user_role: 'custom_dimension_2',
-//         },
-//       });
-      
-//       instance.track('test', {
-//         plan_type: 'premium',
-//         user_role: 'admin',
-//         other_param: 'value',
-//       });
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const payload = JSON.parse(await sendBeaconSpy.mock.calls[0][1].text());
-//       const params = payload.events[0].params;
-      
-//       expect(params.custom_dimension_1).toBe('premium');
-//       expect(params.custom_dimension_2).toBe('admin');
-//       expect(params.other_param).toBe('value');
-//       expect(params.plan_type).toBeUndefined();
-//       expect(params.user_role).toBeUndefined();
-//     });
-//   });
-  
-//   describe('error handling', () => {
-//     it('calls onError callback on failure', async () => {
-//       const onError = vi.fn();
-//       sendBeaconSpy.mockReturnValue(false);
-//       fetchSpy.mockRejectedValue(new Error('Network error'));
-      
-//       const instance = ga4Provider.create({ 
-//         siteId: 'G-TEST123456',
-//         onError,
-//       });
-      
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(onError).toHaveBeenCalledWith(
-//         expect.objectContaining({
-//           code: 'NETWORK_ERROR',
-//           provider: 'ga4',
-//         })
-//       );
-//     });
-//   });
-  
-//   describe('client ID persistence', () => {
-//     it('generates and persists client ID', async () => {
-//       const instance = ga4Provider.create({ siteId: 'G-TEST123456' });
-      
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(window.localStorage.setItem).toHaveBeenCalledWith(
-//         '_trackkit_ga_cid',
-//         expect.stringMatching(/^\d+\.[a-z0-9]+$/)
-//       );
-//     });
-    
-//     it('reuses existing GA cookie client ID', async () => {
-//       // Mock GA cookie
-//       Object.defineProperty(document, 'cookie', {
-//         value: '_ga=GA1.2.123456789.987654321; other=value',
-//         configurable: true,
-//       });
-      
-//       const instance = ga4Provider.create({ siteId: 'G-TEST123456' });
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const payload = JSON.parse(await sendBeaconSpy.mock.calls[0][1].text());
-//       expect(payload.client_id).toBe('123456789.987654321');
-      
-//       // Clean up
-//       Object.defineProperty(document, 'cookie', {
-//         value: '',
-//         configurable: true,
-//       });
-//     });
-//   });
-// });
+// ───────────────────────────────────────────────────────────────────────────────
+// Group 1: Mapping & endpoint tests (mock the transport)
+// ───────────────────────────────────────────────────────────────────────────────
 
+// Create a hoisted mock so the vi.mock factory can see it
+const hoisted = vi.hoisted(() => ({
+  sendMock: vi.fn(async () => new Response(null, { status: 204 })),
+}));
 
-// packages/trackkit/test/providers/ga4.test.ts
-import { describe, it, expect, vi } from 'vitest';
-import { GA4Client } from '../../../src/providers/ga4/client';
-import { PageContext } from '../../../src';
-import ga4Provider from '../../../src/providers/ga4';
+// Mock the transport using the hoisted mock
+vi.mock('../../../src/providers/new/base/transport', () => ({
+  // @ts-expect-error
+  send: (...args: any[]) => hoisted.sendMock(...(args as any)),
+}));
 
-describe('GA4 provider: pageview mapping', () => {
-  it('derives gtag/measurement payload from ctx', () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('ok', { status: 202 })
-    );
-    const client = new GA4Client({ measurementId: 'G-XXXX' } as any);
+describe('GA4 client (mapping & endpoints)', () => {
+  let createGA4Client: typeof import('../../../src/providers/new/ga4/client').createGA4Client;
 
-    const ctx: PageContext = { url: '/a?x=1', referrer: '/prev', title: 'Title' };
-    client.sendPageview('/a?x=1', ctx);
+  const getFirstReq = () => {
+    // help TS: treat calls as any[][]
+    const calls = hoisted.sendMock.mock.calls as unknown as any[][];
+    expect(calls.length).toBeGreaterThan(0); // makes intent clear
+    return calls[0][0] as { url: string; method: string; body: unknown };
+  };
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [url, options] = fetchSpy.mock.calls[0];
-    const payload = JSON.parse(options?.body as string);
+  beforeAll(async () => {
+    // Import after mocks are set
+    ({ createGA4Client } = await import('../../../src/providers/new/ga4/client'));
+  });
 
-    console.warn('Captured payload:', payload);
-    
+  beforeEach(() => {
+    hoisted.sendMock.mockClear();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('requires measurementId', () => {
+    // @ts-expect-error intentionally missing
+    expect(() => createGA4Client({})).toThrow(/measurementId/i);
+    expect(() => createGA4Client({ measurementId: 'G-TEST123' } as any)).not.toThrow();
+  });
+
+  it('builds default endpoint with measurementId', async () => {
+    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    await c.track('evt', {}, makeCtx());
+    const { url, method, body } = getFirstReq();
+    expect(url).toContain('https://www.google-analytics.com/mp/collect');
+    expect(url).toContain('measurement_id=G-TEST123');
+    expect(method).toBe('AUTO');
+    expect(body).toHaveProperty('client_id');
+    expect(body).toHaveProperty('events');
+  });
+
+  it('uses debug endpoint when debugEndpoint=true', async () => {
+    const c = createGA4Client({ measurementId: 'G-TEST123', debugEndpoint: true } as any);
+    await c.pageview(makeCtx({ url: '/x' }));
+    const { url } = getFirstReq();
+    expect(url).toContain('/debug/mp/collect');
+  });
+
+  it('includes apiSecret when provided', async () => {
+    const c = createGA4Client({ measurementId: 'G-TEST123', apiSecret: 'shh' } as any);
+    await c.track('evt', {}, makeCtx());
+    const { url } = getFirstReq();
+    expect(url).toContain('api_secret=shh');
+  });
+
+  it('honors host override', async () => {
+    const c = createGA4Client({ measurementId: 'G-TEST123', host: 'https://ga-proxy.example.com/' } as any);
+    await c.track('evt', {}, makeCtx());
+    const { url } = getFirstReq();
+    expect(url.startsWith('https://ga-proxy.example.com/mp/collect?')).toBe(true);
+  });
+
+  it('maps pageview params from PageContext', async () => {
+    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    await c.pageview(makeCtx({ url: '/a?x=1', referrer: '/prev', title: 'Title A', language: 'pl', screenSize: { width: 800, height: 600 } }));
+    const { body } = getFirstReq();
+    const payload = body as any;
+
     expect(payload).toMatchObject({
-      client_id: expect.stringMatching(/^\d+\.[a-z0-9]+$/),
-      non_personalized_ads: false,
-      timestamp_micros: expect.any(Number),
+      client_id: expect.stringMatching(/^\d+\.\d+$/),
       events: [{
         name: 'page_view',
-        params: {
-          session_id: expect.any(String),
-          engagement_time_msec: 100, // Required by GA4
+        params: expect.objectContaining({
           page_location: '/a?x=1',
           page_referrer: '/prev',
-          page_title: 'Title',
-        },
+          page_title: 'Title A',
+          language: 'pl',
+          screen_resolution: '800x600',
+          session_id: expect.any(Number),
+          engagement_time_msec: 100,
+        }),
       }],
     });
-    
-    fetchSpy.mockRestore();
   });
 
-  it('falls back to fetch when navigator.sendBeacon is unavailable', async () => {
-    const original = (navigator as any).sendBeacon;
-    // Remove sendBeacon
+  it('maps custom event with props + context', async () => {
+    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    await c.track('signup', { plan: 'pro', value: 42 }, makeCtx({ url: '/signup' }));
+
+    const { body } = getFirstReq();
+    const payload = body as any;
+    const params = payload.events[0].params;
+
+    expect(payload.events[0].name).toBe('signup');
+    expect(params.plan).toBe('pro');
+    expect(params.value).toBe(42);
+    expect(params.page_location).toBe('/signup');
+    expect(params.session_id).toEqual(expect.any(Number));
+  });
+
+  it('sets engagement_time_msec when missing', async () => {
+    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    await c.track('evt', {}, makeCtx());
+    const { body } = getFirstReq();
+    expect((body as any).events[0].params.engagement_time_msec).toBe(100);
+  });
+
+  it('keeps same session_id across calls in a run', async () => {
+    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    await c.track('evt1', {}, makeCtx({ url: '/1' }));
+    await c.track('evt2', {}, makeCtx({ url: '/2' }));
+
+    const calls = hoisted.sendMock.mock.calls as unknown as any[][];
+    const sid1 = (calls[0][0].body as any).events[0].params.session_id;
+    const sid2 = (calls[1][0].body as any).events[0].params.session_id;
+    expect(sid1).toBe(sid2);
+  });
+
+  it('identify() and destroy() are safe no-ops', () => {
+    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    const ctx: PageContext = {
+      url: '/a',
+      title: 'T',
+      referrer: '/prev',
+      viewportSize: { width: 800, height: 600 },
+      language: 'en-US',
+      hostname: 'localhost',
+      timestamp: 123,
+    };
+    expect(() => c.identify('user-1', ctx)).not.toThrow();
+    expect(() => c.identify(null, ctx)).not.toThrow();
+    expect(() => c.destroy()).not.toThrow();
+    expect(() => c.destroy()).not.toThrow();
+  });
+
+  it('throws on non-OK responses', async () => {
+    hoisted.sendMock.mockResolvedValueOnce(new Response('bad', { status: 400, statusText: 'Bad' }));
+    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    await expect(c.track('oops', {}, makeCtx())).rejects.toThrow(/\[ga4] request failed: 400/i);
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Group 2: Transport behavior tests (real transport; no transport mock)
+// ───────────────────────────────────────────────────────────────────────────────
+describe('GA4 client (transport behavior)', () => {
+  let createGA4Client: typeof import('../../../src/providers/new/ga4/client').createGA4Client;
+  let fetchSpy: any;
+
+  beforeEach(async () => {
+    // Ensure a clean module graph without the transport mock
+    vi.resetModules();
+    vi.doUnmock('../../../src/providers/new/base/transport');
+
+    ({ createGA4Client } = await import('../../../src/providers/new/ga4/client'));
+
+    fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+    // cleanup any beacon stub from a test
+    // @ts-ignore
+    delete navigator.sendBeacon;
+    vi.clearAllMocks();
+  });
+
+  it('uses fetch when navigator.sendBeacon is unavailable', async () => {
     Object.defineProperty(navigator, 'sendBeacon', { value: undefined, configurable: true });
 
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
-    const instance = ga4Provider.create({ siteId: 'G-TEST123456' });
-
-    instance.pageview('/a');
-    await new Promise(r => setTimeout(r, 60));
+    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    await c.pageview(makeCtx({ url: '/fallback' }));
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-
-    // cleanup
-    fetchSpy.mockRestore();
-    Object.defineProperty(navigator, 'sendBeacon', { value: original, configurable: true });
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(String(url)).toContain('/mp/collect?measurement_id=G-TEST123');
+    expect((init as RequestInit).method).toBe('POST');
   });
 
-  it('destroy() is idempotent', () => {
-    const instance = ga4Provider.create({ siteId: 'G-TEST123456' });
-    expect(() => instance.destroy()).not.toThrow();
-    expect(() => instance.destroy()).not.toThrow();
+  it('prefers beacon when available (returns 204) and does not call fetch', async () => {
+    const beaconSpy = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', { value: beaconSpy, configurable: true });
+
+    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    await c.track('evt', { a: 1 }, makeCtx());
+
+    expect(beaconSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    const [beaconUrl, beaconBody] = beaconSpy.mock.calls[0];
+    expect(String(beaconUrl)).toContain('/mp/collect?measurement_id=G-TEST123');
+
+    // Don’t parse the body here—just assert we sent a JSON-ish blob.
+    expect(beaconBody).toBeTruthy();
+    // Safe, cross-realm checks:
+    expect((beaconBody as any).type).toBe('application/json');
+    expect(typeof (beaconBody as any).size).toBe('number');
+    expect((beaconBody as any).size).toBeGreaterThan(10); // non-empty payload
+  });
+
+  it('falls back to fetch when beacon returns false', async () => {
+    const beaconSpy = vi.fn().mockReturnValue(false);
+    Object.defineProperty(navigator, 'sendBeacon', { value: beaconSpy, configurable: true });
+
+    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    await c.pageview(makeCtx({ url: '/beacon-fallback' }));
+
+    expect(beaconSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });

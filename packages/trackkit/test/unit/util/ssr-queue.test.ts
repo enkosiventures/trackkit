@@ -16,13 +16,13 @@ describe('SSR Support', () => {
   
   it('queues events in SSR environment', () => {
     track('server_event', { ssr: true });
-    pageview('/server-page');
+    pageview();
     
     const queue = getSSRQueue();
     expect(queue).toHaveLength(2);
     expect(queue[0]).toMatchObject({
       type: 'track',
-      args: ['server_event', { ssr: true }, undefined],
+      args: ['server_event', { ssr: true }],
     });
   });
   

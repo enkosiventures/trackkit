@@ -1,516 +1,227 @@
-// /// <reference types="vitest" />
-// import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-// import plausibleProvider from '../../../src/providers/plausible';
-// import type { AnalyticsOptions } from '../../../src/types';
+/// <reference types="vitest" />
+import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
+import plausible from '../../../src/providers/new/plausible';
+import type { PageContext } from '../../../src/types';
 
-// // @vitest-environment jsdom
+// IMPORTANT: mock the adapter transport so we can capture calls deterministically
+import * as transport from '../../../src/providers/new/base/transport';
 
-// // Mock shared modules
-// vi.mock('../../../src/providers/shared/browser', async () => {
-//   const actual = await vi.importActual('../../../src/providers/shared/browser');
-//   return {
-//     ...actual,
-//     isLocalhost: vi.fn(() => false),
-//     isUrlExcluded: vi.fn(() => false),
-//     getPageUrl: vi.fn((hashMode) => hashMode ? 'https://example.com/#/route' : 'https://example.com/route'),
-//   };
-// });
-
-// describe('Plausible Provider', () => {
-//   let fetchSpy: any;
-  
-//   beforeEach(() => {
-//     fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
-//       new Response('ok', { status: 202 })
-//     );
-//   });
-  
-//   afterEach(() => {
-//     fetchSpy.mockRestore();
-//     vi.clearAllMocks();
-//   });
-  
-//   describe('initialization', () => {
-//     it('requires domain configuration', () => {
-//       expect(() => {
-//         plausibleProvider.create({});
-//       }).toThrow('Plausible requires a domain');
-      
-//       expect(() => {
-//         plausibleProvider.create({ siteId: 'example.com' });
-//       }).not.toThrow();
-//     });
-    
-//     it('validates domain format', () => {
-//       const invalidDomains = [
-//         'not a domain',
-//         'http://',
-//         '...',
-//         'domain..com',
-//       ];
-      
-//       invalidDomains.forEach(siteId => {
-//         expect(() => {
-//           plausibleProvider.create({ siteId });
-//         }).toThrow('Invalid domain format');
-//       });
-//     });
-    
-//     it('parses domain from various formats', () => {
-//       const domains = [
-//         ['example.com', 'example.com'],
-//         ['https://example.com', 'example.com'],
-//         ['https://example.com/', 'example.com'],
-//         ['EXAMPLE.COM', 'example.com'],
-//         ['subdomain.example.com', 'subdomain.example.com'],
-//       ];
-      
-//       domains.forEach(([input, expected]) => {
-//         const instance = plausibleProvider.create({ siteId: input });
-//         instance.track('test');
-        
-//         const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-//         expect(body.d).toBe(expected);
-        
-//         fetchSpy.mockClear();
-//       });
-//     });
-    
-//     it('has correct metadata', () => {
-//       expect(plausibleProvider.meta).toEqual({
-//         name: 'plausible',
-//         version: '2.0.0',
-//       });
-//     });
-//   });
-  
-//   describe('tracking', () => {
-//     it('sends events to Plausible API', async () => {
-//       const instance = plausibleProvider.create({ 
-//         siteId: 'example.com',
-//       });
-      
-//       instance.track('Signup', { plan: 'pro' });
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(fetchSpy).toHaveBeenCalledWith(
-//         'https://plausible.io/api/event',
-//         expect.objectContaining({
-//           method: 'POST',
-//           headers: expect.objectContaining({
-//             'Content-Type': 'application/json',
-//             'X-Forwarded-For': '127.0.0.1',
-//           }),
-//           keepalive: true,
-//         })
-//       );
-      
-//       const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-//       expect(body).toMatchObject({
-//         n: 'Signup',
-//         d: 'example.com',
-//         m: { plan: 'pro' },
-//         w: expect.any(Number),
-//       });
-//     });
-    
-//     it('uses custom host when provided', async () => {
-//       const instance = plausibleProvider.create({ 
-//         siteId: 'example.com',
-//         host: 'https://analytics.example.com',
-//       });
-      
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(fetchSpy.mock.calls[0][0]).toBe('https://analytics.example.com/api/event');
-//     });
-    
-//     it('converts all props to strings', async () => {
-//       const instance = plausibleProvider.create({ siteId: 'example.com' });
-      
-//       instance.track('test', {
-//         string: 'value',
-//         number: 123,
-//         boolean: true,
-//         null: null,
-//         undefined: undefined,
-//         object: { nested: 'value' }, // Should be filtered out
-//       });
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-//       expect(body.m).toEqual({
-//         string: 'value',
-//         number: '123',
-//         boolean: 'true',
-//       });
-//     });
-    
-//     it('merges with default props', async () => {
-//       const instance = plausibleProvider.create({ 
-//         siteId: 'example.com',
-//         defaultProps: {
-//           author: 'john',
-//           section: 'blog',
-//         },
-//       });
-      
-//       instance.track('Read Article', { 
-//         title: 'Test Article',
-//         section: 'news', // Should override default
-//       });
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-//       expect(body.m).toEqual({
-//         author: 'john',
-//         section: 'news',
-//         title: 'Test Article',
-//       });
-//     });
-    
-//     it('tracks revenue goals when enabled', async () => {
-//       const instance = plausibleProvider.create({ 
-//         siteId: 'example.com',
-//         revenue: {
-//           currency: 'EUR',
-//           trackingEnabled: true,
-//         },
-//       });
-      
-//       instance.track('Purchase', { 
-//         revenue: 29.99,
-//         currency: 'USD',
-//         product: 'Premium Plan',
-//       });
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-//       expect(body.$).toBe(2999); // Cents
-//       expect(body.$$).toBe('USD');
-//       expect(body.m).toEqual({
-//         product: 'Premium Plan',
-//       });
-//     });
-    
-//     it('does not track revenue when disabled', async () => {
-//       const instance = plausibleProvider.create({ 
-//         siteId: 'example.com',
-//         revenue: {
-//           currency: 'USD',
-//           trackingEnabled: false,
-//         },
-//       });
-      
-//       instance.track('Purchase', { revenue: 29.99 });
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-//       expect(body.$).toBeUndefined();
-//       expect(body.$$).toBeUndefined();
-//     });
-//   });
-  
-//   describe('localhost handling', () => {
-//     it('excludes localhost by default', async () => {
-//       const { isLocalhost } = await import('../../../src/providers/shared/browser');
-//       (isLocalhost as any).mockReturnValue(true);
-      
-//       const instance = plausibleProvider.create({ siteId: 'example.com' });
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(fetchSpy).not.toHaveBeenCalled();
-      
-//       // Reset mock
-//       (isLocalhost as any).mockReturnValue(false);
-//     });
-    
-//     it('can track localhost when enabled', async () => {
-//       const { isLocalhost } = await import('../../../src/providers/shared/browser');
-//       (isLocalhost as any).mockReturnValue(true);
-      
-//       const instance = plausibleProvider.create({ 
-//         siteId: 'example.com',
-//         trackLocalhost: true,
-//       });
-      
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(fetchSpy).toHaveBeenCalled();
-      
-//       // Reset mock
-//       (isLocalhost as any).mockReturnValue(false);
-//     });
-//   });
-  
-//   describe('pageview tracking', () => {
-//     it('sends pageview events', async () => {
-//       const instance = plausibleProvider.create({ siteId: 'example.com' });
-      
-//       instance.pageview('/page');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-//       expect(body).toMatchObject({
-//         n: 'pageview',
-//         d: 'example.com',
-//         u: '/page',
-//       });
-//     });
-    
-//     it('includes hash when hashMode enabled', async () => {
-//       const instance = plausibleProvider.create({ 
-//         siteId: 'example.com',
-//         hashMode: true,
-//       });
-      
-//       instance.pageview();
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-//       expect(body.h).toBe(1);
-//       expect(body.u).toContain('#/route');
-//     });
-    
-//     it('deduplicates repeated pageviews', async () => {
-//       const instance = plausibleProvider.create({ siteId: 'example.com' });
-      
-//       instance.pageview('/page');
-//       instance.pageview('/page'); // Duplicate
-//       instance.pageview('/other');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(fetchSpy).toHaveBeenCalledTimes(2);
-//     });
-//   });
-  
-//   describe('exclusions', () => {
-//     it('excludes configured paths', async () => {
-//       const { isUrlExcluded } = await import('../../../src/providers/shared/browser');
-//       (isUrlExcluded as any).mockImplementation((url, patterns) => {
-//         return patterns?.some(p => url.startsWith(p.replace('*', ''))) || false;
-//       });
-      
-//       const instance = plausibleProvider.create({ 
-//         siteId: 'example.com',
-//         exclude: ['/admin/*', '/api/*'],
-//       });
-      
-//       instance.pageview('/admin/dashboard');
-//       instance.pageview('/api/users');
-//       instance.pageview('/public/page');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       // Only the /public/page should be tracked
-//       expect(fetchSpy).toHaveBeenCalledTimes(1);
-//       const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-//       expect(body.u).toBe('/public/page');
-      
-//       // Reset mock
-//       (isUrlExcluded as any).mockReturnValue(false);
-//     });
-//   });
-  
-//   describe('auto-tracking', () => {
-//     it('tracks outbound links', async () => {
-//       const instance = plausibleProvider.create({ 
-//         siteId: 'example.com',
-//         autoTrack: true,
-//       });
-      
-//       await instance._init?.();
-      
-//       // Create and click an outbound link
-//       const link = document.createElement('a');
-//       link.href = 'https://external.com';
-//       document.body.appendChild(link);
-      
-//       const clickEvent = new MouseEvent('click', { bubbles: true });
-//       link.dispatchEvent(clickEvent);
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(fetchSpy).toHaveBeenCalled();
-//       const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-//       expect(body.n).toBe('Outbound Link: Click');
-//       expect(body.m?.url).toBe('https://external.com');
-      
-//       document.body.removeChild(link);
-//     });
-    
-//     it('tracks file downloads', async () => {
-//       const instance = plausibleProvider.create({ 
-//         siteId: 'example.com',
-//         autoTrack: true,
-//       });
-      
-//       await instance._init?.();
-      
-//       // Create and click a download link
-//       const link = document.createElement('a');
-//       link.href = '/files/document.pdf';
-//       document.body.appendChild(link);
-      
-//       const clickEvent = new MouseEvent('click', { bubbles: true });
-//       link.dispatchEvent(clickEvent);
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(fetchSpy).toHaveBeenCalled();
-//       const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-//       expect(body.n).toBe('File Download');
-//       expect(body.m?.file).toBe('document.pdf');
-      
-//       document.body.removeChild(link);
-//     });
-//   });
-  
-//   describe('error handling', () => {
-//     it('calls onError callback on failure', async () => {
-//       const onError = vi.fn();
-//       fetchSpy.mockRejectedValue(new Error('Network error'));
-      
-//       const instance = plausibleProvider.create({ 
-//         siteId: 'example.com',
-//         onError,
-//       });
-      
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(onError).toHaveBeenCalledWith(
-//         expect.objectContaining({
-//           code: 'NETWORK_ERROR',
-//           provider: 'plausible',
-//         })
-//       );
-//     });
-    
-//     it('handles non-200 responses', async () => {
-//       const onError = vi.fn();
-//       fetchSpy.mockResolvedValue(
-//         new Response('Bad Request', { status: 400 })
-//       );
-      
-//       const instance = plausibleProvider.create({ 
-//         siteId: 'example.com',
-//         onError,
-//       });
-      
-//       instance.track('test');
-      
-//       await new Promise(resolve => setTimeout(resolve, 100));
-      
-//       expect(onError).toHaveBeenCalledWith(
-//         expect.objectContaining({
-//           code: 'NETWORK_ERROR',
-//           message: expect.stringContaining('400'),
-//         })
-//       );
-//     });
-//   });
-// });
-
-
-// packages/trackkit/test/providers/plausible.test.ts
-import { describe, it, expect, vi } from 'vitest';
-import { PlausibleClient } from '../../../src/providers/plausible/client';
-import { grantConsent, PageContext, track, waitForReady } from '../../../src';
-import plausibleProvider from '../../../src/providers/plausible';
-
-
-describe('Plausible provider: pageview mapping', () => {
-  it('maps ctx fields to payload and avoids window reads', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('ok', { status: 202 })
-    );
-    
-    const client = new PlausibleClient({
-      domain: 'example.com',
-      hashMode: false,
-      trackLocalhost: true,
-    });
-
-    const ctx: PageContext = {
-      url: '/a?x=1#h',
-      referrer: '/prev',
-      viewportSize: { width: 1234, height: 5678 },
-      screenSize: { width: 1920, height: 1080 },
-      title: 'Title A',
-      language: 'en',
-      timestamp: 1111,
-    };
-
-    await client.sendPageview('/a?x=1#h', ctx);
-    
-    // Wait for async operations
-    await new Promise(resolve => setTimeout(resolve, 10));
-
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [url, options] = fetchSpy.mock.calls[0];
-    const payload = JSON.parse(options?.body as string);
-
-    expect(payload).toMatchObject({
-      name: 'pageview',
-      domain: 'example.com',
-      url: '/a?x=1#h',
-      referrer: '/prev',
-    });
-    
-    fetchSpy.mockRestore();
-  });
-
-
-  it('does not send when running on localhost (when policy enabled)', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
-    const instance = plausibleProvider.create({ siteId: 'example.com' });
-    
-
-    instance.pageview('/local-test');
-    await new Promise(r => setTimeout(r, 50));
-
-    expect(fetchSpy).not.toHaveBeenCalled();
-
-    fetchSpy.mockRestore();
-  });
-
-  it('sends goal events with props (if exposed via trackGoal)', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
-    const instance = plausibleProvider.create({ siteId: 'example.com', trackLocalhost: true });
-
-    // If your client exposes trackGoal(goalName, { props }), use that; otherwise, call track('Goal Name', props)
-    (instance as any).trackGoal?.('Signup Complete', { props: { plan: 'pro' } }) ?? instance.track('Signup Complete', { plan: 'pro' });
-    await new Promise(r => setTimeout(r, 50));
-
-    const content = fetchSpy.mock.calls[0][1]?.body
-    const body = JSON.parse((content || '{}') as string);
-    expect(body.name).toBe('Signup Complete');
-    expect(body.props).toEqual({ plan: 'pro' });
-
-    fetchSpy.mockRestore();
-  });
-
-  it('destroy() is idempotent', () => {
-    const instance = plausibleProvider.create({ siteId: 'example.com' });
-    expect(() => instance.destroy()).not.toThrow();
-    expect(() => instance.destroy()).not.toThrow();
-  });
-
+vi.mock('../../../src/providers/new/base/transport', async () => {
+  const actual = await vi.importActual<typeof import('../../../src/providers/new/base/transport')>(
+    '../../../src/providers/new/base/transport'
+  );
+  return {
+    ...actual,
+    send: vi.fn(() => Promise.resolve(new Response(null, { status: 204 }))),
+  };
 });
 
+const sendMock = transport.send as unknown as Mock;
+
+function ctx(overrides: Partial<PageContext> = {}): PageContext {
+  return {
+    url: '/page',
+    referrer: '',
+    title: 'Some Title',
+    language: 'en-US',
+    hostname: 'localhost',
+    viewportSize: { width: 1024, height: 768 },
+    timestamp: 1111,
+    ...overrides,
+  };
+}
+
+describe('Plausible provider (spec adapter)', () => {
+  beforeEach(() => {
+    sendMock.mockClear();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // --- defaults / validation ---
+
+  it('throws when domain is missing', () => {
+    expect(() => plausible.create({} as any)).toThrow('[plausible] "domain" is required');
+  });
+
+  it('normalizes host (default + custom, stripping trailing slashes)', async () => {
+    const p1 = plausible.create({ domain: 'example.com' } as any);
+    await p1.pageview(ctx());
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(sendMock.mock.calls[0][0]).toMatchObject({
+      url: 'https://plausible.io/api/event',
+      method: 'AUTO',
+    });
+
+    sendMock.mockClear();
+
+    const p2 = plausible.create({ domain: 'example.com', host: 'https://analytics.example.com///' } as any);
+    await p2.pageview(ctx());
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(sendMock.mock.calls[0][0]).toMatchObject({
+      url: 'https://analytics.example.com/api/event',
+      method: 'AUTO',
+    });
+  });
+
+  // --- pageview mapping ---
+
+  it('maps pageview payload from PageContext', async () => {
+    const instance = plausible.create({ domain: 'example.com' } as any);
+    await instance.pageview(
+      ctx({
+        url: '/a?x=1#h',
+        referrer: '/prev',
+        title: 'Title A',
+      })
+    );
+
+    const req = sendMock.mock.calls[0][0];
+    expect(req.url).toBe('https://plausible.io/api/event');
+    expect(req.method).toBe('AUTO');
+    expect(req.maxBeaconBytes).toBe(64_000);
+
+    const body = req.body;
+    expect(body).toEqual({
+      name: 'pageview',
+      url: '/a?x=1#h',
+      referrer: '/prev',
+      page_title: 'Title A',
+      domain: 'example.com',
+    });
+  });
+
+  it('omits optional fields when absent on pageview', async () => {
+    const instance = plausible.create({ domain: 'example.com' } as any);
+    await instance.pageview(ctx({ url: '/only-url', referrer: undefined, title: undefined }));
+
+    const body = sendMock.mock.calls[0][0].body;
+    expect(body).toEqual({
+      name: 'pageview',
+      url: '/only-url',
+      domain: 'example.com',
+    });
+  });
+
+  // --- event mapping ---
+
+  it('maps event payload with props + referrer', async () => {
+    const instance = plausible.create({ domain: 'example.com' } as any);
+    await instance.track('Signup', { plan: 'pro' }, ctx({ url: '/u', referrer: '/r' }));
+
+    const body = sendMock.mock.calls[0][0].body;
+    expect(body).toEqual({
+      name: 'Signup',
+      url: '/u',
+      referrer: '/r',
+      domain: 'example.com',
+      props: { plan: 'pro' },
+    });
+  });
+
+  it('omits props when empty', async () => {
+    const instance = plausible.create({ domain: 'example.com' } as any);
+    await instance.track('Ping', {}, ctx({ url: '/u' }));
+
+    const body = sendMock.mock.calls[0][0].body;
+    expect(body).toEqual({
+      name: 'Ping',
+      url: '/u',
+      domain: 'example.com',
+    });
+  });
+
+  // --- revenue mapping ---
+
+  it('maps revenue when trackingEnabled and props.revenue is an object; removes revenue from props', async () => {
+    const instance = plausible.create({
+      domain: 'example.com',
+      revenue: { currency: 'EUR', trackingEnabled: true },
+    } as any);
+
+    const props = { plan: 'pro', revenue: { value: 2999, currency: 'USD' } };
+    await instance.track('Purchase', { ...props }, ctx({ url: '/checkout' }));
+
+    const body = sendMock.mock.calls[0][0].body;
+    expect(body).toEqual({
+      name: 'Purchase',
+      url: '/checkout',
+      domain: 'example.com',
+      props: { plan: 'pro' }, // revenue removed from props
+      revenue: { value: 2999, currency: 'USD' },
+    });
+  });
+
+  it('uses options.revenue.currency as a fallback when props.revenue.currency is missing', async () => {
+    const instance = plausible.create({
+      domain: 'example.com',
+      revenue: { currency: 'GBP', trackingEnabled: true },
+    } as any);
+
+    await instance.track('Purchase', { revenue: { value: 1000 } } as any, ctx({ url: '/c' }));
+
+    const body = sendMock.mock.calls[0][0].body;
+    expect(body).toEqual({
+      name: 'Purchase',
+      url: '/c',
+      domain: 'example.com',
+      revenue: { value: 1000, currency: 'GBP' },
+      props: {}, // stripped later by transport
+    });
+  });
+
+  it('does not add revenue when tracking is disabled', async () => {
+    const instance = plausible.create({
+      domain: 'example.com',
+      revenue: { currency: 'USD', trackingEnabled: false },
+    } as any);
+
+    await instance.track('Purchase', { revenue: { value: 1234, currency: 'USD' }, foo: 1 } as any, ctx({ url: '/c' }));
+
+    const body = sendMock.mock.calls[0][0].body;
+    expect(body).toEqual({
+      name: 'Purchase',
+      url: '/c',
+      domain: 'example.com',
+      props: {
+        revenue: { value: 1234, currency: 'USD' },
+        foo: 1,
+      },
+    });
+  });
+
+  // --- plumbing / misc ---
+
+  it('passes maxBeaconBytes=64000 to transport (limits)', async () => {
+    const instance = plausible.create({ domain: 'example.com' } as any);
+    await instance.track('Event', { a: 1 }, ctx({ url: '/x' }));
+    expect(sendMock.mock.calls[0][0].maxBeaconBytes).toBe(64_000);
+  });
+
+  it('identify and destroy are safe no-ops', () => {
+    const instance = plausible.create({ domain: 'example.com' } as any);
+    const ctx: PageContext = {
+      url: '/a',
+      title: 'T',
+      referrer: '/prev',
+      viewportSize: { width: 800, height: 600 },
+      language: 'en-US',
+      hostname: 'localhost',
+      timestamp: 123,
+    };
+    expect(() => instance.identify('abc', ctx)).not.toThrow();
+    expect(() => instance.destroy()).not.toThrow();
+    expect(() => instance.destroy()).not.toThrow(); // idempotent
+  });
+
+  // (Optional) show that adapter propagates non-ok responses via parseError
+  it('rejects when transport response is not ok', async () => {
+    sendMock.mockResolvedValueOnce(new Response('nope', { status: 500, statusText: 'Server Error' }));
+    const instance = plausible.create({ domain: 'example.com' } as any);
+    await expect(instance.track('Bad', {}, ctx({ url: '/err' }))).rejects.toThrow(
+      /Provider request failed: 500 Server Error/i
+    );
+  });
+});

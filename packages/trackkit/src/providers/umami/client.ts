@@ -1,4 +1,4 @@
-import type { UmamiConfig, UmamiPayload } from './types';
+import type { UmamiPayload } from './types';
 import type { PageContext, Props } from '../../types';
 import { BaseClient } from '../shared/base-client';
 import { 
@@ -32,11 +32,6 @@ export class UmamiClient extends BaseClient<Required<UmamiConfig>> {
    * Send event to Umami
    */
   async sendEvent(name: string, props?: Props, url?: string, pageContext?: PageContext): Promise<void> {
-    if (!this.shouldTrack()) return;
-    
-    // Additional Umami-specific checks
-    if (!this.shouldTrackUmami()) return;
-    
     const payload: UmamiPayload = {
       website: this.config.websiteId,
       hostname: window.location.hostname,
@@ -56,9 +51,6 @@ export class UmamiClient extends BaseClient<Required<UmamiConfig>> {
    * Send pageview to Umami
    */
   async sendPageview(url?: string, pageContext?: PageContext): Promise<void> {
-    if (!this.shouldTrack()) return;
-    if (!this.shouldTrackUmami()) return;
-    
     const payload: UmamiPayload = {
       website: this.config.websiteId,
       hostname: window.location.hostname,
@@ -75,21 +67,21 @@ export class UmamiClient extends BaseClient<Required<UmamiConfig>> {
   /**
    * Check Umami-specific tracking conditions
    */
-  private shouldTrackUmami(): boolean {
-    console.warn('[DEBUG] isDoNotTrackEnabled', isDoNotTrackEnabled());
-    // Check if Do Not Track is enabled
-    // Check Do Not Track
-    if (this.config.doNotTrack && isDoNotTrackEnabled()) {
-      return false;
-    }
+  // private shouldTrackUmami(): boolean {
+  //   console.warn('[DEBUG] isDoNotTrackEnabled', isDoNotTrackEnabled());
+  //   // Check if Do Not Track is enabled
+  //   // Check Do Not Track
+  //   if (this.config.doNotTrack && isDoNotTrackEnabled()) {
+  //     return false;
+  //   }
     
-    // Check domain whitelist
-    if (!isDomainAllowed(this.config.domains)) {
-      return false;
-    }
+  //   // Check domain whitelist
+  //   if (!isDomainAllowed(this.config.domains)) {
+  //     return false;
+  //   }
     
-    return true;
-  }
+  //   return true;
+  // }
   
   /**
    * Send data to Umami API

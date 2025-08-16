@@ -21,8 +21,13 @@ export function makeMemoryNavSource(): TestNavigationSource {
 
 export async function navigate(url: string) {
   window.history.pushState({}, '', url);
-  // If your sandbox dispatches on patched pushState via queueMicrotask, a microtask flush is enough:
-  await Promise.resolve(); // flush microtasks
-  // For extra safety (older code listening to popstate), include:
-  window.dispatchEvent(new PopStateEvent('popstate'));
+  // Let any pushState wrapping/microtasks settle
+  await Promise.resolve();
+  window.dispatchEvent(new PopStateEvent('popstate')); // harmless if unused
+  // Many SPA routers / our sandbox may schedule a macrotask; yield once.
+  await new Promise((r) => setTimeout(r, 0));
+}
+
+export function setPath(path: string) {
+  window.history.pushState({}, '', path);
 }

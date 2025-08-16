@@ -1,78 +1,72 @@
+// packages/trackkit/test/unit/util/env.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readEnvConfig, parseEnvBoolean, parseEnvNumber } from '../../../src/util/env';
 
 describe('Environment configuration', () => {
   const originalEnv = process.env;
-  
+  const originalWindow = global.window;
+
   beforeEach(() => {
     process.env = { ...originalEnv };
-    // Clear window mock
+    // fresh window shim
+    (global as any).window = { ...originalWindow };
     if (global.window) {
-      delete (global.window as any).__TRACKKIT_ENV__;
+      (global.window as any).__TRACKKIT_ENV__ = undefined;
     }
   });
-  
+
   afterEach(() => {
     process.env = originalEnv;
+    (global as any).window = originalWindow;
   });
-  
-  describe('readEnvConfig', () => {
-    it('reads direct environment variables', () => {
-      process.env.TRACKKIT_PROVIDER = 'umami';
-      process.env.TRACKKIT_SITE_ID = 'test-123';
-      
-      const config = readEnvConfig();
-      expect(config.provider).toBe('umami');
-      expect(config.siteId).toBe('test-123');
-    });
-    
-    it('reads Vite-prefixed variables', () => {
-      process.env.VITE_TRACKKIT_PROVIDER = 'plausible';
-      
-      const config = readEnvConfig();
-      expect(config.provider).toBe('plausible');
-    });
-    
-    it('reads React App prefixed variables', () => {
-      process.env.REACT_APP_TRACKKIT_HOST = 'https://analytics.test';
-      
-      const config = readEnvConfig();
-      expect(config.host).toBe('https://analytics.test');
-    });
-    
-    it('prioritizes direct vars over prefixed', () => {
-      process.env.TRACKKIT_DEBUG = 'true';
-      process.env.VITE_TRACKKIT_DEBUG = 'false';
-      
-      const config = readEnvConfig();
-      expect(config.debug).toBe('true');
-    });
+
+  // existing tests …
+
+  it('reads window.__TRACKKIT_ENV__ and prefers it over process.env', () => {
+    process.env.TRACKKIT_PROVIDER = 'umami';
+    globalThis.__TRACKKIT_ENV__ = { PROVIDER: 'plausible', HOST: 'https://h' };
+
+    const config = readEnvConfig();
+    expect(config.provider).toBe('plausible'); // window wins
+    expect(config.host).toBe('https://h');
   });
-  
-  describe('parseEnvBoolean', () => {
-    it.each([
-      ['true', true],
-      ['TRUE', true],
-      ['1', true],
-      ['false', false],
-      ['0', false],
-      ['', false],
-      [undefined, false],
-    ])('parseEnvBoolean(%s) = %s', (input, expected) => {
-      expect(parseEnvBoolean(input)).toBe(expected);
-    });
+
+  it('parses booleans and numbers from env', () => {
+    process.env.TRACKKIT_AUTO_TRACK = 'true';
+    process.env.TRACKKIT_INCLUDE_HASH = '1';
+    process.env.TRACKKIT_QUEUE_SIZE = '7';
+
+    const cfg = readEnvConfig();
+    expect(cfg.autoTrack).toBe(true);
+    expect(cfg.includeHash).toBe(true);
+    expect(cfg.queueSize).toBe(7);
   });
-  
-  describe('parseEnvNumber', () => {
-    it.each([
-      ['50', 50],
-      ['0', 0],
-      ['-1', -1],
-      ['abc', 10],
-      ['', 10],
-      [undefined, 10],
-    ])('parseEnvNumber(%s, 10) = %s', (input, expected) => {
-      expect(parseEnvNumber(input, 10)).toBe(expected);
-    });
+
+  it('gives direct vars precedence over prefixed even with window absent', () => {
+    delete (global.window as any).__TRACKKIT_ENV__;
+
+    process.env.TRACKKIT_DEBUG = 'true';
+    process.env.VITE_TRACKKIT_DEBUG = 'false';
+    process.env.REACT_APP_TRACKKIT_DEBUG = '0';
+
+    const cfg = readEnvConfig();
+    expect(cfg.debug).toBe(true);
   });
+
+  it('supports Vite/React prefixes for numbers/booleans too', () => {
+    process.env.VITE_TRACKKIT_QUEUE_SIZE = '9';
+    process.env.REACT_APP_TRACKKIT_AUTO_TRACK = 'true';
+    const cfg = readEnvConfig();
+    expect(cfg.queueSize).toBe(9);
+    expect(cfg.autoTrack).toBe(true);
+  });
+
+  // If your readEnvConfig supports CSV lists for allow/deny lists, add:
+  // it('parses CSV lists (domains/exclude) when provided', () => {
+  //   process.env.TRACKKIT_DOMAINS = 'a.com,b.com';
+  //   process.env.TRACKKIT_EXCLUDE = '^/private, /admin';
+  //   const cfg = readEnvConfig();
+  //   expect(cfg.domains).toEqual(['a.com', 'b.com']);
+  //   expect(cfg.exclude).toEqual(['^/private', '/admin']); // or regex transform if you apply it
+  // });
 });

@@ -36,17 +36,17 @@ export abstract class BaseClient<TConfig = any> implements BaseAnalyticsClient {
    * Check if tracking should occur (basic environment checks only)
    * The facade handles consent and other business logic
    */
-  protected shouldTrack(): boolean {
-    if (!isBrowser()) {
-      return false;
-    }
+  // protected shouldTrack(): boolean {
+  //   if (!isBrowser()) {
+  //     return false;
+  //   }
     
-    if (!this.allowWhenHidden && isPageHidden()) {
-      return false;
-    }
+  //   if (!this.allowWhenHidden && isPageHidden()) {
+  //     return false;
+  //   }
     
-    return true;
-  }
+  //   return true;
+  // }
   
   /**
    * Create transport instance - can be overridden

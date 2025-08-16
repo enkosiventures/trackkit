@@ -1,5 +1,5 @@
 import type { ProviderFactory, ProviderInstance } from '../types';
-import type { AnalyticsOptions, Props } from '../../types';
+import type { AnalyticsOptions, PageContext, Props } from '../../types';
 import { UmamiClient } from './client';
 import { validateUUID } from '../shared/validation';
 import { isBrowser } from '../shared/browser';
@@ -36,10 +36,10 @@ function parseWebsiteId(siteId?: string): string | null {
  */
 function create(options: AnalyticsOptions): ProviderInstance {
   // Validate configuration
-  const websiteId = parseWebsiteId(options.siteId);
-  if (!websiteId) {
+  const siteId = parseWebsiteId(options.siteId);
+  if (!siteId) {
     throw new AnalyticsError(
-      'Umami requires a valid website ID',
+      'Umami requires a valid site ID',
       'INVALID_CONFIG',
       'umami'
     );
@@ -60,12 +60,11 @@ function create(options: AnalyticsOptions): ProviderInstance {
   
   // Create client
   const client = new UmamiClient({
-    websiteId,
-    hostUrl: options.host,
+    ...options,
     autoTrack: options.autoTrack ?? true,
     doNotTrack: options.doNotTrack ?? true,
-    domains: options.domains,
     cache: options.cache ?? false,
+    siteId,
   });
   
   return {
@@ -85,20 +84,20 @@ function create(options: AnalyticsOptions): ProviderInstance {
     /**
      * Track custom event
      */
-    async track(name: string, props?: Props, url?: string) {
+    async track(name: string, props?: Props, url?: string, category?: string, pageContext?: PageContext) {
       // Async errors will be caught by facade
       // client.sendEvent(name, props, url).catch(error => {
       //   throw error; // Re-throw for facade to catch
       // });
       // Let errors bubble up naturally
-      await client.sendEvent(name, props, url);
+      await client.sendEvent(name, props, url, category, pageContext);
     },
     
     /**
      * Track pageview
      */
-    async pageview(url?: string) {
-      await client.sendPageview(url);
+    async pageview(url?: string, pageContext?: PageContext) {
+      await client.sendPageview(url, pageContext);
     },
 
     /**

@@ -1,5 +1,5 @@
 import { getFacade } from '../core/facade-singleton';
-import { AnalyticsOptions } from '../types';
+import { InitOptions } from '../types';
 
 /**
  * Initialize the analytics system
@@ -7,10 +7,10 @@ import { AnalyticsOptions } from '../types';
  * @param options - Configuration options for analytics
  * @default {}
  * @example
- * init({ provider: 'umami', siteId: 'G-XXXXXXXXXX', debug: true });
- * @see {@link AnalyticsOptions} for available options
+ * init({ provider: 'umami', site: 'G-XXXXXXXXXX', debug: true });
+ * @see {@link InitOptions} for available options
  */
-export function init(options: AnalyticsOptions = {}): void {
+export function init(options: InitOptions = {}): void {
   getFacade().init(options);
 }
 export default init;

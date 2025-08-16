@@ -1,8 +1,10 @@
 import type { AsyncLoader, ProviderLoader } from './types';
-import type { ProviderType, AnalyticsOptions } from '../types';
+import type { ProviderType, ProviderOptions } from '../types';
 import { StatefulProvider } from './stateful-wrapper';
 import { providers } from './registry';
 import { logger } from '../util/logger';
+import { AnalyticsError } from '../errors';
+import { DEFAULT_CACHING, DEFAULT_ERROR_HANDLER, DEFAULT_PROVIDER, DEFAULT_PROVIDER_OPTIONS } from '../constants';
 
 /**
  * Check if loader is async
@@ -27,10 +29,14 @@ const providerRegistry = new Map(
  * Load and wrap provider with state management
  */
 export async function loadProvider(
-  name: ProviderType,
-  options: AnalyticsOptions,
-  // onReady?: (provider?: StatefulProvider) => void,
+  providerOptions: ProviderOptions | null,
+  cache?: boolean,
+  debug?: boolean,
+  onError: (error: AnalyticsError) => void = DEFAULT_ERROR_HANDLER,
 ): Promise<StatefulProvider> {
+  const options = providerOptions || DEFAULT_PROVIDER_OPTIONS;
+  const name = options.provider ?? DEFAULT_PROVIDER;
+
   logger.debug(`Loading provider: ${name}`);
   
   const loader = providerRegistry.get(name);
@@ -53,15 +59,15 @@ export async function loadProvider(
     }
     
     // Create provider instance
-    const provider = factory.create(options);
+    const provider = factory.create(options, cache, debug);
     
     // Wrap with state management
-    const statefulProvider = new StatefulProvider(provider, options);
+    const statefulProvider = new StatefulProvider(provider, onError);
 
     // Initialize asynchronously
     statefulProvider.init().catch(error => {
       logger.error('Provider initialization failed', error);
-      options.onError?.(error);
+      onError(error);
     });
     
     logger.info(`Provider loaded: ${name}`, {

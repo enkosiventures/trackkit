@@ -1,5 +1,7 @@
+import { ConsentCategory } from '../consent/types';
+import { DEFAULT_CATEGORY } from '../constants';
 import type { EventType, PageContext, Props } from '../types';
-import { logger } from './logger';
+import { debugLog, logger } from './logger';
 
 
 
@@ -11,6 +13,7 @@ export interface QueuedEvent {
   type: EventType;
   timestamp: number;
   args: unknown[];
+  category: ConsentCategory;
   pageContext: PageContext;
 }
 
@@ -75,30 +78,38 @@ export class EventQueue {
     this.config = config;
     logger.debug('EventQueue initialized', { maxSize: config.maxSize });
   }
-  
+
   /**
    * Add event to queue
    */
   enqueue<T extends QueuedEventUnion['type']>(
     type: T,
     args: Extract<QueuedEventUnion, { type: T }>['args'],
+    category: ConsentCategory = DEFAULT_CATEGORY,
     pageContext: PageContext
   ): string | undefined {
     if (this.isPaused) {
       logger.debug('Queue is paused, dropping event', { type });
       return undefined;
     }
-    
+
     const event: QueuedEvent = {
       id: generateEventId(),
       type,
       timestamp: Date.now(),
       args,
+      category,
       pageContext,
     };
-    
+
     // Check for overflow
+    debugLog('Enqueuing event', {
+      event,
+      maxSize: this.config.maxSize,
+      queueLength: this.queue.length,
+    });
     if (this.queue.length >= this.config.maxSize) {
+      debugLog('[OVERFLOW] Queue overflow detected');
       const dropped = this.queue.splice(0, this.queue.length - this.config.maxSize + 1);
       
       logger.warn(`Queue overflow, dropping ${dropped.length} oldest events`);
@@ -118,7 +129,29 @@ export class EventQueue {
     
     return event.id;
   }
-  
+
+  /**
+   * Reconfigure the event queue
+   */
+  reconfigure(newConfig: Partial<QueueConfig>) {
+    const prev = this.config;
+    this.config = { ...prev, ...newConfig };
+
+    // If maxSize shrank, drop oldest to fit and notify
+    if (this.queue.length > this.config.maxSize) {
+      const dropCount = this.queue.length - this.config.maxSize;
+      const dropped = this.queue.splice(0, dropCount);
+      this.config.onOverflow?.(dropped);
+      logger.debug('Queue trimmed on reconfigure', { dropCount, newMax: this.config.maxSize });
+    }
+
+    logger.debug('Queue reconfigured', {
+      newMaxSize: this.config.maxSize,
+      debug: this.config.debug,
+      size: this.queue.length,
+    });
+  }
+
   /**
    * Remove and return all queued events
    */
@@ -131,10 +164,10 @@ export class EventQueue {
       oldestEvent: events[0]?.timestamp,
       newestEvent: events[events.length - 1]?.timestamp,
     });
-    
+
     return events;
   }
-  
+
   /**
    * Remove specific events by predicate
    */

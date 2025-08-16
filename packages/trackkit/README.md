@@ -35,7 +35,7 @@ import { init, track, pageview, grantConsent } from 'trackkit';
 
 init({
   provider: 'umami',                        // or 'plausible' | 'ga' | 'none'
-  siteId: 'de305d54-75b4-431b-adb2',
+  site: 'de305d54-75b4-431b-adb2',
   host: 'https://cloud.umami.is'
 });
 
@@ -84,7 +84,7 @@ Use `grantConsent / denyConsent` to control event flow. Events are buffered unti
 | Option         | Type    | Default  | Description                             |             |      |          |
 | -------------- | ------- | -------- | --------------------------------------- | ----------- | ---- | -------- |
 | `provider`     | string  | `'none'` | \`'umami'                               | 'plausible' | 'ga' | 'none'\` |
-| `siteId`       | string  | –        | ID from provider                        |             |      |          |
+| `site`       | string  | –        | ID from provider                        |             |      |          |
 | `host`         | string  | –        | Custom analytics host (if self-hosted)  |             |      |          |
 | `debug`        | boolean | `false`  | Logs queue state and events             |             |      |          |
 | `queueSize`    | number  | `50`     | Max buffer before dropping              |             |      |          |
@@ -121,7 +121,7 @@ import { registerProvider, init } from 'trackkit';
 import amp from 'trackkit-plugin-amplitude';
 
 registerProvider(amp);
-init({ provider: 'amplitude', siteId: YOUR_KEY });
+init({ provider: 'amplitude', site: YOUR_KEY });
 ```
 
 ---

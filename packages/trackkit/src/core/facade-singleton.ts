@@ -1,5 +1,6 @@
 import { AnalyticsFacade } from './facade';
-import type { AnalyticsOptions, Props } from '../types';
+import type { InitOptions, Props } from '../types';
+import { ConsentCategory } from '../consent/types';
 
 // Singleton instance
 let facadeInstance: AnalyticsFacade | null = null;
@@ -15,13 +16,13 @@ export function getFacade(): AnalyticsFacade {
 }
 
 // Convenience exports that delegate to singleton
-export const init = (options: AnalyticsOptions = {}) => getFacade().init(options);
+export const init = (options: InitOptions = {}) => getFacade().init(options);
 export const destroy = () => {
   getFacade().destroy();
   facadeInstance = null; // Allow re-initialization after destroy
 };
-export const track = (name: string, props?: Props, url?: string) => getFacade().track(name, props, url);
-export const pageview = (url?: string) => getFacade().pageview(url);
+export const track = (name: string, props?: Props, category?: ConsentCategory) => getFacade().track(name, props, category);
+export const pageview = () => getFacade().pageview();
 export const identify = (userId: string | null) => getFacade().identify(userId);
 
 // Utility exports

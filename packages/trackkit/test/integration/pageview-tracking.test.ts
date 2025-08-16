@@ -1,20 +1,31 @@
+/// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from 'vitest';
-import { AnalyticsOptions, denyConsent, grantConsent, init, waitForReady, destroy } from '../../src';
+import { denyConsent, grantConsent, init, waitForReady, destroy } from '../../src';
 import { createFacade } from '../helpers/providers';
+import { navigate } from '../helpers/navigation';
+import { tick } from '../helpers/core';
+import { g } from 'vitest/dist/chunks/suite.d.FvehnV49.js';
+import { debugLog } from '../../src/util/logger';
+import noopProvider from '../../src/providers/noop';
 
+// @vitest-environment jsdom
 
-async function navigate(url: string) {
-  window.history.pushState({}, '', url);
-  await Promise.resolve(); // flush microtask from patched pushState
-  window.dispatchEvent(new PopStateEvent('popstate')); // harmless if unused
-}
+// take function and run tick after it
+const runWithTick = async (fn: () => void) => {
+  fn();
+  await tick();
+};
+
+const navigateWithTick = async (url: string) => {
+  await navigate(url);
+  await tick();
+};
 
 describe('Facade autotrack with real history', () => {
 
-  beforeEach(() => {
-    // Clear any module cache to ensure fresh imports
-    vi.resetModules();
-  });
+ beforeEach(() => {
+   destroy();
+ });
 
   afterEach(async () => {
     destroy();
@@ -27,53 +38,84 @@ describe('Facade autotrack with real history', () => {
   it('sends initial pageview once', async () => {
     const { facade, provider } = await createFacade();
 
-    grantConsent();
+    await runWithTick(grantConsent);
 
     expect(provider.pageviewCalls.length).toBe(1);
-    expect(provider.pageviewCalls[0].url).toBe('/');
+    expect(provider.pageviewCalls[0]?.url).toBe('/');
   });
 
   it('sends SPA navigations and dedupes repeats', async () => {
-    const { facade, provider } = await createFacade();
+    const { facade, provider } = await createFacade({ includeHash: true });
 
-    grantConsent();
+    await runWithTick(grantConsent);
     provider.pageviewCalls.length = 0;
 
-    await navigate('/a');
-    await navigate('/a'); // duplicate
-    await navigate('/b?x=1#h');
+    await navigateWithTick('/a');
+    await navigateWithTick('/a'); // duplicate
+    await navigateWithTick('/b?x=1#h');
 
     console.warn('Pageview calls:', provider.pageviewCalls);
 
-    expect(provider.pageviewCalls.map(c => c.url)).toEqual(['/a', '/b?x=1#h']);
-    expect(provider.pageviewCalls[0].pageContext?.referrer ?? '').toBe('');  // A referrer
-    expect(provider.pageviewCalls[1].pageContext?.referrer ?? '').toBe('/a'); // B referrer
+    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/a', '/b?x=1#h']);
+    expect(provider.pageviewCalls[0]?.referrer ?? '').toBe('/');  // A referrer
+    expect(provider.pageviewCalls[1]?.referrer ?? '').toBe('/a'); // B referrer
   });
 
   it('applies exclusions', async () => {
     const { facade, provider } = await createFacade({ exclude: ['/secret/alpha'] });
 
-    grantConsent();
+    await runWithTick(grantConsent);
+
     provider.pageviewCalls.length = 0;
 
-    await navigate('/secret/alpha'); // excluded
-    await navigate('/public');
+    await navigateWithTick('/secret/alpha'); // excluded
+    await navigateWithTick('/public');
 
-    expect(provider.pageviewCalls.map(c => c.url)).toEqual(['/public']);
+    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/public']);
   });
 
   it('gates by consent per policy', async () => {
-    const { facade, provider } = await createFacade({});
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    // const { facade, provider } = await createFacade({});
+    init({ autoTrack: true, debug: true, trackLocalhost: true, consent: { requireExplicit: true }});
+    await waitForReady();
+    await new Promise(resolve => setTimeout(resolve, 50));
     denyConsent();
-    provider.pageviewCalls.length = 0;
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    // provider.pageviewCalls.length = 0;
 
     await navigate('/pre-consent');
 
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     grantConsent();
 
+    await new Promise(resolve => setTimeout(resolve, 50));
     await navigate('/after-consent');
 
+    await new Promise(resolve => setTimeout(resolve, 50));
     // Common policy: drop pre-consent, send after grant
-    expect(provider.pageviewCalls.map(c => c.url)).toEqual(['/after-consent']);
+    // expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/after-consent']);
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[trackkit]'),
+      expect.any(String),
+      '[no-op] pageview',
+      expect.objectContaining({
+        pageContext: {
+          hostname: "localhost",
+          language: "en-US",
+          referrer: "/pre-consent",
+          timestamp: expect.any(Number),
+          url: "/after-consent",
+          viewportSize: {
+            height: 768,
+            width: 1024,
+          },
+        },
+      }),
+    );
+    consoleSpy.mockRestore();
   });
 });

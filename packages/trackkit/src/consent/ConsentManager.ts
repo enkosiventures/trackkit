@@ -1,7 +1,7 @@
 import { STORAGE_KEY } from '../constants';
 import { isBrowser } from '../util/env';
-import { logger } from '../util/logger';
-import { ConsentOptions, ConsentSnapshot, ConsentStatus, ConsentStoredState, Listener } from './types';
+import { debugLog, logger } from '../util/logger';
+import { ConsentCategory, ConsentOptions, ConsentSnapshot, ConsentStatus, ConsentStoredState, Listener } from './types';
 
 
 export class ConsentManager {
@@ -20,6 +20,7 @@ export class ConsentManager {
       disablePersistence: !!options.disablePersistence,
       policyVersion: options.policyVersion,
       requireExplicit: options.requireExplicit ?? true,
+      allowEssentialOnDenied: options.allowEssentialOnDenied ?? false,
     };
     logger.debug('ConsentManager Options:', this.opts);
     this.initFromStorage();
@@ -75,13 +76,18 @@ export class ConsentManager {
     return this.status;
   }
 
-  isGranted(category?: string) {
-    // “granted” covers all categories
-    if (this.status === 'granted') return true;
-    // “denied” blocks everything
-    if (this.status === 'denied')  return false;
-    // “pending”: allow *essential* only
-    return category === 'essential';
+  /**
+   * Core: may I send an event in this category?
+   * - Essential always allowed (except if allowEssentialOnDenied === false *and* status === 'denied')
+   * - Non-essential only when granted
+   */
+  isAllowed(category: ConsentCategory = 'analytics'): boolean {
+    debugLog('[CONSENT] isAllowed', { category, status: this.status, allowEssentialOnDenied: this.opts.allowEssentialOnDenied });
+    if (category === 'essential') {
+      // allowed unless explicitly denied AND not allowed-by-config
+      return this.status !== 'denied' || this.opts.allowEssentialOnDenied;
+    }
+    return this.status === 'granted';
   }
 
   /** Called by facade when first *emittable* event arrives and implicit allowed. */
