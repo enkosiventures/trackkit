@@ -1,6 +1,6 @@
 import { AnalyticsFacade } from './facade';
 import type { InitOptions, Props } from '../types';
-import { ConsentCategory } from '../consent/types';
+import type { ConsentCategory } from '../consent/types';
 
 // Singleton instance
 let facadeInstance: AnalyticsFacade | null = null;

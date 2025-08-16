@@ -12,5 +12,5 @@ beforeEach(() => {
 afterEach(() => {
   try {
     ensureNavigationSandbox(window).__reset(); // tear down patched history + listeners
-  } catch {}
+  } catch {/* no-op */}
 });

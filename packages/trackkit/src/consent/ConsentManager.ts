@@ -1,7 +1,7 @@
 import { STORAGE_KEY } from '../constants';
 import { isBrowser } from '../util/env';
 import { logger } from '../util/logger';
-import { ConsentCategory, ConsentOptions, ConsentSnapshot, ConsentStatus, ConsentStoredState, Listener } from './types';
+import type { ConsentCategory, ConsentOptions, ConsentSnapshot, ConsentStatus, ConsentStoredState, Listener } from './types';
 
 
 export class ConsentManager {
@@ -161,7 +161,7 @@ export class ConsentManager {
 
   private notify(prev: ConsentStatus) {
     for (const l of [...this.listeners]) {
-      try { l(this.status, prev); } catch (e) {
+      try { l(this.status, prev); } catch {
         // Swallow or escalate via a global error dispatcher
         // (Add optional callback hook if needed)
       }

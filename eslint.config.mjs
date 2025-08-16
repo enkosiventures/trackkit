@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import tseslint from '@typescript-eslint/eslint-plugin';
 import parser from '@typescript-eslint/parser';
 import prettier from 'eslint-config-prettier';
+import globals from 'globals';
 
 export default [
   /* -------- Global ignore globs (replaces .eslintignore) ---------- */
@@ -20,22 +21,38 @@ export default [
     languageOptions: { globals: { console: 'readonly', require: 'readonly' } },
   },
 
-  /* -------- Typed TypeScript override ----------------------------- */
+  /* -------- Typed TypeScript for PRODUCTION code ------------------ */
   {
-    files: ['**/*.ts', '**/*.tsx'],
-    ignores: ['**/*.test.ts', '**/*.spec.ts'],
+    files: ['packages/**/src/**/*.{ts,tsx}'],
     languageOptions: {
       parser,
       parserOptions: {
-        project: ['./packages/*/tsconfig.json', './packages/trackkit/tsconfig.eslint.json'],
+        project: [
+          './packages/*/tsconfig.json',
+          './packages/trackkit/tsconfig.eslint.json'
+        ],
         tsconfigRootDir: import.meta.dirname,
         sourceType: 'module',
       },
     },
     plugins: { '@typescript-eslint': tseslint },
     rules: {
-      'no-undef': 'off', // TypeScript handles this
-      'no-unused-vars': 'off', // Temporarily for development
+      // Base interop:
+      'no-undef': 'off',
+
+      // Useful, type-aware rules:
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/await-thenable': 'error',
+      '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: { attributes: false } }],
+      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'off', // relax if adapters need it
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+      'no-empty': ['error', { allowEmptyCatch: true }],
     },
   },
 
@@ -48,9 +65,7 @@ export default [
         sourceType: 'module',
         project: null
       },
-      globals: {
-        process: 'readonly',
-      },
+      globals: { ...globals.node, ...globals.es2021 },
     },
     rules: {},
   },
@@ -66,17 +81,28 @@ export default [
         sourceType: 'module',
       },
       globals: {
-        vi: 'readonly',
-        expect: 'readonly',
-        describe: 'readonly',
-        it: 'readonly',
-        process: 'readonly',
-        global: 'readonly',
-        setTimeout: 'readonly',
-        window: 'readonly',
+        // Vitest
+        vi: 'readonly', expect: 'readonly', describe: 'readonly', it: 'readonly',
+        beforeAll: 'readonly', afterAll: 'readonly', beforeEach: 'readonly', afterEach: 'readonly',
+        // Node
+        ...globals.node,
+        // Browser/DOM (jsdom)
+        ...globals.browser,
+        // Extra DOM-ish globals used in tests
+        PopStateEvent: 'readonly',
+        HashChangeEvent: 'readonly',
+        Response: 'readonly',
+        Request: 'readonly',
+        RequestInit: 'readonly',
+        Headers: 'readonly',
       },
     },
-    rules: {}
+    rules: {
+      'no-undef': 'off',          // TS + jsdom provide these at runtime
+      'no-empty': 'off',          // allow empty spies/handlers in tests
+      'no-unused-vars': 'off',    // test helpers often leave vars around
+      '@typescript-eslint/no-unused-vars': 'off',
+    }
   },
 
   /* -------- TypeScript spec files override ------------------------ */
@@ -87,9 +113,15 @@ export default [
       parserOptions: {
         sourceType: 'module',
       },
+      globals: { ...globals.browser, ...globals.node },
     },
     plugins: { '@typescript-eslint': tseslint },
-    rules: {},
+    rules: {
+      'no-undef': 'off',
+      'no-empty': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
   },
 
   prettier,

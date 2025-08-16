@@ -1,4 +1,4 @@
-import { ProviderLoader } from './types';
+import type { ProviderLoader } from './types';
 import type { ProviderType } from '../types';
 
 /**

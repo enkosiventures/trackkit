@@ -19,7 +19,7 @@ import { tick } from '../../helpers/core';
 describe('Public API wrappers', () => {
   beforeEach(() => {
     // clean up any previous instance
-    try { destroy(); } catch {}
+    try { destroy(); } catch {/* no-op */}
   });
 
   it('init() + pending consent queues, then grant flushes', async () => {

@@ -1,4 +1,4 @@
-import { PageContext } from "../../types";
+import type { PageContext } from "../../types";
 
 /**
  * Check if code is running in a browser environment

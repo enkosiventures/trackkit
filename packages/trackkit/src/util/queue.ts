@@ -1,4 +1,4 @@
-import { ConsentCategory } from '../consent/types';
+import type { ConsentCategory } from '../consent/types';
 import { DEFAULT_CATEGORY } from '../constants';
 import type { EventType, PageContext, Props } from '../types';
 import { logger } from './logger';

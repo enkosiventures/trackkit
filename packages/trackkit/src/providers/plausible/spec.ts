@@ -1,4 +1,4 @@
-import { PageContext, PlausibleOptions, ProviderOptions } from '../../types';
+import type { PageContext, PlausibleOptions, ProviderOptions } from '../../types';
 import { createConfigProvider, type ProviderSpec } from '../base/adapter';
 
 /**

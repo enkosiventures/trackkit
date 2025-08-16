@@ -11,14 +11,14 @@ describe('Consent: initial state behavior', () => {
     // Clean consent persistence between tests
     try {
       localStorage.removeItem('__trackkit_consent__');
-    } catch {}
+    } catch {/* no-op */}
     destroy();
   });
 
   afterEach(() => {
     try {
       localStorage.removeItem('__trackkit_consent__');
-    } catch {}
+    } catch {/* no-op */}
     destroy();
   });
 
@@ -193,7 +193,7 @@ describe('Consent: initial state behavior', () => {
         '__trackkit_consent__',
         JSON.stringify({ status: 'granted', policyVersion: 'v1', updatedAt: Date.now() })
       );
-    } catch {}
+    } catch {/* no-op */}
 
     const { facade, provider } = await createFacade({
       provider: 'noop',

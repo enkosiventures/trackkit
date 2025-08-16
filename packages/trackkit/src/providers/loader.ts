@@ -3,8 +3,8 @@ import type { ProviderType, ProviderOptions } from '../types';
 import { StatefulProvider } from './stateful-wrapper';
 import { providers } from './registry';
 import { logger } from '../util/logger';
-import { AnalyticsError } from '../errors';
-import { DEFAULT_CACHING, DEFAULT_ERROR_HANDLER, DEFAULT_PROVIDER, DEFAULT_PROVIDER_OPTIONS } from '../constants';
+import type { AnalyticsError } from '../errors';
+import { DEFAULT_ERROR_HANDLER, DEFAULT_PROVIDER, DEFAULT_PROVIDER_OPTIONS } from '../constants';
 
 /**
  * Check if loader is async

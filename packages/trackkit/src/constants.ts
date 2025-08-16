@@ -1,6 +1,6 @@
-import { ConsentCategory } from "./consent/types";
-import { AnalyticsError } from "./errors";
-import { ProviderOptions, ProviderType } from "./types";
+import type { ConsentCategory } from "./consent/types";
+import type { AnalyticsError } from "./errors";
+import type { ProviderOptions, ProviderType } from "./types";
 import { logger } from "./util/logger";
 
 export const STORAGE_KEY = '__trackkit_consent__';

@@ -1,5 +1,5 @@
 import { getFacade } from '../core/facade-singleton';
-import { InitOptions } from '../types';
+import type { InitOptions } from '../types';
 
 /**
  * Initialize the analytics system

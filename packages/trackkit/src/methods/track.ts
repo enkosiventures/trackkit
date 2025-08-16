@@ -1,4 +1,4 @@
-import { ConsentCategory } from '../consent/types';
+import type { ConsentCategory } from '../consent/types';
 import { getFacade } from '../core/facade-singleton';
 import type { Props } from '../types';
 

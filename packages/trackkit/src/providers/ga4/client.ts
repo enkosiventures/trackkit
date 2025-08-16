@@ -1,4 +1,4 @@
-import { GA4Options, PageContext, ProviderInstance, ProviderOptions } from '../../types';
+import type { GA4Options, PageContext, ProviderInstance, ProviderOptions } from '../../types';
 import { send, type TransportMethod } from '../base/transport';
 
 /**
@@ -123,8 +123,7 @@ export function createGA4Client(options: ProviderOptions): ProviderInstance {
     name: 'ga4',
 
     pageview(pageContext: PageContext) {
-      const params: Record<string, unknown> = { page_location: pageContext.url };
-      return sendEvents([{ name: 'page_view', params: {} }], pageContext);
+      return sendEvents([{ name: 'page_view' }], pageContext);
     },
 
     track(name: string, props: Record<string, unknown>, pageContext: PageContext) {

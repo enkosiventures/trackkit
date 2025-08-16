@@ -1,4 +1,4 @@
-import { ProviderType } from '../../types';
+import type { ProviderType } from '../../types';
 import { createGA4Client } from './client';
 export type { GA4Options } from '../../types';
 export default {

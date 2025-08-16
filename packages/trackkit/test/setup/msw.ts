@@ -39,7 +39,7 @@ export const handlers = [
   // --- Umami v2 ------------------------------------------------------------
   // Matches cloud or self-hosted: */api/send (body has { type, payload })
   http.post('*/api/send', async ({ request }) => {
-    const body = await request.json().catch(() => ({}));
+    const body = await request.json().catch(() => ({/* no-op */}));
     // @ts-ignore
     const payload = body?.payload ?? {};
     const { website, url } = payload;
@@ -58,7 +58,7 @@ export const handlers = [
   http.post('*/mp/collect', async ({ request }) => {
     const u = new URL(request.url);
     const q = Object.fromEntries(u.searchParams.entries());
-    const body = await request.json().catch(() => ({}));
+    const body = await request.json().catch(() => ({/* no-op */}));
 
     // require measurement_id + api_secret
     if (!q.measurement_id || !q.api_secret) {

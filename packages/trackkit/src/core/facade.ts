@@ -1,7 +1,7 @@
 import type { AnalyticsInstance, EventType, FacadeOptions, InitOptions, PageContext, Props, ProviderOptions } from '../types';
 import { dispatchError, AnalyticsError, setUserErrorHandler } from '../errors';
 import { createLogger, logger, setGlobalLogger } from '../util/logger';
-import { EventQueue, QueuedEventUnion } from '../util/queue';
+import { EventQueue, type QueuedEventUnion } from '../util/queue';
 import { validateConfig, mergeConfig, getConsentConfig } from './config';
 import { isSSR, hydrateSSRQueue, getSSRQueue, getSSRQueueLength } from '../util/ssr-queue';
 import { ConsentManager } from '../consent/ConsentManager';
@@ -9,7 +9,7 @@ import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { ensureNavigationSandbox } from '../providers/shared/navigationSandbox';
 import { getPageContext, isDomainAllowed, isUrlExcluded, isDoNotTrackEnabled, isLocalhost } from '../providers/shared/browser';
 import { isBrowser } from '../util/env';
-import { ConsentCategory } from '../consent/types';
+import type { ConsentCategory } from '../consent/types';
 import { DEFAULT_CATEGORY, ESSENTIAL_CATEGORY } from '../constants';
 import { getProviderMetadata } from '../providers/metadata';
 import { loadProvider } from '../providers/loader';
@@ -223,7 +223,9 @@ export class AnalyticsFacade implements AnalyticsInstance {
       // If tests (or app) injected a provider meanwhile, don't overwrite it.
       if (this.provider) {
         facadeDebugLog('Provider already present; discarding loaded provider');
-        try { loaded.destroy(); } catch {}
+        try { loaded.destroy(); } catch {
+          /* no-op: provider ready failures must not break host app */
+        }
         // Still wire consent callbacks to the existing provider if needed.
         this.setupConsentCallbacks();
         if (!isSSR()) this.handleSSRHydration();
@@ -723,10 +725,6 @@ export class AnalyticsFacade implements AnalyticsInstance {
     // Try to load noop provider
     try {
       this.providerConfig = { provider: 'noop' };
-      const normalized = {
-        facadeOptions: this.config,
-        providerOptions: this.providerConfig,
-      }
       this.configureLogger(this.config);
 
       const provider = await this.loadProviderAsync();

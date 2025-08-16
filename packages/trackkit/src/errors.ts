@@ -1,4 +1,4 @@
-import { ProviderType } from './types';
+import type { ProviderType } from './types';
 import { logger, stringifyError } from './util/logger';
 
 export type ErrorCode = 

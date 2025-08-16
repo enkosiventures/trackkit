@@ -23,8 +23,8 @@ import { createStatefulMock } from '../helpers/providers';
 
 describe('Consent Flow Integration', () => {
   beforeEach(() => {
-    try { window.localStorage.clear(); } catch {}
-    try { window.sessionStorage.clear(); } catch {}
+    try { window.localStorage.clear(); } catch {/* no-op */}
+    try { window.sessionStorage.clear(); } catch {/* no-op */}
     destroy();
     vi.clearAllMocks();
   });
@@ -210,7 +210,7 @@ describe('Consent Flow Integration', () => {
     // getConsent() returns null before init
     expect(getConsent()).toBeNull();
 
-    const unsub = onConsentChange(() => {});
+    const unsub = onConsentChange(() => {/* no-op */});
     expect(typeof unsub).toBe('function');
   });
 

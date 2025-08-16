@@ -1,4 +1,4 @@
-import { PageContext, ProviderInstance, ProviderType } from '../../types';
+import type { PageContext, ProviderInstance, ProviderType } from '../../types';
 import { send, type TransportMethod } from './transport';
 
 
@@ -43,7 +43,9 @@ function defaultOk(res: Response) { return res.ok; }
 
 async function defaultParseError(res: Response): Promise<Error> {
   let detail = '';
-  try { detail = await res.text(); } catch {}
+  try { detail = await res.text(); } catch {
+    /* no-op: failing to extract detail text just means we won't include it in the error */
+  }
   return new Error(`Provider request failed: ${res.status} ${res.statusText}${detail ? ` — ${detail}` : ''}`);
 }
 

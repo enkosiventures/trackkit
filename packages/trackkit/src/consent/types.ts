@@ -79,7 +79,7 @@ export interface ConsentSnapshot extends ConsentStoredState {
   droppedEventsDenied: number;
 }
 
-export type Listener = (s: ConsentStatus, prev: ConsentStatus) => void;
+export type Listener = (status: ConsentStatus, prev: ConsentStatus) => void;
 
 /**
  * Event classification for future extensibility

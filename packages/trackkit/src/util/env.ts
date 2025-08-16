@@ -4,7 +4,7 @@
  */
 
 import { stripEmptyFields } from "../providers/shared/utils";
-import { InitOptions } from "../types";
+import type { InitOptions } from "../types";
 
 export interface EnvConfig {
   provider?: string;

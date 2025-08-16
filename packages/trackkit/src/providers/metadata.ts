@@ -1,4 +1,4 @@
-import { ProviderType } from '../types';
+import type { ProviderType } from '../types';
 import type { ProviderConsentConfig } from './types';
 
 export interface ProviderMetadata {

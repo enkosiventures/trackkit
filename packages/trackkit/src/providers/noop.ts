@@ -1,7 +1,7 @@
-import { PageContext, Props, ProviderInstance, ProviderOptions } from '../types';
+import type { PageContext, Props, ProviderInstance, ProviderOptions } from '../types';
 import { logger } from '../util/logger';
 import { stripEmptyFields } from './shared/utils';
-import { ProviderFactory,  } from './types';
+import type { ProviderFactory } from './types';
 
 
 /**
@@ -19,7 +19,7 @@ function create(
    * Log method call in debug mode
    */
   const log = (method: string, ...args: unknown[]) => {
-    if (!!debug) {
+    if (debug) {
       logger.debug(`[no-op] ${method}`, ...args);
     }
   };

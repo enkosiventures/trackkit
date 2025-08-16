@@ -1,4 +1,4 @@
-import { ConsentCategory } from '../consent/types';
+import type { ConsentCategory } from '../consent/types';
 import type { ProviderInstance, ProviderOptions, ProviderType } from '../types';
 
 /**
