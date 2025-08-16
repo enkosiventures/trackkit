@@ -16,12 +16,16 @@ export class ConsentManager {
 
   constructor(options: ConsentOptions = {}) {
     this.opts = {
+      initialStatus: options.initialStatus || 'pending',
       storageKey: options.storageKey || STORAGE_KEY,
       disablePersistence: !!options.disablePersistence,
       policyVersion: options.policyVersion,
       requireExplicit: options.requireExplicit ?? true,
       allowEssentialOnDenied: options.allowEssentialOnDenied ?? false,
     };
+
+    this.status = this.opts.initialStatus;
+
     logger.debug('ConsentManager Options:', this.opts);
     this.initFromStorage();
   }
@@ -32,19 +36,18 @@ export class ConsentManager {
       const raw = window.localStorage.getItem(this.opts.storageKey);
       this.storageAvailable = true;
       if (!raw) {
-        this.status = 'pending';
         return;
       }
       const parsed: ConsentStoredState = JSON.parse(raw);
       // Version bump logic
       if (this.shouldRePrompt(parsed.version)) {
-        this.status = 'pending';
         return;
       }
+      // Valid stored state overrides initialStatus
       this.status = parsed.status;
     } catch {
       // ignore corrupt storage
-      this.status = 'pending';
+      this.status = this.opts.initialStatus;
     }
   }
 

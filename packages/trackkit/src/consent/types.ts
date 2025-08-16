@@ -35,6 +35,12 @@ export interface ConsentStoredState {
  */
 export interface ConsentOptions {
   /**
+   * Initial consent status; defaults to 'pending'
+   * @default 'pending'
+   */
+  initialStatus?: ConsentStatus;
+
+  /**
    * If true we start as 'pending' and *require* an explicit call to grant.
    * If false we auto‑grant on first track (implicit consent).
    * @default true

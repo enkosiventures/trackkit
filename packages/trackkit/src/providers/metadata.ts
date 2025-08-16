@@ -28,7 +28,7 @@ export const providerMetadata: Record<ProviderType, ProviderMetadata> = {
     openSource: true,
     trackLocalhost: true,
     consentDefaults: {
-      requireExplicit: false,
+      requireExplicit: true,
       supportsEssential: true,
       defaultMode: 'essential-only',
       categories: ['essential'],
