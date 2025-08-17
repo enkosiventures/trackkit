@@ -70,6 +70,8 @@ export function serializeSSRQueue(queue: QueuedEventUnion[]): string {
   // return `<script>window.__TRACKKIT_SSR_QUEUE__=${JSON.stringify(queue)};</script>`;
   const json = JSON.stringify(queue)
     .replace(/</g, '\\u003C') // prevent </script> break-out
-    .replace(/>/g, '\\u003E');
+    .replace(/>/g, '\\u003E')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
   return `<script>window.__TRACKKIT_SSR_QUEUE__=${json};</script>`;
 }

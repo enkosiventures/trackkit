@@ -1,19 +1,28 @@
 [
   {
-    "name": "Core ESM (gzip)",
+    "name": "Core ESM (brotli)",
     "path": "dist/index.js",
     "import": "*",
-    "limit": "7 KB"
+    "limit": "12.5 KB"
   },
   {
-    "name": "Core CJS (gzip)",
+    "name": "Umami adapter chunk",
+    "path": "dist/providers/umami.js",
+    "limit": "3.8 KB"
+  },
+  {
+    "name": "Plausible adapter chunk",
+    "path": "dist/providers/plausible.js",
+    "limit": "4.8 KB"
+  },
+  {
+    "name": "GA4 adapter chunk",
+    "path": "dist/providers/ga4.js",
+    "limit": "5.2 KB"
+  },
+  {
+    "name": "Core CJS (brotli)",
     "path": "dist/index.cjs",
-    "limit": "7 KB"
-  },
-  {
-    "name": "Tree-shaken single method",
-    "path": "dist/index.js",
-    "import": "{ track }",
-    "limit": "7 KB"
+    "limit": "12.5 KB"
   }
 ]

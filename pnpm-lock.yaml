@@ -26,6 +26,9 @@ importers:
       eslint-plugin-prettier:
         specifier: ^5.5.1
         version: 5.5.1(eslint-config-prettier@10.1.5(eslint@9.31.0(jiti@2.4.2)))(eslint@9.31.0(jiti@2.4.2))(prettier@3.6.2)
+      globals:
+        specifier: ^16.3.0
+        version: 16.3.0
       jsdom:
         specifier: ^26.1.0
         version: 26.1.0
@@ -56,6 +59,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4(@types/node@24.0.13)(jiti@2.4.2)(jsdom@26.1.0)(msw@2.10.4(@types/node@24.0.13)(typescript@5.5.4))(terser@5.43.1))
+      jsdom:
+        specifier: ^26.1.0
+        version: 26.1.0
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
@@ -1052,6 +1058,10 @@ packages:
 
   globals@14.0.0:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
+    engines: {node: '>=18'}
+
+  globals@16.3.0:
+    resolution: {integrity: sha512-bqWEnJ1Nt3neqx2q5SFfGS8r/ahumIakg3HcwtNlrVlwXIeNumWn/c7Pn/wKzGhf6SaW6H6uWXLqC30STCMchQ==}
     engines: {node: '>=18'}
 
   globby@11.1.0:
@@ -2773,6 +2783,8 @@ snapshots:
       path-scurry: 2.0.0
 
   globals@14.0.0: {}
+
+  globals@16.3.0: {}
 
   globby@11.1.0:
     dependencies:

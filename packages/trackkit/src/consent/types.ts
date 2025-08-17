@@ -1,7 +1,9 @@
 /**
- * Core consent state - intentionally minimal
+ * Core consent state
  */
 export type ConsentStatus = 'pending' | 'granted' | 'denied';
+
+export type ConsentCategory = 'essential' | 'analytics' | 'marketing' | 'preferences' | 'functional';
 
 /**
  * Consent state with metadata
@@ -33,11 +35,23 @@ export interface ConsentStoredState {
  */
 export interface ConsentOptions {
   /**
+   * Initial consent status; defaults to 'pending'
+   * @default 'pending'
+   */
+  initialStatus?: ConsentStatus;
+
+  /**
    * If true we start as 'pending' and *require* an explicit call to grant.
    * If false we auto‑grant on first track (implicit consent).
    * @default true
    */
   requireExplicit?: boolean;
+
+  /**
+   * Determine if we allow essential events when consent is denied
+   * @default false
+   */
+  allowEssentialOnDenied?: boolean;
   
   /**
    * Current policy/version. If stored version < this => re‑prompt (reset to pending).
@@ -65,7 +79,7 @@ export interface ConsentSnapshot extends ConsentStoredState {
   droppedEventsDenied: number;
 }
 
-export type Listener = (s: ConsentStatus, prev: ConsentStatus) => void;
+export type Listener = (status: ConsentStatus, prev: ConsentStatus) => void;
 
 /**
  * Event classification for future extensibility

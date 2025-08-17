@@ -1,7 +1,7 @@
 import { STORAGE_KEY } from '../constants';
 import { isBrowser } from '../util/env';
 import { logger } from '../util/logger';
-import { ConsentOptions, ConsentSnapshot, ConsentStatus, ConsentStoredState, Listener } from './types';
+import type { ConsentCategory, ConsentOptions, ConsentSnapshot, ConsentStatus, ConsentStoredState, Listener } from './types';
 
 
 export class ConsentManager {
@@ -16,11 +16,16 @@ export class ConsentManager {
 
   constructor(options: ConsentOptions = {}) {
     this.opts = {
+      initialStatus: options.initialStatus || 'pending',
       storageKey: options.storageKey || STORAGE_KEY,
       disablePersistence: !!options.disablePersistence,
       policyVersion: options.policyVersion,
       requireExplicit: options.requireExplicit ?? true,
+      allowEssentialOnDenied: options.allowEssentialOnDenied ?? false,
     };
+
+    this.status = this.opts.initialStatus;
+
     logger.debug('ConsentManager Options:', this.opts);
     this.initFromStorage();
   }
@@ -31,21 +36,18 @@ export class ConsentManager {
       const raw = window.localStorage.getItem(this.opts.storageKey);
       this.storageAvailable = true;
       if (!raw) {
-        // If explicit consent NOT required we may auto‑grant (implicit) on first track.
-        // this.status = this.opts.requireExplicit ? 'pending' : 'granted'; // still pending until we see a track (implicit promotion hook)
-        this.status = 'pending'; // always start as pending
         return;
       }
       const parsed: ConsentStoredState = JSON.parse(raw);
       // Version bump logic
       if (this.shouldRePrompt(parsed.version)) {
-        this.status = 'pending';
         return;
       }
+      // Valid stored state overrides initialStatus
       this.status = parsed.status;
     } catch {
       // ignore corrupt storage
-      this.status = 'pending';
+      this.status = this.opts.initialStatus;
     }
   }
 
@@ -75,13 +77,17 @@ export class ConsentManager {
     return this.status;
   }
 
-  isGranted(category?: string) {
-    // “granted” covers all categories
-    if (this.status === 'granted') return true;
-    // “denied” blocks everything
-    if (this.status === 'denied')  return false;
-    // “pending”: allow *essential* only
-    return category === 'essential';
+  /**
+   * Core: may I send an event in this category?
+   * - Essential always allowed (except if allowEssentialOnDenied === false *and* status === 'denied')
+   * - Non-essential only when granted
+   */
+  isAllowed(category: ConsentCategory = 'analytics'): boolean {
+    if (category === 'essential') {
+      // allowed unless explicitly denied AND not allowed-by-config
+      return this.status !== 'denied' || this.opts.allowEssentialOnDenied;
+    }
+    return this.status === 'granted';
   }
 
   /** Called by facade when first *emittable* event arrives and implicit allowed. */
@@ -155,7 +161,7 @@ export class ConsentManager {
 
   private notify(prev: ConsentStatus) {
     for (const l of [...this.listeners]) {
-      try { l(this.status, prev); } catch (e) {
+      try { l(this.status, prev); } catch {
         // Swallow or escalate via a global error dispatcher
         // (Add optional callback hook if needed)
       }

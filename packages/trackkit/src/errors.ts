@@ -1,10 +1,16 @@
+import type { ProviderType } from './types';
+import { logger, stringifyError } from './util/logger';
+
 export type ErrorCode = 
   | 'INIT_FAILED'
   | 'PROVIDER_ERROR'
   | 'NETWORK_ERROR'
   | 'QUEUE_OVERFLOW'
   | 'INVALID_CONFIG'
-  | 'CONSENT_REQUIRED';
+  | 'INVALID_ENVIRONMENT'
+  | 'CONSENT_REQUIRED'
+  | 'POLICY_BLOCKED'
+  | 'UNKNOWN';
 
 export class AnalyticsError extends Error {
   public readonly timestamp: number;
@@ -44,21 +50,60 @@ export function isAnalyticsError(error: unknown): error is AnalyticsError {
   return error instanceof AnalyticsError;
 }
 
-/**
- * Safe error logger that handles circular references
- */
-export function stringifyError(error: unknown): string {
-  if (error instanceof Error) {
-    return JSON.stringify({
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    });
+// ------------------------------
+// Default & user error handling
+// ------------------------------
+export type ErrorHandler = (err: AnalyticsError) => void;
+
+let userHandler: ErrorHandler | null = null;
+let defaultHandler: ErrorHandler;
+
+// simple de-dupe to avoid spamming the console in production
+const SEEN = new Set<string>();
+
+
+defaultHandler = function defaultErrorHandler(err: AnalyticsError) {
+  const key = `${err.code}:${err.message}`;
+  if (SEEN.has(key)) return;
+  SEEN.add(key);
+
+  // Always log in dev; in prod we still log but the de-dupe keeps noise down
+  logger.error('Unhandled analytics error', err.toJSON?.() ?? err);
+};
+
+export function setUserErrorHandler(fn?: ErrorHandler | null) {
+  userHandler = fn ?? defaultHandler;
+}
+
+export function normalizeError(e: unknown, fallbackCode: ErrorCode = 'UNKNOWN', provider?: ProviderType): AnalyticsError {
+  if (e instanceof AnalyticsError) return e;
+  if (e instanceof Error) {
+    return new AnalyticsError(e.message, fallbackCode, provider, e);
   }
-  
+  return new AnalyticsError(String(e), fallbackCode, provider, e);
+}
+
+/**
+ * Safely emit an error to the user handler _and_ default logger.
+ * Never throws.
+ */
+export function dispatchError(e: unknown, code: ErrorCode = 'UNKNOWN', provider?: ProviderType) {
+  const err = normalizeError(e, code, provider);
+
+  // call user handler safely
   try {
-    return JSON.stringify(error);
-  } catch {
-    return String(error);
+    userHandler?.(err);
+  } catch (handlerErr) {
+    // User’s handler exploded – log both
+    logger.error(
+      'Error in error handler',
+      stringifyError(err),
+      stringifyError(handlerErr as Error)
+    );
+  }
+
+  // Always call default handler as safety net if the user didn’t provide one
+  if (!userHandler) {
+    defaultHandler(err);
   }
 }

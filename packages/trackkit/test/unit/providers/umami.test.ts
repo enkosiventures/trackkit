@@ -1,177 +1,185 @@
 /// <reference types="vitest" />
-import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
-import { server } from '../../setup-msw';
+import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest';
+import { server } from '../../setup/msw';
 import { http, HttpResponse } from 'msw';
-import umamiProvider from '../../../src/providers/umami';
-import type { AnalyticsOptions } from '../../../src/types';
+import type { PageContext } from '../../../src';
+import { TEST_SITE_ID } from '../../setup/providers';
 
 // @vitest-environment jsdom
 
-// Enable MSW
 beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-describe('Umami Provider', () => {
-  const validOptions: AnalyticsOptions = {
-    siteId: '9e1e6d6e-7c0e-4b0e-8f0a-5c5b5b5b5b5b',
-    debug: true,
-  };
-  
-  describe('initialization', () => {
-    it('validates website ID', () => {
-      expect(() => {
-        umamiProvider.create({ ...validOptions, siteId: undefined });
-      }).toThrow('Umami requires a valid website ID');
+describe('Umami provider / client', () => {
+  it('pageview maps ctx → payload (no window reads)', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response('ok', { status: 202 })
+    );
+
+    const umami = (await import('../../../src/providers/umami')).default;
+    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
+    const ctx: PageContext = {
+      url: '/a',
+      title: 'T',
+      referrer: '/prev',
+      viewportSize: { width: 800, height: 600 },
+      language: 'en-US',
+      hostname: 'localhost',
+      timestamp: 123,
+    };
+
+    instance.pageview(ctx);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [, options] = fetchSpy.mock.calls[0];
+    const body = JSON.parse(options!.body as string);
+
+    expect(body).toMatchObject({
+      type: 'event',
+      payload: {
+        name: 'pageview',
+        website: TEST_SITE_ID.umami,
+        url: '/a',
+        title: 'T',
+        referrer: '/prev',
+        screen: '800x600',
+        language: 'en-US',
+        hostname: 'localhost',
+      },
     });
-    
-    it('accepts various UUID formats', () => {
-      const formats = [
-        '9e1e6d6e-7c0e-4b0e-8f0a-5c5b5b5b5b5b',
-        '9e1e6d6e7c0e4b0e8f0a5c5b5b5b5b5b',
-        'data-website-id=9e1e6d6e-7c0e-4b0e-8f0a-5c5b5b5b5b5b',
-      ];
-      
-      formats.forEach(siteId => {
-        expect(() => {
-          umamiProvider.create({ ...validOptions, siteId });
-        }).not.toThrow();
-      });
-    });
-    
-    it('returns no-op in non-browser environment', () => {
-      // Mock SSR environment
-      const originalWindow = global.window;
-      delete (global as any).window;
-      
-      const instance = umamiProvider.create(validOptions);
-      expect(() => instance.track('test')).not.toThrow();
-      
-      // Restore
-      global.window = originalWindow;
-    });
+
+    fetchSpy.mockRestore();
   });
-  
-  describe('tracking', () => {
-    it('sends pageview events', async () => {
-      const instance = umamiProvider.create(validOptions);
-      
-      let capturedRequest: any;
-      server.use(
-        http.post('https://cloud.umami.is/api/send', async ({ request }) => {
-          capturedRequest = await request.json();
-          return HttpResponse.json({ ok: true });
-        })
-      );
-      
-      instance.pageview('/test-page');
-      
-      // Wait for async request
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      expect(capturedRequest).toMatchObject({
-        website: '9e1e6d6e-7c0e-4b0e-8f0a-5c5b5b5b5b5b',
-        url: '/test-page',
-      });
-    });
-    
-    it('sends custom events with data', async () => {
-      const instance = umamiProvider.create(validOptions);
-      
-      let capturedRequest: any;
-      server.use(
-        http.post('https://cloud.umami.is/api/send', async ({ request }) => {
-          capturedRequest = await request.json();
-          return HttpResponse.json({ ok: true });
-        })
-      );
-      
-      instance.track('button_click', { button_id: 'cta-hero' });
-      
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      expect(capturedRequest).toMatchObject({
-        website: '9e1e6d6e-7c0e-4b0e-8f0a-5c5b5b5b5b5b',
+
+  it('track maps event + props → payload', async () => {
+    let captured: any;
+    server.use(
+      http.post('*', async ({ request }) => {
+        captured = await request.json();
+        return HttpResponse.json({ ok: true });
+      })
+    );
+
+    const umami = (await import('../../../src/providers/umami')).default;
+    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
+
+    // Provide ctx with an explicit url + viewport to avoid 0x0 defaults
+    const ctx: PageContext = {
+      url: '/page',
+      referrer: '',
+      viewportSize: { width: 1, height: 1 },
+    };
+
+    await instance.track('button_click', { button_id: 'cta-hero', value: 42 }, ctx);
+
+    expect(captured).toMatchObject({
+      type: 'event',
+      payload: {
+        website: TEST_SITE_ID.umami,
         name: 'button_click',
-        data: { button_id: 'cta-hero' },
-      });
-    });
-    
-    it('handles network errors gracefully', async () => {
-      const onError = vi.fn();
-      const instance = umamiProvider.create({
-        ...validOptions,
-        host: 'https://error.example.com',
-        onError,
-      });
-      
-      instance.track('test_event');
-      
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      expect(onError).toHaveBeenCalledWith(
-        expect.objectContaining({
-          code: 'NETWORK_ERROR',
-          provider: 'umami',
-        })
-      );
+        url: '/page',
+        data: { button_id: 'cta-hero', value: 42 },
+      },
     });
   });
-  
-  describe('Do Not Track', () => {
-    it('respects DNT header when enabled', () => {
-      // Mock DNT
-      Object.defineProperty(window.navigator, 'doNotTrack', {
-        value: '1',
-        configurable: true,
-      });
-      
-      const instance = umamiProvider.create({
-        ...validOptions,
-        doNotTrack: true,
-      });
 
-      let requestMade = false;
-      server.use(
-        http.post('*', () => {
-          requestMade = true;
-          return new HttpResponse(null, { status: 204 });
-        })
-      );
-      
-      instance.track('test');
-      expect(requestMade).toBe(false);
-      
-      // Cleanup
-      delete (window.navigator as any).doNotTrack;
-    });
-    
-    it('ignores DNT when disabled', async () => {
-      Object.defineProperty(window.navigator, 'doNotTrack', {
-        value: '1',
-        configurable: true,
-      });
-      
-      const instance = umamiProvider.create({
-        ...validOptions,
-        doNotTrack: false,
-      });
+  it('uses custom host when provided', async () => {
+    let postUrl = '';
+    server.use(
+      http.post('*', ({ request }) => {
+        postUrl = request.url;
+        return HttpResponse.json({ ok: true });
+      })
+    );
 
-      let requestMade = false;
-      server.use(
-        http.post('*', () => {
-          requestMade = true;
-          return new HttpResponse(null, { status: 204 });
-        })
-      );
-      
-      instance.track('test');
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      expect(requestMade).toBe(true);
-      
-      // Cleanup
-      delete (window.navigator as any).doNotTrack;
+    const umami = (await import('../../../src/providers/umami')).default;
+    const instance = umami.create({
+      provider: 'umami',
+      website: TEST_SITE_ID.umami,
+      host: 'https://analytics.example.com',
     });
+
+    await instance.track('test', {}, { url: '/', viewportSize: { width: 1, height: 1 } });
+
+    expect(postUrl).toContain('analytics.example.com');
+  });
+
+  it('rejects on network failure', async () => {
+    server.use(
+      http.post('*', () => new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' }))
+    );
+
+    const umami = (await import('../../../src/providers/umami')).default;
+    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
+
+    await expect(
+      instance.track('oops', {}, { url: '/', viewportSize: { width: 1, height: 1 } })
+    ).rejects.toThrow(/(Provider request failed|500)/);
+  });
+
+  it('adds cache-busting param when cache=true (transport-level)', async () => {
+    server.use(
+      http.post('*', () => {
+        return HttpResponse.json({ ok: true });
+      })
+    );
+
+    const umami = (await import('../../../src/providers/umami')).default;
+    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami }, /* cache */ true);
+
+    const sendBeaconSpy = vi.fn(() => true);
+    Object.defineProperty(global.navigator, 'sendBeacon', {
+      value: sendBeaconSpy,
+      configurable: true,
+    });
+
+    await instance.track('test', { value: 42 }, { url: '/', viewportSize: { width: 1, height: 1 } });
+
+    expect(sendBeaconSpy).toHaveBeenCalledTimes(1);
+    // @ts-expect-error
+    const [urlArg] = sendBeaconSpy.mock.calls[0];
+    expect(urlArg).toContain('?cache=');
+  });
+
+  it('adds no-store headers when cache=true and using fetch', async () => {
+    // Ensure no beacon so AUTO → fetch
+    Object.defineProperty(global.navigator, 'sendBeacon', {
+      value: undefined,
+      configurable: true,
+    });
+
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+
+    const umami = (await import('../../../src/providers/umami')).default;
+    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami }, /* cache */ true);
+    await instance.track('test', { value: 42 }, { url: '/', viewportSize: { width: 1, height: 1 } });
+
+    const [, init] = fetchSpy.mock.calls[0];
+    expect((init!.headers as Record<string, string>)['Cache-Control']).toBe('no-store, max-age=0');
+    expect((init!.headers as Record<string, string>).Pragma).toBe('no-cache');
+  });
+
+
+  it('identify is a safe no-op', async () => {
+    const umami = (await import('../../../src/providers/umami')).default;
+    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
+    const ctx: PageContext = {
+        url: '/a',
+        title: 'T',
+        referrer: '/prev',
+        viewportSize: { width: 800, height: 600 },
+        language: 'en-US',
+        hostname: 'localhost',
+        timestamp: 123,
+      };
+    expect(() => instance.identify('user-123', ctx)).not.toThrow();
+  });
+
+  it('destroy() is idempotent', async () => {
+    const umami = (await import('../../../src/providers/umami')).default;
+    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
+    expect(() => instance.destroy()).not.toThrow();
+    expect(() => instance.destroy()).not.toThrow();
   });
 });

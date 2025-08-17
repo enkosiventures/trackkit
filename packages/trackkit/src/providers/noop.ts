@@ -1,31 +1,38 @@
-import type { ProviderFactory } from './types';
-import type { AnalyticsInstance, AnalyticsOptions, Props } from '../types';
+import type { PageContext, Props, ProviderInstance, ProviderOptions } from '../types';
 import { logger } from '../util/logger';
+import { stripEmptyFields } from './shared/utils';
+import type { ProviderFactory } from './types';
+
 
 /**
  * Create a no-op analytics instance
  * Used as default provider and fallback for errors
  */
-function create(options: AnalyticsOptions): AnalyticsInstance {
+function create(
+  options: ProviderOptions,
+  cache?: boolean,
+  debug?: boolean,
+): ProviderInstance {
   logger.debug('Creating no-op provider instance', options);
 
   /**
    * Log method call in debug mode
    */
   const log = (method: string, ...args: unknown[]) => {
-    if (options.debug) {
+    if (debug) {
       logger.debug(`[no-op] ${method}`, ...args);
     }
   };
   
   return {
     name: 'noop',
-    track(name: string, props?: Props, url?: string): void {
-      log('track', { name, props, url });
+    
+    track(name: string, props: Props, pageContext: PageContext): void {
+      log('track', { name, props, pageContext: stripEmptyFields(pageContext) });
     },
     
-    pageview(url?: string): void {
-      log('pageview', { url });
+    pageview(pageContext: PageContext): void {
+      log('pageview', { pageContext: stripEmptyFields(pageContext) });
     },
     
     identify(userId: string | null): void {
@@ -38,11 +45,12 @@ function create(options: AnalyticsOptions): AnalyticsInstance {
   };
 }
 
-const factory: ProviderFactory = {
+const noopProvider: ProviderFactory = {
   create,
   meta: {
     name: 'noop',
     version: '1.0.0',
   },
 };
-export default factory;
+
+export default noopProvider;

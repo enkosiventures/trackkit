@@ -1,83 +1,79 @@
 # Provider State Management
 
-Trackkit manages provider lifecycle through a state machine to ensure reliable operation.
+Trackkit wraps each provider with a small state machine for reliable lifecycle management.
 
-## Provider States
+````
 
-```
 idle → initializing → ready → destroyed
-         ↓
-       (error)
-         ↓
-        idle
-```
 
-### State Descriptions
+````
 
-- **idle**: Provider created but not initialized
-- **initializing**: Provider loading/connecting
-- **ready**: Provider operational, events processed immediately  
-- **destroyed**: Terminal state, instance cleaned up
+- **idle** – Constructed but not loading yet
+- **initializing** – Provider is loading/bootstrapping
+- **ready** – Provider can accept events immediately
+- **destroyed** – Terminal state; instance cleaned up
 
-## Waiting for Ready State
+> When a provider **fails** to initialize, Trackkit logs an error and **falls back to the `noop` provider**, so your app code doesn’t crash.
 
-```typescript
+---
+
+## Waiting for Ready
+
+```ts
 import { init, waitForReady } from 'trackkit';
 
-// Option 1: Async/await
-async function setupAnalytics() {
-  init({ provider: 'umami' });
-  await waitForReady();
-  
-  // Provider guaranteed ready
-  track('app_loaded');
-}
-
-// Option 2: Fire and forget
 init({ provider: 'umami' });
-track('event'); // Automatically queued if not ready
+await waitForReady();   // ensures provider is ready
+track('app_loaded');
+````
+
+You don’t have to wait—calls are automatically queued until ready—but `waitForReady()` is useful when you need deterministic behavior (e.g., tests).
+
+---
+
+## Inspecting State
+
+Prefer the diagnostics surface over internal state:
+
+```ts
+const { providerReady, provider } = init({ debug: true }).getDiagnostics();
+
+console.log(providerReady); // true/false
+console.log(provider);      // 'umami' | 'plausible' | 'ga4' | 'noop'
 ```
 
-## State Monitoring
+---
 
-Monitor state changes for debugging:
+## Error Recovery & Fallback
 
-```typescript
-const analytics = init({ debug: true });
+If initialization fails (bad config, blocked script, network), Trackkit:
 
-// Check current state
-const state = (analytics as any).getState();
-console.log(state.provider); // 'ready'
-console.log(state.history);  // State transition history
+1. Emits an `INIT_FAILED` error (to your `onError` callback).
+2. Falls back to the **no-op provider**.
+3. Keeps your public API operational (methods won’t throw).
+
+---
+
+## Destroy & Re-init
+
+```ts
+import { destroy, init } from 'trackkit';
+
+destroy(); // stop autotrack, clear queues, destroy provider
+init({ provider: 'plausible', autoTrack: true });
 ```
 
-## Error Recovery
+Destroying cleans navigation listeners, clears in-memory queues, resets consent listeners, and detaches the provider. Re-init is safe afterwards.
 
-Providers automatically fall back to 'idle' state on initialization errors:
+---
 
-```typescript
-init({
-  provider: 'umami',
-  host: 'https://invalid.example.com',
-  onError: (error) => {
-    if (error.code === 'INIT_FAILED') {
-      // Provider failed to initialize
-      // Falls back to no-op provider
-    }
-  }
-});
-```
+## (Optional) Preloading
 
-## Preloading Providers
+If you ship your own preload step (dynamic import), do it before `init()`:
 
-Warm up provider code before initialization:
-
-```typescript
-import { preload, init } from 'trackkit';
-
-// Preload provider bundle
-await preload('umami');
-
-// Later initialization is faster
+```ts
+await import('trackkit/providers/umami'); // warm the chunk
 init({ provider: 'umami' });
 ```
+
+> Trackkit doesn’t currently export a dedicated `preload()` helper; this pattern is sufficient if you need it.

@@ -1,5 +1,4 @@
-import type { AnalyticsInstance, AnalyticsOptions } from '../types';
-import type { ProviderInstance } from './types';
+import type { ProviderInstance } from '../types';
 import { StateMachine } from '../util/state';
 import { logger } from '../util/logger';
 import { AnalyticsError } from '../errors';
@@ -7,18 +6,18 @@ import { AnalyticsError } from '../errors';
 /**
  * Wraps a provider instance with state management and queueing
  */
-export class StatefulProvider implements AnalyticsInstance {
+export class StatefulProvider implements ProviderInstance {
   private readyCallbacks: Array<() => void> = [];
   private provider: ProviderInstance;
   private state: StateMachine;
 
-  track!:     AnalyticsInstance['track'];
-  pageview!:  AnalyticsInstance['pageview'];
-  identify!:  AnalyticsInstance['identify'];
+  track!:     ProviderInstance['track'];
+  pageview!:  ProviderInstance['pageview'];
+  identify!:  ProviderInstance['identify'];
 
   constructor(
     provider: ProviderInstance,
-    private options: AnalyticsOptions,
+    onError?: (error: AnalyticsError) => void,
     // private onReady?: (provider: StatefulProvider) => void,
   ) {
     this.provider = provider;
@@ -33,7 +32,7 @@ export class StatefulProvider implements AnalyticsInstance {
       logger.debug('Provider state changed', { from: oldState, to: newState, via: event });
       if (event === 'ERROR') {
         logger.error('Provider encountered an error');
-        this.options.onError?.(
+        onError?.(
           new AnalyticsError(
             'Provider error',
             'PROVIDER_ERROR',
@@ -69,6 +68,7 @@ export class StatefulProvider implements AnalyticsInstance {
    * Initialize the provider
    */
   async init(): Promise<void> {
+    logger.debug(`Initializing provider: ${this.provider.name}`);
     if (this.state.getState() !== 'idle') {
       logger.warn('Provider already initialized');
       return;
@@ -77,13 +77,10 @@ export class StatefulProvider implements AnalyticsInstance {
     this.state.transition('INIT');
     
     try {
-      // Call provider's init if it exists
-      if (this.provider._init) {
-        await this.provider._init();
-      }
-      
+      logger.debug(`Provider initialized: ${this.provider.name}`);
       this.state.transition('READY');
     } catch (error) {
+      logger.error(`Provider initialization failed: ${this.provider.name}`, error);
       this.state.transition('ERROR');
       throw error;
     }
@@ -121,17 +118,5 @@ export class StatefulProvider implements AnalyticsInstance {
       provider: this.state.getState(),
       history: this.state.getHistory(),
     };
-  }
-
-  /**
-   * Set a callback for navigation events
-   * Used by providers that detect client-side navigation
-   */
-  setNavigationCallback(callback: (url: string) => void): void {
-    if (this.provider._setNavigationCallback) {
-      this.provider._setNavigationCallback(callback);
-    } else {
-      logger.warn('Provider does not support navigation callbacks');
-    }
   }
 }
