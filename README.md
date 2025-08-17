@@ -1,4 +1,4 @@
-# Trackkit
+# TrackKit
 
 <p align="center">
   <strong>A tiny, privacy-first analytics toolkit for the modern web</strong>
