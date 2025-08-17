@@ -66,7 +66,7 @@ function maybeFormat(value: string | undefined, formatter?: (val: string) => any
   // Try to parse as JSON first
   try {
     return JSON.parse(value);
-  } catch (e) {
+  } catch (_e) {
     // If that fails, use the provided formatter
     if (!formatter) return value;
     return formatter(value);

@@ -1,4 +1,4 @@
-import { ConsentOptions } from './consent/types';
+import type { ConsentOptions } from './consent/types';
 import type { AnalyticsError } from './errors';
 
 /**

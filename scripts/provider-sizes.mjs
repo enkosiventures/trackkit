@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { execSync } from 'child_process';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { gzipSync } from 'zlib';

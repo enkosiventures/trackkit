@@ -33,7 +33,7 @@ describe('Facade autotrack with real history', () => {
     vi.clearAllMocks();
   });
   it('sends initial pageview once', async () => {
-    const { facade, provider } = await createFacade();
+    const { provider } = await createFacade();
 
     await runWithTick(grantConsent);
 
@@ -42,7 +42,7 @@ describe('Facade autotrack with real history', () => {
   });
 
   it('sends SPA navigations and dedupes repeats', async () => {
-    const { facade, provider } = await createFacade({ includeHash: true });
+    const { provider } = await createFacade({ includeHash: true });
 
     await runWithTick(grantConsent);
     provider.pageviewCalls.length = 0;
@@ -59,7 +59,7 @@ describe('Facade autotrack with real history', () => {
   });
 
   it('applies exclusions', async () => {
-    const { facade, provider } = await createFacade({ exclude: ['/secret/alpha'] });
+    const { provider } = await createFacade({ exclude: ['/secret/alpha'] });
 
     await runWithTick(grantConsent);
 
@@ -73,14 +73,12 @@ describe('Facade autotrack with real history', () => {
 
   it('gates by consent per policy', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    // const { facade, provider } = await createFacade({});
     init({ autoTrack: true, debug: true, trackLocalhost: true, consent: { requireExplicit: true }});
     await waitForReady();
     await new Promise(resolve => setTimeout(resolve, 50));
     denyConsent();
 
     await new Promise(resolve => setTimeout(resolve, 50));
-    // provider.pageviewCalls.length = 0;
 
     await navigate('/pre-consent');
 
@@ -92,8 +90,6 @@ describe('Facade autotrack with real history', () => {
     await navigate('/after-consent');
 
     await new Promise(resolve => setTimeout(resolve, 50));
-    // Common policy: drop pre-consent, send after grant
-    // expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/after-consent']);
 
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('[trackkit]'),

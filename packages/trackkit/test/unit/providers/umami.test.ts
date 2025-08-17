@@ -119,11 +119,8 @@ describe('Umami provider / client', () => {
   });
 
   it('adds cache-busting param when cache=true (transport-level)', async () => {
-    let urlHit = '';
     server.use(
-      http.post('*', ({ request }) => {
-        console.warn('Captured request:', request);
-        urlHit = request.url;
+      http.post('*', () => {
         return HttpResponse.json({ ok: true });
       })
     );

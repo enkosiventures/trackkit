@@ -1,128 +1,140 @@
 import js from '@eslint/js';
-import tseslint from '@typescript-eslint/eslint-plugin';
 import parser from '@typescript-eslint/parser';
+import tsPlugin from '@typescript-eslint/eslint-plugin';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default [
-  /* -------- Global ignore globs (replaces .eslintignore) ---------- */
+  /* -------- Global ignore globs ---------------------------------- */
   {
     ignores: [
-      '**/dist/**',    // build output
-      '**/*.d.ts',     // generated declaration bundles
-      'coverage/**',   // vitest coverage output (if any)
-      'node_modules/**'
-    ]
+      '**/dist/**',
+      '**/*.d.ts',
+      '**/coverage/**',
+      'node_modules/**',
+    ],
   },
-  
-  /* -------- JS recommended rules ---------------------------------- */
+
+  /* -------- Base JS (applies to everything unless overridden) ---- */
   {
     ...js.configs.recommended,
-    languageOptions: { globals: { console: 'readonly', require: 'readonly' } },
-  },
-
-  /* -------- Typed TypeScript for PRODUCTION code ------------------ */
-  {
-    files: ['packages/**/src/**/*.{ts,tsx}'],
     languageOptions: {
-      parser,
-      parserOptions: {
-        project: [
-          './packages/*/tsconfig.json',
-          './packages/trackkit/tsconfig.eslint.json'
-        ],
-        tsconfigRootDir: import.meta.dirname,
-        sourceType: 'module',
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+        console: 'readonly',
+        require: 'readonly',
+        process: 'readonly',
       },
     },
-    plugins: { '@typescript-eslint': tseslint },
     rules: {
-      // Base interop:
-      'no-undef': 'off',
-
-      // Useful, type-aware rules:
-      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
-      '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/await-thenable': 'error',
-      '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: { attributes: false } }],
-      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'off', // relax if adapters need it
-      '@typescript-eslint/no-unused-vars': ['error', {
+      // For plain JS files
+      'no-unused-vars': ['warn', {
+        args: 'after-used',
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
+        caughtErrors: 'all',
         caughtErrorsIgnorePattern: '^_',
+        ignoreRestSiblings: true,
       }],
-      'no-empty': ['error', { allowEmptyCatch: true }],
     },
   },
 
-  /* -------- Config-file override (untyped) ------------------------ */
+  /* -------- TypeScript (project-wide; non-test) ------------------ */
   {
-    files: ['**/*.config.ts', '**/*.config.mts', '**/*.config.mjs', '**/*.mjs'],
+    files: ['**/*.ts', '**/*.tsx'],
+    ignores: ['**/*.test.ts', '**/*.spec.ts'],
     languageOptions: {
       parser,
       parserOptions: {
+        // No project here — faster non-type-aware lint for app code
         sourceType: 'module',
-        project: null
+        ecmaVersion: 'latest',
       },
-      globals: { ...globals.node, ...globals.es2021 },
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+      },
     },
-    rules: {},
+    plugins: { '@typescript-eslint': tsPlugin },
+    rules: {
+      // Turn off core, use the TS variant
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', {
+        args: 'after-used',
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrors: 'all',
+        caughtErrorsIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+      }],
+
+      // Common TS rules you likely want:
+      '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
+      // Avoid noise for async handlers like addEventListener
+      // '@typescript-eslint/no-misused-promises': ['warn', {
+      //   checksVoidReturn: { attributes: false },
+      // }],
+
+      // no-undef is redundant for TS
+      'no-undef': 'off',
+    },
   },
 
-  /* -------- TypeScript test files override ------------------------ */
+  /* -------- TypeScript tests (type-aware) ------------------------ */
   {
-    files: ['**/*.test.ts'],
+    files: ['**/*.test.ts', '**/*.spec.ts'],
     languageOptions: {
       parser,
       parserOptions: {
         project: ['./packages/*/tsconfig.test.json'],
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir: new URL('.', import.meta.url).pathname,
         sourceType: 'module',
       },
       globals: {
-        // Vitest
-        vi: 'readonly', expect: 'readonly', describe: 'readonly', it: 'readonly',
-        beforeAll: 'readonly', afterAll: 'readonly', beforeEach: 'readonly', afterEach: 'readonly',
-        // Node
         ...globals.node,
-        // Browser/DOM (jsdom)
         ...globals.browser,
-        // Extra DOM-ish globals used in tests
-        PopStateEvent: 'readonly',
-        HashChangeEvent: 'readonly',
-        Response: 'readonly',
-        Request: 'readonly',
-        RequestInit: 'readonly',
-        Headers: 'readonly',
+        vi: 'readonly',
+        expect: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
       },
     },
+    plugins: { '@typescript-eslint': tsPlugin },
     rules: {
-      'no-undef': 'off',          // TS + jsdom provide these at runtime
-      'no-empty': 'off',          // allow empty spies/handlers in tests
-      'no-unused-vars': 'off',    // test helpers often leave vars around
-      '@typescript-eslint/no-unused-vars': 'off',
-    }
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+      }],
+      'no-undef': 'off',
+      // '@typescript-eslint/no-misused-promises': ['warn', {
+      //   checksVoidReturn: { attributes: false },
+      // }],
+    },
   },
 
-  /* -------- TypeScript spec files override ------------------------ */
+  /* -------- Config .mjs/.mts/.ts (untyped to avoid project reqs) - */
   {
-    files: ['**/*.spec.ts'],
+    files: ['**/*.config.ts', '**/*.config.mts', '**/*.config.mjs', '**/*.mjs'],
     languageOptions: {
       parser,
-      parserOptions: {
-        sourceType: 'module',
+      parserOptions: { sourceType: 'module' },
+      globals: {
+        ...globals.node,
+        process: 'readonly',
       },
-      globals: { ...globals.browser, ...globals.node },
     },
-    plugins: { '@typescript-eslint': tseslint },
+    plugins: { '@typescript-eslint': tsPlugin },
     rules: {
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-undef': 'off',
-      'no-empty': 'off',
-      'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
     },
   },
 
+  // Keep Prettier last to disable stylistic conflict rules
   prettier,
 ];

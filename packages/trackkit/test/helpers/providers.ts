@@ -2,8 +2,8 @@
 import { init } from '../../src';
 import { DEFAULT_ERROR_HANDLER } from '../../src/constants';
 import { StatefulProvider } from '../../src/providers/stateful-wrapper';
-import { ProviderInstance } from '../../src/types';
-import type { InitOptions, PageContext, ProviderOptions } from '../../src/types'; // <-- adjust path
+import type { ProviderInstance } from '../../src/types';
+import type { InitOptions, PageContext } from '../../src/types'; // <-- adjust path
 
 
 export class MockProvider implements ProviderInstance {
@@ -11,7 +11,6 @@ export class MockProvider implements ProviderInstance {
   pageviewCalls: Array<PageContext | undefined> = [];
   eventCalls: Array<{ name: string; props?: Record<string, unknown>; url?: string; category?: string; pageContext?: PageContext }> = [];
   identifyCalls: Array<string | null> = [];
-  private initPromise?: Promise<void>;
 
   // Add _init to simulate async initialization
   async _init(): Promise<void> {
@@ -46,7 +45,6 @@ export class MockProvider implements ProviderInstance {
  */
 export async function createStatefulMock() {
   const provider = new MockProvider();
-  const defaultOptions = { onError: undefined } as unknown as ProviderOptions;
   const stateful = new StatefulProvider(provider, DEFAULT_ERROR_HANDLER);
   
   // Initialize the stateful provider

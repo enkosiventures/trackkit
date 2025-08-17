@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createFacade } from '../../helpers/providers';
-import { grantConsent, denyConsent, destroy } from '../../../src';
+import { grantConsent, destroy } from '../../../src';
 
 // Small tick helper to allow async callbacks/flushes to run
 const tick = () => new Promise((r) => setTimeout(r, 0));
