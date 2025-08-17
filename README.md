@@ -1,7 +1,7 @@
 # TrackKit
 
 ```txt
-Trackkit — tiny, privacy-first web analytics
+TrackKit — tiny, privacy-first web analytics
 ────────────────────────────────────────────
 Core SDK • Built-in Umami/Plausible/GA4 • SSR-aware
 MV3-safe • No remote scripts • <6 kB browser core
