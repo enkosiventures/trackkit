@@ -70,9 +70,9 @@
   ],
   "scripts": {
     "prebuild": "node ../../scripts/generate-env-types.mjs",
-    "build": "tsup src/index.ts --format esm,cjs --dts --clean --sourcemap --tsconfig tsconfig.build.json",
-    "build:watch": "tsup src/index.ts --watch --format esm,cjs --dts --clean --sourcemap --tsconfig tsconfig.build.json",
-    "build:prod": "tsup src/index.ts --format esm,cjs --dts --clean --minify --tsconfig tsconfig.build.json",
+    "build": "tsup --config tsup.config.ts",
+    "build:watch": "tsup --config tsup.config.ts --watch",
+    "build:prod": "tsup --config tsup.config.ts",
     "clean": "rimraf dist coverage",
     "lint": "eslint src test --fix",
     "test": "vitest run",
