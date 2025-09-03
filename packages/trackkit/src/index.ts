@@ -5,7 +5,7 @@ export {
   track,
   pageview,
   identify
-} from './core/facade-singleton';
+} from './facade/singleton';
 
 // Consent API
 export { 
@@ -13,17 +13,17 @@ export {
   grantConsent, 
   denyConsent, 
   resetConsent, 
-  onConsentChange 
+  // onConsentChange,
 } from './consent/exports';
 
 // Utilities
 export {
   waitForReady,
-  getInstance,
+  getFacade,
   flushIfReady,
   hasQueuedEvents,
   getDiagnostics,
-} from './core/facade-singleton';
+} from './facade/singleton';
 
 // Types
 export * from './types';

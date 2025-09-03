@@ -1,9 +1,7 @@
+import { ProviderState } from '../providers/types';
 import { logger } from './logger';
 
-/**
- * Provider lifecycle states
- */
-export type ProviderState = 'idle' | 'initializing' | 'ready' | 'destroyed';
+export type ProviderStateHistory = Array<{ state: ProviderState; timestamp: number; event: StateEvent }>;
 
 /**
  * State transition events
@@ -42,6 +40,13 @@ const TRANSITIONS: Record<ProviderState, Partial<Record<StateEvent, ProviderStat
   destroyed: {
     // Terminal state - no transitions
   },
+  unknown: {
+    // Allow any transition from unknown
+    INIT: 'initializing',
+    READY: 'ready',
+    ERROR: 'idle',
+    DESTROY: 'destroyed',
+  }
 };
 
 /**
@@ -50,8 +55,8 @@ const TRANSITIONS: Record<ProviderState, Partial<Record<StateEvent, ProviderStat
 export class StateMachine {
   private state: ProviderState = 'idle';
   private listeners: Set<StateListener> = new Set();
-  private history: Array<{ state: ProviderState; timestamp: number; event: StateEvent }> = [];
-  
+  private history: ProviderStateHistory = [];
+
   /**
    * Get current state
    */

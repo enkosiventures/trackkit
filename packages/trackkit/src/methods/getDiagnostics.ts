@@ -1,4 +1,4 @@
-import { getDiagnostics as diagnostics } from '../core/facade-singleton';
+import { getDiagnostics as diagnostics } from '../facade/singleton';
 
 /**
  * Get diagnostics information from the analytics facade

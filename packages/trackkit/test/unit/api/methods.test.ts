@@ -35,14 +35,14 @@ describe('Public API wrappers', () => {
     pageview();
 
     let diag = getDiagnostics();
-    expect(diag.facadeQueueSize).toBe(2);
+    expect(diag?.config.queueSize).toBe(2);
     expect(await hasQueuedEvents()).toBe(true);
 
     grantConsent();
 
     await tick(10);
     diag = getDiagnostics();
-    expect(diag.facadeQueueSize).toBe(0);
+    expect(diag?.config.queueSize).toBe(0);
   });
 
   it('denyConsent() drops new analytics events but allows identify (essential)', async () => {
@@ -64,7 +64,7 @@ describe('Public API wrappers', () => {
     expect(consent?.status).toBe('denied');
 
     const diag = getDiagnostics();
-    expect(diag.facadeQueueSize).toBe(0);
+    expect(diag?.config.queueSize).toBe(0);
   });
 
   it('resetConsent() returns to pending', () => {

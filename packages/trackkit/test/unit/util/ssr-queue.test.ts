@@ -45,8 +45,8 @@ describe('SSR Support', () => {
     expect(ssrQueue).toHaveLength(2);
     
     // Runtime instance should not exist
-    import('../../../src').then(({ getInstance }) => {
-      expect(getInstance()).toBeNull();
+    import('../../../src').then(({ getFacade }) => {
+      expect(getFacade()).toBeNull();
     });
   });
 });

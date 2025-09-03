@@ -1,4 +1,4 @@
-import { hasQueuedEvents as hasEvents } from '../core/facade-singleton';
+import { hasQueuedEvents as hasEvents } from '../facade/singleton';
 
 /**
  * Check if there are any queued events ready to be sent

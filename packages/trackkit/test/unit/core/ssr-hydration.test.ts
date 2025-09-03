@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { AnalyticsFacade } from '../../../src/core/facade';
+import { AnalyticsFacade } from '../../../src/facade';
 import { getSSRQueueLength } from '../../../src/util/ssr-queue';
 import { tick } from '../../helpers/core';
+import { waitForReady } from '../../../src/facade/singleton';
 
 function spyProvider() {
   const eventCalls: any[] = [];
@@ -31,6 +32,11 @@ describe('SSR hydration', () => {
     }];
 
     const facade = new AnalyticsFacade();
+    const spy = spyProvider();
+    facade.setProvider(spy);
+
+    await tick(5); // let any async init settle
+
     facade.init({
       debug: true,
       autoTrack: false,
@@ -39,12 +45,9 @@ describe('SSR hydration', () => {
       consent: { initialStatus: 'granted', disablePersistence: true },
     });
 
-    const spy = spyProvider();
-    // @ts-expect-error test helper
-    facade.setProvider(spy);
-
     await tick(20);
 
+    console.warn('Provider name:', facade.getProvider()?.name)
     expect(spy._get().eventCalls.length).toBe(1);
     expect(getSSRQueueLength()).toBe(0); // hydrate clears the queue
   });

@@ -1,4 +1,4 @@
-import { getFacade } from '../core/facade-singleton';
+import { getFacade } from '../facade/singleton';
 import type { InitOptions } from '../types';
 
 /**
@@ -11,6 +11,6 @@ import type { InitOptions } from '../types';
  * @see {@link InitOptions} for available options
  */
 export function init(options: InitOptions = {}): void {
-  getFacade().init(options);
+  getFacade()?.init(options);
 }
 export default init;

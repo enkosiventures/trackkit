@@ -52,7 +52,7 @@ describe('Consent: initial state behavior', () => {
     expect(provider.identifyCalls.length).toBe(0);
 
     // No queueing under denied
-    expect(facade.getQueue().size).toBe(0);
+    expect(facade.getQueueSize()).toBe(0);
   });
 
   it("initial: 'denied' allows essential only when allowEssentialOnDenied = true", async () => {
@@ -85,7 +85,7 @@ describe('Consent: initial state behavior', () => {
 
     expect(provider.pageviewCalls.length).toBe(0);
     expect(provider.eventCalls.length).toBe(0);
-    expect(facade.getQueue().size).toBe(0);
+    expect(facade.getQueueSize()).toBe(0);
   });
 
   it("initial: 'pending' queues & flushes on grant", async () => {
@@ -105,13 +105,13 @@ describe('Consent: initial state behavior', () => {
 
     // Queued under pending
     facade.track('queued_event', { x: 1 });
-    expect(facade.getQueue().size).toBe(1);
+    expect(facade.getQueueSize()).toBe(1);
 
     // Grant -> should flush
     grantConsent();
     await tick();
 
-    expect(facade.getQueue().size).toBe(0);
+    expect(facade.getQueueSize()).toBe(0);
     expect(provider.eventCalls.length).toBe(1);
     expect(provider.eventCalls[0]?.name).toBe('queued_event');
   });
@@ -139,7 +139,7 @@ describe('Consent: initial state behavior', () => {
     expect(provider.pageviewCalls.length).toBe(1);
     expect(provider.eventCalls.length).toBe(1);
     expect(provider.eventCalls[0]?.name).toBe('immediate');
-    expect(facade.getQueue().size).toBe(0);
+    expect(facade.getQueueSize()).toBe(0);
   });
 
   it('stored consent overrides initial (stored granted persists)', async () => {
@@ -183,7 +183,7 @@ describe('Consent: initial state behavior', () => {
 
     expect(provider.eventCalls.length).toBe(1);
     expect(provider.eventCalls[0]?.name).toBe('should_send_immediately');
-    expect(facade.getQueue().size).toBe(0);
+    expect(facade.getQueueSize()).toBe(0);
   });
 
   it('policy version reset respects initial', async () => {
@@ -218,6 +218,6 @@ describe('Consent: initial state behavior', () => {
 
     expect(provider.eventCalls.length).toBe(0);
     expect(provider.pageviewCalls.length).toBe(0);
-    expect(facade.getQueue().size).toBe(0);
+    expect(facade.getQueueSize()).toBe(0);
   });
 });

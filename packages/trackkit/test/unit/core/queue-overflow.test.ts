@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AnalyticsFacade } from '../../../src/core/facade';
+import { AnalyticsFacade } from '../../../src/facade';
 import type { AnalyticsError } from '../../../src/errors';
 import { tick } from '../../helpers/core';
 
@@ -21,7 +21,7 @@ describe('Queue overflow', () => {
     facade.track('b');
     await tick(5);
 
-    expect(facade.getQueue().size).toBe(1);
+    expect(facade.getQueueSize()).toBe(1);
     expect(errors.some(e => e.code === 'QUEUE_OVERFLOW')).toBe(true);
   });
 });

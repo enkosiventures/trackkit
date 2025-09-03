@@ -2,9 +2,9 @@ import type { ConsentCategory } from '../consent/types';
 import type { ProviderInstance, ProviderOptions, ProviderType } from '../types';
 
 /**
- * Internal provider lifecycle state
+ * Provider lifecycle states
  */
-export type ProviderState = 'idle' | 'initializing' | 'ready' | 'destroyed';
+export type ProviderState = 'idle' | 'initializing' | 'ready' | 'destroyed' | 'unknown';
 
 /**
  * Provider adapter factory interface

@@ -6,7 +6,7 @@ import {
   destroy,
   waitForReady,
   getDiagnostics,
-  getInstance,
+  getFacade,
 } from '../../src';
 import { AnalyticsError } from '../../src/errors';
 
@@ -36,8 +36,8 @@ describe('Error handling (Facade)', () => {
     expect(onError).not.toHaveBeenCalled();
 
     const diag = getDiagnostics();
-    expect(diag.provider).toBe('noop');
-    expect(diag.providerReady).toBe(true);
+    expect(diag?.provider).toBe('noop');
+    expect(diag?.provider.state).toBe(true);
   });
 
   it('emits INVALID_CONFIG and falls back to noop for provider with missing required options', async () => {
@@ -58,8 +58,8 @@ describe('Error handling (Facade)', () => {
 
     await waitForReady();
     const diag = getDiagnostics();
-    expect(diag.provider).toBe('noop');
-    expect(diag.providerReady).toBe(true);
+    expect(diag?.provider).toBe('noop');
+    expect(diag?.provider.state).toBe('ready');
   });
 
   it('handles errors thrown inside onError handler safely', async () => {
@@ -114,18 +114,19 @@ describe('Error handling (Facade)', () => {
     await waitForReady();
 
     // Get the stateful wrapper and sabotage the inner provider.destroy()
-    const statefulProvider = getInstance() as any;
-    expect(statefulProvider).toBeDefined();
+    const facade = getFacade();
+    expect(facade).toBeDefined();
 
-    const innerProvider = statefulProvider.provider;
-    const originalDestroy = innerProvider.destroy;
-    innerProvider.destroy = () => { throw new Error('provider destroy failed'); };
+    const innerProvider = facade?.getProvider();
+    expect(innerProvider).toBeDefined();
+    const originalDestroy = innerProvider!.destroy;
+    innerProvider!.destroy = () => { throw new Error('provider destroy failed'); };
 
     // destroy should catch and emit
     destroy();
 
     // restore to avoid bleed
-    innerProvider.destroy = originalDestroy;
+    innerProvider!.destroy = originalDestroy;
 
     const providerErr = onError.mock.calls.find(
       (args) => (args[0] as AnalyticsError).code === 'PROVIDER_ERROR'
