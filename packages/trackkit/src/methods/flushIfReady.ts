@@ -1,4 +1,4 @@
-import { flushIfReady as flush } from '../core/facade-singleton';
+import { flushIfReady as flush } from '../facade/singleton';
 
 /**
  * Flush queued events if the facade is ready

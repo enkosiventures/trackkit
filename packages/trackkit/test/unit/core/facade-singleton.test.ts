@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   init,
-  getInstance,
+  getFacade,
   destroy,
   waitForReady,
   track,
@@ -10,38 +10,58 @@ import {
   flushIfReady,
 } from '../../../src';
 import { createStatefulMock } from '../../helpers/providers';
-import { getFacade } from '../../../src/core/facade-singleton';
+import { injectProviderForTests } from '../../../src/facade/singleton';
 
 describe('Singleton behavior', () => {
   beforeEach(() => {
     destroy();
+    vi.clearAllMocks();
+    history.replaceState(null, '', '/');
+
+    try { Object.defineProperty(navigator, 'doNotTrack', { value: '0', configurable: true }); } catch { (window as any).doNotTrack = '0'; }
+    try { localStorage.removeItem('__trackkit_consent__'); } catch {}
+    delete (globalThis as any).__TRACKKIT_SSR_QUEUE__;
   });
 
+
   it('reuses the same internal instance after multiple init calls', async () => {
-    init({ provider: 'noop', autoTrack: false });
-    const instance1 = await waitForReady();
+    init({ provider: 'noop', autoTrack: false, consent: { disablePersistence: true } });
+    grantConsent();
+    await waitForReady();
+    const facade1 = getFacade();
 
     // Should not re-initialize a new facade
     init();
-    const instance2 = await waitForReady();
+    await waitForReady();
+    const facade2 = getFacade();
 
-    expect(instance1).toBe(instance2);
+    expect(facade1).toBe(facade2);
   });
 
   it('creates a new instance after destroy', async () => {
-    init({ autoTrack: false });
-    const first = await waitForReady();
+    init({ autoTrack: false, consent: { disablePersistence: true } });
+    grantConsent();
+    await waitForReady();
+    console.warn('Getting first facade instance');
+    const first = getFacade();
+    console.warn('First facade instance:', first);
     destroy();
-    init({ autoTrack: false });
-    const second = await waitForReady();
+    init({ autoTrack: false, consent: { disablePersistence: true } });
+    grantConsent();
+    await waitForReady();
+    const second = getFacade();
 
-    expect(first).not.toBe(second);
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(first?.id).not.toBe(second?.id);
   });
 
   it('maintains instance across imports', async () => {
-    init({ autoTrack: false });
-    const { getInstance: getInstanceAgain } = await import('../../../src');
-    expect(getInstance()).toBe(getInstanceAgain());
+    init({ autoTrack: false, consent: { disablePersistence: true } });
+    grantConsent();
+    await waitForReady();
+    const { getFacade: getFacadeAgain } = await import('../../../src');
+    expect(getFacade()).toBe(getFacadeAgain());
   });
 
   it('exposes queue helpers that reflect pre-init calls and flush after consent', async () => {
@@ -50,14 +70,24 @@ describe('Singleton behavior', () => {
     expect(hasQueuedEvents()).toBe(true);
 
     // Init + attach a mock provider for observation
-    init({ autoTrack: false, trackLocalhost: true });
     const { stateful, provider } = await createStatefulMock();
-    getFacade().setProvider(stateful);
+    injectProviderForTests(stateful); // <-- inject BEFORE init
 
-    await waitForReady();
+    init({
+      autoTrack: false,
+      trackLocalhost: true,
+      domains: ['localhost'],
+      consent: { disablePersistence: true, initialStatus: 'pending' },
+    });
+
+    // Provider is “ready” immediately for the injected mock; give it a tick
+    await new Promise(r => setTimeout(r, 10));
+
     grantConsent();
+    await waitForReady();          // provider ready + consent resolved
+
     await flushIfReady();
-    await new Promise(r => setTimeout(r, 20));
+    await new Promise(r => setTimeout(r, 10));
 
     expect(provider.eventCalls.map(e => e.name)).toEqual(['early']);
   });

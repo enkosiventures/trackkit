@@ -1,4 +1,4 @@
-import { destroy as d } from '../core/facade-singleton';
+import { destroy as d } from '../facade/singleton';
 
 /**
  * Destroy analytics instance and clean up resources

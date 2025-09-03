@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { init, track, pageview, destroy, waitForReady, grantConsent } from '../../src';
 import { createStatefulMock } from '../helpers/providers';
 import { navigate } from '../helpers/navigation';
-import { getFacade } from '../../src/core/facade-singleton';
+import { getFacade } from '../../src/facade/singleton';
 
 describe('Queue and State Integration', () => {
   beforeEach(() => {
@@ -20,8 +20,8 @@ describe('Queue and State Integration', () => {
 
     // Attach mock provider so we can assert deliveries
     const { stateful, provider } = await createStatefulMock();
-    const { getFacade } = await import('../../src/core/facade-singleton');
-    getFacade().setProvider(stateful);
+    const { getFacade } = await import('../../src/facade/singleton');
+    getFacade()?.setProvider(stateful);
 
     await waitForReady();
     grantConsent();
@@ -36,8 +36,8 @@ describe('Queue and State Integration', () => {
   it('handles rapid successive calls', async () => {
     init({ debug: false, autoTrack: false, trackLocalhost: true });
     const { stateful } = await createStatefulMock();
-    const { getFacade } = await import('../../src/core/facade-singleton');
-    getFacade().setProvider(stateful);
+    const { getFacade } = await import('../../src/facade/singleton');
+    getFacade()?.setProvider(stateful);
     await waitForReady();
     grantConsent();
 
@@ -48,7 +48,7 @@ describe('Queue and State Integration', () => {
 
     // Should not throw on destroy
     const analytics = getFacade();
-    expect(() => analytics.destroy()).not.toThrow();
+    expect(() => analytics?.destroy()).not.toThrow();
   });
 
   it('processes mixed queued events in strict order', async () => {
@@ -62,7 +62,7 @@ describe('Queue and State Integration', () => {
 
     // Attach mock provider *before* provider-ready triggers any replay
     const { stateful, provider } = await createStatefulMock();
-    getFacade().setProvider(stateful);
+    getFacade()?.setProvider(stateful);
 
     await waitForReady();
     grantConsent();

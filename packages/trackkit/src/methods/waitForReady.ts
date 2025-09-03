@@ -1,4 +1,4 @@
-import { waitForReady as wait } from '../core/facade-singleton';
+import { waitForReady as wait } from '../facade/singleton';
 
 /**
  * Wait for analytics provider to be ready

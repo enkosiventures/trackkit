@@ -1,15 +1,16 @@
 
 import { init } from '../../src';
+import { ConsentCategory } from '../../src/consent/types';
 import { DEFAULT_ERROR_HANDLER } from '../../src/constants';
 import { StatefulProvider } from '../../src/providers/stateful-wrapper';
 import type { ProviderInstance } from '../../src/types';
-import type { InitOptions, PageContext } from '../../src/types'; // <-- adjust path
+import type { InitOptions, PageContext } from '../../src/types';
 
 
 export class MockProvider implements ProviderInstance {
-  name = 'noop';
+  name = 'mock';
   pageviewCalls: Array<PageContext | undefined> = [];
-  eventCalls: Array<{ name: string; props?: Record<string, unknown>; url?: string; category?: string; pageContext?: PageContext }> = [];
+  eventCalls: Array<{ name: string; props?: Record<string, unknown>; url?: string; category?: ConsentCategory; pageContext?: PageContext }> = [];
   identifyCalls: Array<string | null> = [];
 
   // Add _init to simulate async initialization
@@ -19,6 +20,7 @@ export class MockProvider implements ProviderInstance {
   }
 
   pageview(pageContext?: PageContext): void {
+    console.warn('MockProvider pageview called with:', { pageContext });
     this.pageviewCalls.push(pageContext);
   }
 
@@ -27,6 +29,7 @@ export class MockProvider implements ProviderInstance {
     props?: Record<string, unknown>,
     pageContext?: PageContext
   ): void {
+    console.warn('MockProvider track called with:', { name, props, pageContext });
     this.eventCalls.push({ name, props, pageContext });
   }
 

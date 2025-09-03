@@ -26,7 +26,7 @@ vi.mock('../../src/providers/loader', () => {
   };
 });
 
-import { AnalyticsFacade } from '../../../src/core/facade';
+import { AnalyticsFacade } from '../../../src/facade';
 import { tick } from '../../helpers/core';
 
 describe('Provider loader fallback', () => {

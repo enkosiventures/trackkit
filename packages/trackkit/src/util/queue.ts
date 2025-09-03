@@ -233,6 +233,14 @@ export class EventQueue {
     return [...this.queue];
   }
   
+  getCapacity(): number {
+    return this.config.maxSize;
+  }
+
+  getOverflowHandler(): ((dropped: QueuedEventUnion[]) => void) | undefined {
+    return this.config.onOverflow;
+  }
+
   get size(): number {
     return this.queue.length;
   }

@@ -114,8 +114,15 @@ export class StatefulProvider implements ProviderInstance {
    * Get current state (for debugging)
    */
   getState() {
+    return this.state.getState();
+  }
+
+  /**
+   * Get snapshot of state and history (for diagnostics)
+   */
+  getSnapshot() {
     return {
-      provider: this.state.getState(),
+      state: this.state.getState(),
       history: this.state.getHistory(),
     };
   }
