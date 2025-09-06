@@ -1,6 +1,6 @@
 import { EventQueue, QueuedEventUnion } from '../util/queue';
 import { hydrateSSRQueue, getSSRQueue, getSSRQueueLength, isSSR } from '../util/ssr-queue';
-import type { FacadeOptions, EventType } from '../types';
+import type { FacadeOptions, EventType, PageContext } from '../types';
 import { logger } from '../util/logger';
 
 
@@ -13,8 +13,8 @@ export class QueueService {
   reconfigure(cfg: FacadeOptions) {
     this.facadeQueue.reconfigure({ maxSize: cfg?.queueSize ?? 50, debug: !!cfg?.debug, onOverflow: this.facadeQueue.getOverflowHandler() });
   }
-  enqueue<T extends EventType>(type: T, args: Extract<QueuedEventUnion, { type: T }>['args'], category: string, pageContext: any) {
-    // @ts-expect-error
+  enqueue<T extends EventType>(type: T, args: Extract<QueuedEventUnion, { type: T }>['args'], category: string, pageContext?: PageContext) {
+    // @ts-expect-error: allow dynamic args
     return this.facadeQueue.enqueue(type, args, category, pageContext);
   }
   flushSSR(): QueuedEventUnion[] { return isSSR() ? [] : hydrateSSRQueue(); }

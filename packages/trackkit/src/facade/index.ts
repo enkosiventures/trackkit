@@ -14,6 +14,7 @@ import { isSSR } from '../util/ssr-queue';
 import { AnalyticsError, setUserErrorHandler } from '../errors';
 import { DiagnosticsService } from './diagnostics';
 import { StatefulProvider } from '../providers/stateful-wrapper';
+import { EventQueue, QueuedEventUnion } from '../util/queue';
 
 type Deferred<T> = { promise: Promise<T>; resolve: (v: T) => void; reject: (e: unknown) => void };
 function deferred<T = void>(): Deferred<T> {
@@ -51,6 +52,7 @@ export class AnalyticsFacade {
 
   private userId: string | null = null;
 
+  private providerIsReady = false;
   private overflowNotified = false;
   private forceQueue = true; // start queued until provider attached/ready
   private providerReady = deferred<void>();
@@ -58,6 +60,9 @@ export class AnalyticsFacade {
   private policyReasonsNotified = new Set<string>();
 
   private _preInjectedProvider: any | null = null;
+
+  // Collect calls made before init() (when context/queues don’t exist yet)
+  private preInitBuffer: EventQueue = new EventQueue({ maxSize: 50 });
 
   init(opts: InitOptions = {}): this {
     if (this.initPromise) return this;
@@ -82,9 +87,9 @@ export class AnalyticsFacade {
     );
 
     // Readiness (one-shot) + gate
-    this.providerReady = deferred<void>();
-    this.trackingReady = deferred<void>();
-    this.forceQueue    = true;
+    // this.providerReady = deferred<void>();
+    // this.trackingReady = deferred<void>();
+    // this.forceQueue    = true;
 
     // Consent transitions — attach ONCE per init (not in initialize)
     this.consent?.onChange((to, from) => {
@@ -100,8 +105,13 @@ export class AnalyticsFacade {
       this.provider.inject(this._preInjectedProvider);
       this._preInjectedProvider = null;
       this.forceQueue = false;
-      this.maybeResolveReady();  // providerReady; trackingReady if consent resolved
+      this.providerIsReady = true;
+      // this.maybeResolveReady();  // providerReady; trackingReady if consent resolved
     }
+
+    this.drainPreInitBuffer();
+
+    this.maybeResolveReady();
 
     // Kick off provider load
     this.initPromise = this.initialize().finally(() => (this.initPromise = null));
@@ -112,6 +122,7 @@ export class AnalyticsFacade {
     try {
       await this.provider.load();
       this.attachProviderReadyHandlers();
+      console.warn('Initialized provider:', this.provider?.get()?.name);
     } catch (e) {
       // Try to recover by falling back to noop
       try {
@@ -166,9 +177,9 @@ export class AnalyticsFacade {
     return withTimeout(base, opts?.timeoutMs, () => new AnalyticsError('Timed out waiting for ready', 'READY_TIMEOUT'));
   }
 
-  hasQueuedEvents(): boolean { return this.queues.size() > 0; }
+  getQueueSize(): number { return this.queues?.size() ?? this.preInitBuffer.size; }
 
-  getQueueSize(): number { return this.queues.size(); }
+  hasQueuedEvents(): boolean { return this.getQueueSize() > 0; }
 
   flushIfReady(): boolean {
     if (this.isProviderReady() && this.consent?.getStatus() === 'granted') {
@@ -189,12 +200,21 @@ export class AnalyticsFacade {
     setUserErrorHandler(null);
     this.providerReady = deferred<void>();   // reset for next init
     this.trackingReady = deferred<void>();
+    this.providerIsReady = false;
     this.forceQueue = true;
   }
 
   // === Internals ===
 
   private execute({ type, args = [], url, category = DEFAULT_CATEGORY }: { type: EventType; args?: unknown[]; url?: string; category?: ConsentCategory; }) {
+    console.warn("Executing:", type, args, url, category)
+    // If init() hasn’t run yet, we don’t have context/queues. Buffer per instance.
+    if (!this.context) {
+      const bufferedCtx = url ? { url: url as string } : undefined;
+      this.preInitBuffer.enqueue(type, args as any, category, bufferedCtx);
+      return;
+    }
+
     const resolvedUrl = this.context.normalizeUrl(url ?? this.context.resolveCurrentUrl());
     const ctx = this.context.buildPageContext(resolvedUrl, this.userId);
 
@@ -252,10 +272,24 @@ export class AnalyticsFacade {
     this.signalPolicyBlocked(decision.reason);
   }
 
+  private drainPreInitBuffer() {
+    const buffered = this.preInitBuffer.flush();
+    this.executeQueuedEvents(buffered);
+  }
+
   private flushQueues() {
     const fac = this.queues.flushFacade();
     const ssr = this.queues.flushSSR();
-    [...ssr, ...fac].forEach(e => this.execute({ type: e.type as EventType, args: e.args, url: e.pageContext?.url, category: e.category as any }));
+    this.executeQueuedEvents([...ssr, ...fac]);
+  }
+
+  private executeQueuedEvents(events: QueuedEventUnion[]) {
+    events.forEach(e => this.execute({
+      type: e.type as EventType,
+      args: e.args,
+      url: e.pageContext?.url,
+      category: e.category,
+    }));
   }
 
   private sendInitialPV() {
@@ -274,17 +308,13 @@ export class AnalyticsFacade {
   }
 
   private isProviderReady(): boolean {
-    return this.provider?.get()?.getState() === 'ready';
+    return this.providerIsReady;
   }
 
   private isConsentResolved(): boolean {
     const s = this.consent?.getStatus();
     return s === 'granted' || s === 'denied';
   }
-
-  // private maybeResolveReady() {
-  //   if (this.isProviderReady() && this.isConsentResolved()) this.readyResolve?.();
-  // }
 
   private maybeResolveReady() {
     // Idempotent: resolving an already-resolved deferred is a no-op
@@ -299,6 +329,7 @@ export class AnalyticsFacade {
   private attachProviderReadyHandlers() {
     this.provider.onReady(() => {
       this.forceQueue = false; // provider is safe to send to now
+      this.providerIsReady = true;
       this.maybeResolveReady();
 
       if (this.consent?.getStatus() === 'granted') {
@@ -369,8 +400,9 @@ export class AnalyticsFacade {
     // @ts-ignore
     console.warn('Setting provider:', p.name);
     if (this.provider) {
-      this.provider?.inject?.(p);
+      this.provider?.inject(p);
       this.forceQueue = false; // safe to send to the injected provider
+      this.providerIsReady = true; 
       this.providerReady.resolve();
       if (this.isConsentResolved()) this.trackingReady.resolve();
     }
@@ -379,6 +411,7 @@ export class AnalyticsFacade {
     // Stash for init(); treat provider as ready for readiness purposes
     this._preInjectedProvider = p;
     this.forceQueue = false;
+    this.providerIsReady = true; 
     this.providerReady.resolve();
     if (this.isConsentResolved()) this.trackingReady.resolve();
     // NOTE: do NOT call maybeResolveReady() here, it still references the manager.

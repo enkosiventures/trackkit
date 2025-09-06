@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { AnalyticsFacade } from '../../../src/facade';
 import { getSSRQueueLength } from '../../../src/util/ssr-queue';
-import { tick } from '../../helpers/core';
-import { waitForReady } from '../../../src/facade/singleton';
 
 function spyProvider() {
   const eventCalls: any[] = [];
@@ -10,7 +8,8 @@ function spyProvider() {
   return {
     name: 'spy',
     onReady(cb: () => void) { cb(); },
-    getState() { return { provider: 'ready', history: [] as any[] }; },
+    getState() { return 'ready'; },
+    // getState() { return { provider: 'ready', history: [] as any[] }; },
     track: (...args: any[]) => { eventCalls.push(args); },
     pageview: (...args: any[]) => { pageviewCalls.push(args); },
     identify: () => {},
@@ -35,8 +34,9 @@ describe('SSR hydration', () => {
     const spy = spyProvider();
     facade.setProvider(spy);
 
-    await tick(5); // let any async init settle
-
+    // await tick(5); // let any async init settle
+    facade.preInjectForTests(spy);
+    console.warn('Before init, SSR queue length:', getSSRQueueLength());
     facade.init({
       debug: true,
       autoTrack: false,
@@ -45,7 +45,9 @@ describe('SSR hydration', () => {
       consent: { initialStatus: 'granted', disablePersistence: true },
     });
 
-    await tick(20);
+    // await tick(20);
+    await facade.waitForReady?.({ timeoutMs: 200, mode: 'provider' });
+    console.warn('After init, SSR queue length:', getSSRQueueLength());
 
     console.warn('Provider name:', facade.getProvider()?.name)
     expect(spy._get().eventCalls.length).toBe(1);

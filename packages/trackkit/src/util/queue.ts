@@ -14,7 +14,7 @@ export interface QueuedEvent {
   timestamp: number;
   args: unknown[];
   category: ConsentCategory;
-  pageContext: PageContext;
+  pageContext?: PageContext;
 }
 
 /**
@@ -86,7 +86,7 @@ export class EventQueue {
     type: T,
     args: Extract<QueuedEventUnion, { type: T }>['args'],
     category: ConsentCategory = DEFAULT_CATEGORY,
-    pageContext: PageContext
+    pageContext?: PageContext
   ): string | undefined {
     if (this.isPaused) {
       logger.debug('Queue is paused, dropping event', { type });

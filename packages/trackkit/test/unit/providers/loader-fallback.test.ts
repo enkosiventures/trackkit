@@ -28,12 +28,14 @@ vi.mock('../../src/providers/loader', () => {
 
 import { AnalyticsFacade } from '../../../src/facade';
 import { tick } from '../../helpers/core';
+import { TEST_SITE_ID } from '../../setup/providers';
 
 describe('Provider loader fallback', () => {
   it('falls back to noop when initial load fails', async () => {
     const facade = new AnalyticsFacade();
     facade.init({
       debug: true,
+      site: TEST_SITE_ID.plausible,
       provider: 'plausible', // simulate failing provider
       domains: ['localhost'],
       consent: { initialStatus: 'granted', disablePersistence: true },

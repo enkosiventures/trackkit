@@ -1,3 +1,6 @@
+// Factory API
+export { createAnalytics } from './factory';
+
 // Main facade
 export {
   init,
