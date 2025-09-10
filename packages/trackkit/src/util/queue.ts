@@ -1,8 +1,8 @@
 import type { ConsentCategory } from '../consent/types';
 import { DEFAULT_CATEGORY } from '../constants';
 import type { EventType, PageContext, Props } from '../types';
+import { deepClone } from './helpers';
 import { logger } from './logger';
-
 
 
 /**
@@ -97,9 +97,9 @@ export class EventQueue {
       id: generateEventId(),
       type,
       timestamp: Date.now(),
-      args,
+      args: deepClone(args),
       category,
-      pageContext,
+      pageContext: pageContext ? deepClone(pageContext) : undefined,
     };
 
     // Check for overflow
@@ -168,6 +168,19 @@ export class EventQueue {
     return events;
   }
 
+  /** Drain only 'essential' items; keep non-essentials enqueued. */
+  flushEssential(): QueuedEventUnion[] {
+    if (!this.queue.length) return [];
+    const essentials: QueuedEventUnion[] = [];
+    const keep: QueuedEventUnion[] = [];
+    for (const ev of this.queue) {
+      if (ev?.category === 'essential') essentials.push(ev);
+      else keep.push(ev);
+    }
+    this.queue = keep;
+    return essentials;
+  }
+
   /**
    * Remove specific events by predicate
    */
@@ -191,10 +204,24 @@ export class EventQueue {
   /**
    * Clear all events
    */
-  clear(): void {
+  clear(): number {
     const count = this.queue.length;
     this.queue = [];
     logger.debug('Queue cleared', { eventsDropped: count });
+    return count;
+  }
+
+  /** Drop only non-essential items; returns how many dropped. */
+  clearNonEssential(): number {
+    if (!this.queue.length) return 0;
+    let dropped = 0;
+    const keep: QueuedEventUnion[] = [];
+    for (const ev of this.queue) {
+      if (ev?.category === 'essential') keep.push(ev);
+      else dropped++;
+    }
+    this.queue = keep;
+    return dropped;
   }
   
   /**

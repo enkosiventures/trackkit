@@ -123,7 +123,56 @@ export function parseEnvNumber(value: string | undefined, defaultValue: number):
 /**
  * Check if we're in a browser environment
  */
-export function isBrowser(): boolean {
-  return typeof window !== 'undefined' && 
-         typeof window.document !== 'undefined';
+// export function hasDOM(): boolean {
+//   return typeof window !== 'undefined' && typeof document !== 'undefined';
+// }
+
+// export function isBrowser(): boolean {
+//   // “Browser” means DOM-ful contexts (not workers)
+//   return hasDOM();
+// }
+
+// export function isServer(): boolean {
+//   return !isBrowser();
+// }
+
+// export function inBrowser(): boolean {
+//   return typeof window !== 'undefined';
+// }
+
+/**
+ * Environment detection helpers
+ * --------------------------------
+ * Keep these as the only primitives used across the codebase.
+ */
+
+/** True if a `window` global exists. Client runtime (main thread or JSDOM), not SSR/Node/workers. */
+export function isClient(): boolean {
+  return typeof window !== 'undefined';
+}
+
+/** True if DOM APIs are available (safe to touch `document`, `history`, add event listeners). */
+export function hasDOM(): boolean {
+  return isClient() && typeof document !== 'undefined';
+}
+
+/** True if running on the browser main thread (DOM + `navigator` present). */
+export function isBrowserMainThread(): boolean {
+  return hasDOM() && typeof navigator !== 'undefined';
+}
+
+/** True if SSR/Node/Workers (no `window`). */
+export function isServer(): boolean {
+  return !isClient();
+}
+
+export function hasWebStorage(): boolean {
+  return isClient() && typeof window.localStorage !== 'undefined';
+}
+
+/** True if inside a Worker-like global (no `window`, but `self` + `importScripts`). */
+export function isWorker(): boolean {
+  return typeof self !== 'undefined' &&
+         typeof window === 'undefined' &&
+         typeof (self as any).importScripts === 'function';
 }

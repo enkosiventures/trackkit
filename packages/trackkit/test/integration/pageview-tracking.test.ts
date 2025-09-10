@@ -1,7 +1,7 @@
 /// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { denyConsent, grantConsent, init, waitForReady, destroy } from '../../src';
-import { createFacade } from '../helpers/providers';
+import { createMockFacade } from '../helpers/providers';
 import { navigate } from '../helpers/navigation';
 import { tick } from '../helpers/core';
 
@@ -33,7 +33,7 @@ describe('Facade autotrack with real history', () => {
     vi.clearAllMocks();
   });
   it('sends initial pageview once', async () => {
-    const { provider } = await createFacade();
+    const { provider } = await createMockFacade();
 
     await runWithTick(grantConsent);
 
@@ -42,7 +42,7 @@ describe('Facade autotrack with real history', () => {
   });
 
   it('sends SPA navigations and dedupes repeats', async () => {
-    const { provider } = await createFacade({ includeHash: true });
+    const { provider } = await createMockFacade({ includeHash: true });
 
     await runWithTick(grantConsent);
     provider.pageviewCalls.length = 0;
@@ -59,7 +59,7 @@ describe('Facade autotrack with real history', () => {
   });
 
   it('applies exclusions', async () => {
-    const { provider } = await createFacade({ exclude: ['/secret/alpha'] });
+    const { provider } = await createMockFacade({ exclude: ['/secret/alpha'] });
 
     await runWithTick(grantConsent);
 

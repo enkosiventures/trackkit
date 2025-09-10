@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createFacade } from '../helpers/providers';
+import { createMockFacade } from '../helpers/providers';
 import { navigate } from '../helpers/navigation';
 import { grantConsent, destroy } from '../../src';
 
@@ -14,7 +14,7 @@ describe('Integration: real history + sandbox', () => {
   });
 
   it('fires an initial pageview after consent with autoTrack', async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       autoTrack: true,
       domains: ['localhost'],
     });
@@ -27,7 +27,7 @@ describe('Integration: real history + sandbox', () => {
   });
 
   it('emits exactly once on pushState (no double-fire)', async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       autoTrack: true,
       domains: ['localhost'],
     });
@@ -44,7 +44,7 @@ describe('Integration: real history + sandbox', () => {
   });
 
   it('handles popstate (back/forward)', async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       autoTrack: true,
       domains: ['localhost'],
     });
@@ -72,7 +72,7 @@ describe('Integration: real history + sandbox', () => {
   });
 
   it('respects `exclude` patterns (no emission for excluded paths)', async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       autoTrack: true,
       domains: ['localhost'],
       exclude: ['/private/*', '/admin'],
@@ -90,7 +90,7 @@ describe('Integration: real history + sandbox', () => {
   });
 
   it('respects domain allowlist (no emission on non-matching host)', async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       autoTrack: true,
       domains: ['example.com'], // does not include localhost
     });
@@ -104,7 +104,7 @@ describe('Integration: real history + sandbox', () => {
   });
 
   it('includes hash in URL when `includeHash: true`', async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       autoTrack: true,
       domains: ['localhost'],
       includeHash: true,
@@ -123,7 +123,7 @@ describe('Integration: real history + sandbox', () => {
   });
 
   it('unsubscribes listeners on destroy()', async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       autoTrack: true,
       domains: ['localhost'],
     });

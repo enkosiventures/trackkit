@@ -60,7 +60,6 @@ describe('EventQueue', () => {
       expect(dropped.map((d: any) => d.args[0])).toEqual(['e1']);
     });
 
-    
     it('drops events when paused', () => {
       queue.pause();
       const id = queue.enqueue('track', ['event'], "analytics", pageContext);
@@ -75,7 +74,22 @@ describe('EventQueue', () => {
       const [e] = queue.getEvents();
 
       expect(e.category).toBe('marketing');
-      expect(e.pageContext.url).toBe('/ctx');
+      expect(e.pageContext?.url).toBe('/ctx');
+    });
+
+    it('stores a safe snapshot (later mutations do not affect queued payloads)', () => {
+      const ctx = { url: '/start' };
+      const props = { a: 1 };
+
+      queue.enqueue('track', ['e', props], 'analytics', ctx);
+
+      // mutate after enqueue
+      ctx.url = '/mutated';
+      (props as any).a = 999;
+
+      const [event] = queue.flush();
+      expect(event.pageContext?.url).toBe('/start');
+      expect((event.args?.[1] as any).a).toBe(1);
     });
   });
   
@@ -105,6 +119,24 @@ describe('EventQueue', () => {
       expect(flushed).toHaveLength(2);
       expect(flushed[0].timestamp).toBeLessThanOrEqual(flushed[1].timestamp);
       expect(flushed.map(e => e.args[0])).toEqual(['a', 'b']);
+    });
+
+    it('retains only the newest maxSize items when overfilled; FIFO among retained', () => {
+
+      queue.enqueue('track', ['e1'], 'analytics', pageContext);
+      queue.enqueue('track', ['e2'], 'analytics', pageContext);
+      queue.enqueue('track', ['e3'], 'analytics', pageContext);
+      queue.enqueue('track', ['e4'], 'analytics', pageContext); // evicts e1
+
+      const batch = queue.flush();
+      expect(batch.map(e => e.args?.[0])).toEqual(['e2','e3','e4']);
+    });
+
+    it('flush() is idempotent and safe on empty', () => {
+      expect(queue.flush()).toEqual([]);
+      queue.enqueue('track', ['e'], 'analytics', pageContext);
+      expect(queue.flush().length).toBe(1);
+      expect(queue.flush().length).toBe(0);
     });
   });
 

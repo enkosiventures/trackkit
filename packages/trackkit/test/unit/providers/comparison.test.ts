@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { createFacade, createStatefulMock } from '../../helpers/providers';
+import { createMockFacade, createStatefulMock } from '../../helpers/providers';
 import { grantConsent } from '../../../src';
 import { navigate } from '../../helpers/navigation';
 
 describe('Facade routes to active provider only', () => {
   it('swaps providers without double-sending', async () => {
-    const { facade, provider } = await createFacade();
+    const { facade, provider } = await createMockFacade();
     grantConsent();
 
     // Ignore initial autotracked '/'

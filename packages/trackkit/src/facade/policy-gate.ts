@@ -1,5 +1,5 @@
 import type { EventType, ProviderType } from '../types';
-import { isBrowser } from '../util/env';
+import { isBrowserMainThread } from '../util/env';
 import { getProviderMetadata } from '../providers/metadata';
 import { isDoNotTrackEnabled, isLocalhost, isDomainAllowed, isUrlExcluded } from '../providers/shared/browser';
 import { DEFAULT_CATEGORY } from '../constants';
@@ -13,11 +13,14 @@ export type SendDecision = { ok: boolean; reason:
 export class PolicyGate {
   constructor(private cfg: FacadeOptions, private consent: ConsentManager | null, private providerKey: ProviderType) {}
   shouldSend(type: EventType, category = DEFAULT_CATEGORY, url?: string): SendDecision {
-    if (!isBrowser()) return { ok: false, reason: 'not-browser' };
-    if (!this.consent?.isAllowed(category)) {
-      const s = this.consent?.getStatus();
-      return { ok: false, reason: s === 'denied' ? 'consent-denied' : 'consent-pending' };
-    }
+    let consentStatus;
+    if (!this.consent?.isAllowed(category)) consentStatus = this.consent?.getStatus();
+
+    // Consent denial takes precedence for refusal - never queue if consent denied
+    if (consentStatus === 'denied') return { ok: false, reason: 'consent-denied' };
+
+    if (!isBrowserMainThread()) return { ok: false, reason: 'not-browser' };
+    if (consentStatus) return { ok: false, reason: 'consent-pending' };
     if (this.cfg?.doNotTrack !== false && isDoNotTrackEnabled()) return { ok: false, reason: 'dnt' };
     const allowLocalhost = this.cfg?.trackLocalhost ?? (getProviderMetadata(this.providerKey)?.trackLocalhost ?? true);
     if (!allowLocalhost && isLocalhost()) return { ok: false, reason: 'localhost' };

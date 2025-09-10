@@ -1,37 +1,38 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AnalyticsFacade } from '../../../src/facade';
 import { tick } from '../../helpers/core';
+import { createFacade, createSpyProvider } from '../../helpers/providers';
 
-type SpyCall = { args: any[]; ctx?: any };
-function createSpyProvider() {
-  const pageviewCalls: SpyCall[] = [];
-  const eventCalls: SpyCall[] = [];
-  const identifyCalls: SpyCall[] = [];
-  const readyCallbacks: Array<() => void> = [];
+// type SpyCall = { args: any[]; ctx?: any };
+// function createSpyProvider() {
+//   const pageviewCalls: SpyCall[] = [];
+//   const eventCalls: SpyCall[] = [];
+//   const identifyCalls: SpyCall[] = [];
+//   const readyCallbacks: Array<() => void> = [];
 
-  const api = {
-    name: 'spy',
-    onReady(cb: () => void) { readyCallbacks.push(cb); cb(); },
-    getState() { return { provider: 'ready', history: [] as any[] }; },
-    pageview: (...args: any[]) => { pageviewCalls.push({ args }); },
-    track: (...args: any[]) => { eventCalls.push({ args }); },
-    identify: (...args: any[]) => { identifyCalls.push({ args }); },
-    destroy: () => {},
-    _get() { return { pageviewCalls, eventCalls, identifyCalls }; },
-  };
-  return api;
-}
+//   const api = {
+//     name: 'spy',
+//     onReady(cb: () => void) { readyCallbacks.push(cb); cb(); },
+//     getState() { return { provider: 'ready', history: [] as any[] }; },
+//     pageview: (...args: any[]) => { pageviewCalls.push({ args }); },
+//     track: (...args: any[]) => { eventCalls.push({ args }); },
+//     identify: (...args: any[]) => { identifyCalls.push({ args }); },
+//     destroy: () => {},
+//     _get() { return { pageviewCalls, eventCalls, identifyCalls }; },
+//   };
+//   return api;
+// }
 
-function makeFacade(base?: Partial<Parameters<AnalyticsFacade['init']>[0]>) {
-  const f = new AnalyticsFacade();
-  f.init({
-    debug: true,
-    domains: ['localhost'],
-    consent: { initialStatus: 'granted', disablePersistence: true },
-    ...base,
-  });
-  return f;
-}
+// function makeFacade(base?: Partial<Parameters<AnalyticsFacade['init']>[0]>) {
+//   const f = new AnalyticsFacade();
+//   f.init({
+//     debug: true,
+//     domains: ['localhost'],
+//     consent: { initialStatus: 'granted', disablePersistence: true },
+//     ...base,
+//   });
+//   return f;
+// }
 
 describe('AnalyticsFacade policy gates', () => {
   beforeEach(() => {
@@ -42,7 +43,7 @@ describe('AnalyticsFacade policy gates', () => {
   it('respects DNT when doNotTrack=true (blocks sends, no queue)', async () => {
     Object.defineProperty(window.navigator, 'doNotTrack', { value: '1', configurable: true });
 
-    const facade = makeFacade({ doNotTrack: true });
+    const facade = createFacade({ doNotTrack: true });
     const spy = createSpyProvider();
     facade.setProvider(spy);
 
@@ -57,7 +58,7 @@ describe('AnalyticsFacade policy gates', () => {
   });
 
   it('blocks when trackLocalhost=false on localhost', async () => {
-    const facade = makeFacade({ trackLocalhost: false, doNotTrack: false });
+    const facade = createFacade({ trackLocalhost: false, doNotTrack: false });
     const spy = createSpyProvider();
     facade.setProvider(spy);
 
@@ -71,7 +72,7 @@ describe('AnalyticsFacade policy gates', () => {
   });
 
   it('domain allowlist blocks non-matching host', async () => {
-    const facade = makeFacade({ domains: ['example.com'], doNotTrack: false });
+    const facade = createFacade({ domains: ['example.com'], doNotTrack: false });
     const spy = createSpyProvider();
     facade.setProvider(spy);
 
@@ -82,7 +83,7 @@ describe('AnalyticsFacade policy gates', () => {
 
   it('exclude patterns block pageview for matching path', async () => {
     history.replaceState(null, '', '/admin/panel');
-    const facade = makeFacade({ exclude: ['/admin/*'], doNotTrack: false, domains: ['localhost'] });
+    const facade = createFacade({ exclude: ['/admin/*'], doNotTrack: false, domains: ['localhost'] });
     const spy = createSpyProvider();
     facade.setProvider(spy);
 
@@ -93,7 +94,7 @@ describe('AnalyticsFacade policy gates', () => {
 
   it('de-dupes consecutive identical pageviews', async () => {
     history.replaceState(null, '', '/same');
-    const facade = makeFacade({ doNotTrack: false, trackLocalhost: true, domains: ['localhost'] });
+    const facade = createFacade({ doNotTrack: false, trackLocalhost: true, domains: ['localhost'] });
     const spy = createSpyProvider();
     facade.setProvider(spy);
 

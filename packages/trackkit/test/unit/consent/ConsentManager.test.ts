@@ -164,29 +164,6 @@ describe('ConsentManager', () => {
     });
   });
 
-  describe('event counters', () => {
-    it('tracks queued events', () => {
-      const mgr = new ConsentManager();
-      
-      mgr.incrementQueued();
-      mgr.incrementQueued();
-      
-      const snapshot = mgr.snapshot();
-      expect(snapshot.queuedEvents).toBe(2);
-    });
-
-    it('tracks dropped events', () => {
-      const mgr = new ConsentManager();
-      
-      mgr.incrementDroppedDenied();
-      mgr.incrementDroppedDenied();
-      mgr.incrementDroppedDenied();
-      
-      const snapshot = mgr.snapshot();
-      expect(snapshot.droppedEventsDenied).toBe(3);
-    });
-  });
-
   describe('persistence', () => {
     it('does not write to storage on implicit promotion when disablePersistence=true', () => {
       const mgr = new ConsentManager({ requireExplicit: false, disablePersistence: true });
@@ -295,9 +272,6 @@ describe('ConsentManager', () => {
         requireExplicit: false,
       });
       
-      mgr.incrementQueued();
-      mgr.incrementQueued();
-      mgr.incrementDroppedDenied();
       mgr.grant();
 
       const snapshot = mgr.snapshot();
@@ -305,10 +279,7 @@ describe('ConsentManager', () => {
         status: 'granted',
         version: '2.0',
         method: 'implicit',
-        queuedEvents: 2,
-        droppedEventsDenied: 1,
       });
-      expect(snapshot.timestamp).toBeGreaterThan(0);
     });
   });
 });

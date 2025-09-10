@@ -2,6 +2,7 @@
 import { init } from '../../src';
 import { ConsentCategory } from '../../src/consent/types';
 import { DEFAULT_ERROR_HANDLER } from '../../src/constants';
+import { AnalyticsFacade } from '../../src/facade';
 import { StatefulProvider } from '../../src/providers/stateful-wrapper';
 import type { ProviderInstance } from '../../src/types';
 import type { InitOptions, PageContext } from '../../src/types';
@@ -56,8 +57,39 @@ export async function createStatefulMock() {
   return { stateful, provider };
 }
 
+type SpyCall = { args: any[]; ctx?: any };
+export function createSpyProvider() {
+  const pageviewCalls: SpyCall[] = [];
+  const eventCalls: SpyCall[] = [];
+  const identifyCalls: SpyCall[] = [];
+  const readyCallbacks: Array<() => void> = [];
 
-export async function createFacade(opts: Partial<InitOptions> = {}) {
+  const api = {
+    name: 'spy',
+    onReady(cb: () => void) { readyCallbacks.push(cb); cb(); },
+    getState() { return { provider: 'ready', history: [] as any[] }; },
+    pageview: (...args: any[]) => { pageviewCalls.push({ args }); },
+    track: (...args: any[]) => { eventCalls.push({ args }); },
+    identify: (...args: any[]) => { identifyCalls.push({ args }); },
+    destroy: () => {},
+    ready: () => { readyCallbacks.forEach(cb => cb()); readyCallbacks.length = 0; },
+    _get() { return { pageviewCalls, eventCalls, identifyCalls }; },
+  };
+  return api;
+}
+
+export function createFacade(base?: Partial<Parameters<AnalyticsFacade['init']>[0]>) {
+  const f = new AnalyticsFacade();
+  f.init({
+    debug: true,
+    domains: ['localhost'],
+    consent: { initialStatus: 'granted', disablePersistence: true },
+    ...base,
+  });
+  return f;
+}
+
+export async function createMockFacade(opts: Partial<InitOptions> = {}) {
   const { stateful, provider } = await createStatefulMock();
 
   const facade = await init({

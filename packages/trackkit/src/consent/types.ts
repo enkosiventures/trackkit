@@ -15,11 +15,6 @@ export interface ConsentStoredState {
   status: ConsentStatus;
   
   /**
-   * When consent was last updated
-   */
-  timestamp: number;
-  
-  /**
    * Optional consent version for policy updates
    */
   version?: string;
@@ -74,10 +69,10 @@ export interface ConsentOptions {
 /**
  * Snapshot of current consent state including queued events
  */
-export interface ConsentSnapshot extends ConsentStoredState {
-  queuedEvents: number;
-  droppedEventsDenied: number;
-}
+// export interface ConsentSnapshot extends ConsentStoredState {
+//   queuedEvents: number;
+//   droppedEventsDenied: number;
+// }
 
 export type Listener = (status: ConsentStatus, prev: ConsentStatus) => void;
 

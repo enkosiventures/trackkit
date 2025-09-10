@@ -2,6 +2,9 @@ import type { InitOptions, Props } from '../types';
 import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { AnalyticsFacade } from './index';
 import { ConsentCategory, ConsentStatus } from '../consent/types';
+import { isServer } from '../util/env';
+import { enqueueSSREvent } from '../util/ssr-queue';
+import { DEFAULT_CATEGORY } from '../constants';
 
 let instance: AnalyticsFacade | null = null;
 
@@ -26,26 +29,38 @@ export function getInstance() { return instance; }   // keep if you already expo
 export function getFacade()   { return instance; }   // nullable on purpose
 
 // -- events --
-export function track(name: string, props?: Props, category?: ConsentCategory) {
-  ensureInstance().track(name, props, category);
+export function track(name: string, props?: Props, category: ConsentCategory = DEFAULT_CATEGORY) {
+  if (isServer()) { 
+    enqueueSSREvent('track', [name, props], category);
+  } else {
+    ensureInstance().track(name, props, category);
+  }
 }
 
 export function pageview(url?: string) {
-  ensureInstance().pageview(url);
+  if (isServer()) {
+    enqueueSSREvent('pageview', url ? [url] : [], DEFAULT_CATEGORY);
+  } else {
+    ensureInstance().pageview(url);
+  }
 }
 
 export function identify(userId: string | null) {
-  ensureInstance().identify(userId);
+  if (isServer()) {
+    enqueueSSREvent('identify', [userId], 'essential');
+  } else {
+    ensureInstance().identify(userId);
+  }
 }
 
 // -- consent (facade is the single authority) --
 
 export function getConsent(): ConsentStatus | 'unknown' {
-  return instance?.getConsent() ?? 'unknown';
+  return ensureInstance().getConsent() ?? 'unknown';
 }
-export function grantConsent() { instance?.grantConsent(); }
-export function denyConsent()  { instance?.denyConsent(); }
-export function resetConsent() { instance?.resetConsent(); }
+export function grantConsent() { ensureInstance().grantConsent(); }
+export function denyConsent()  { ensureInstance().denyConsent(); }
+export function resetConsent() { ensureInstance().resetConsent(); }
 export function setConsent(status: ConsentStatus) {
   switch (status) {
     case 'granted':  grantConsent(); break;
@@ -56,13 +71,14 @@ export function setConsent(status: ConsentStatus) {
 // -- readiness / queue --
 
 export function hasQueuedEvents() {
-  return instance?.hasQueuedEvents() ?? false;
+  return ensureInstance().hasQueuedEvents() ?? false;
 }
 export function waitForReady(opts?: { timeoutMs?: number; mode?: 'tracking' | 'provider' }) {
-  return instance?.waitForReady(opts) ?? Promise.resolve();
+  const { mode = 'provider', timeoutMs } = opts ?? {};
+  return ensureInstance().waitForReady({ mode, timeoutMs });
 }
-export function flushIfReady() { return instance?.flushIfReady() ?? false; }
-export function getDiagnostics() { return instance?.getDiagnostics() ?? null; }
+export function flushIfReady() { return ensureInstance().flushIfReady() ?? false; }
+export function getDiagnostics() { return ensureInstance().getDiagnostics() ?? null; }
 
 // -- test-only provider injection (works pre- and post-init) --
 

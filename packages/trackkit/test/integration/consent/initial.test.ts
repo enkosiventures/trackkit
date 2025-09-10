@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createFacade } from '../../helpers/providers';
+import { createMockFacade } from '../../helpers/providers';
 import { grantConsent, destroy } from '../../../src';
 
 // Small tick helper to allow async callbacks/flushes to run
@@ -23,7 +23,7 @@ describe('Consent: initial state behavior', () => {
   });
 
   it("initial: 'denied' drops non-essential events (no queue), pageview & track blocked", async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       provider: 'noop',
       autoTrack: false,
       domains: ['localhost'],
@@ -56,7 +56,7 @@ describe('Consent: initial state behavior', () => {
   });
 
   it("initial: 'denied' allows essential only when allowEssentialOnDenied = true", async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       provider: 'noop',
       autoTrack: false,
       domains: ['localhost'],
@@ -89,7 +89,7 @@ describe('Consent: initial state behavior', () => {
   });
 
   it("initial: 'pending' queues & flushes on grant", async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       provider: 'noop',
       autoTrack: false,
       domains: ['localhost'],
@@ -117,7 +117,7 @@ describe('Consent: initial state behavior', () => {
   });
 
   it("initial: 'granted' sends immediately", async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       provider: 'noop',
       autoTrack: false,
       domains: ['localhost'],
@@ -145,7 +145,7 @@ describe('Consent: initial state behavior', () => {
   it('stored consent overrides initial (stored granted persists)', async () => {
     // First run: persist granted
     {
-      const { facade } = await createFacade({
+      const { facade } = await createMockFacade({
         provider: 'noop',
         autoTrack: false,
         domains: ['localhost'],
@@ -164,7 +164,7 @@ describe('Consent: initial state behavior', () => {
     }
 
     // Second run: initial denied but stored granted should win
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       provider: 'noop',
       autoTrack: false,
       domains: ['localhost'],
@@ -195,7 +195,7 @@ describe('Consent: initial state behavior', () => {
       );
     } catch {/* no-op */}
 
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       provider: 'noop',
       autoTrack: false,
       domains: ['localhost'],

@@ -1,16 +1,9 @@
 import type { PageContext } from "../../types";
+import { hasDOM } from "../../util/env";
 
-/**
- * Check if code is running in a browser environment
- */
-export function isBrowser(): boolean {
-  return typeof window !== 'undefined' && 
-         typeof window.document !== 'undefined' &&
-         typeof window.navigator !== 'undefined';
-}
 
-export function getDocumentTitle(): string | undefined { return isBrowser() ? document.title : undefined; }
-export function getInitialReferrer(): string | undefined { return isBrowser() ? document.referrer : undefined; }
+export function getDocumentTitle(): string | undefined { return hasDOM() ? document.title : undefined; }
+export function getInitialReferrer(): string | undefined { return hasDOM() ? document.referrer : undefined; }
 // export function getViewportSize(): { width: number; height: number } { return isBrowser() ? { width: window.innerWidth || 0, height: window.innerHeight || 0 } : { width: 0, height: 0 }; }
 // export function getScreenSize(): { width: number; height: number } { return isBrowser() ? { width: window.screen?.width || 0, height: window.screen?.height || 0 } : { width: 0, height: 0 }; }
 // export function getLanguage(): string { return isBrowser() ? navigator.language || navigator.languages?.[0] || 'en' : 'en'; }
@@ -72,7 +65,7 @@ export function getPageContext(url?: string): PageContext {
  * Get full page URL
  */
 export function getPageUrl(includeHash = false): string {
-  if (!isBrowser()) return '/';
+  if (!hasDOM()) return '/';
   
   const url = window.location.pathname + window.location.search + window.location.hash;
   return includeHash ? url : url.replace(/#.*$/, '');
@@ -82,7 +75,7 @@ export function getPageUrl(includeHash = false): string {
  * Parse URL to get clean pathname
  */
 export function getPathname(url?: string): string {
-  if (!url && isBrowser()) {
+  if (!url && hasDOM()) {
     return window.location.pathname;
   }
   
@@ -98,7 +91,7 @@ export function getPathname(url?: string): string {
  * Check if Do Not Track is enabled
  */
 export function isDoNotTrackEnabled(): boolean {
-  if (!isBrowser()) return false;
+  if (!hasDOM()) return false;
   
   const dnt = 
     (window as any).doNotTrack || 
@@ -113,7 +106,7 @@ export function isDoNotTrackEnabled(): boolean {
  */
 export function isDomainAllowed(allowedDomains?: string[]): boolean {
   if (!allowedDomains || allowedDomains.length === 0) return true;
-  if (!isBrowser()) return false;
+  if (!hasDOM()) return false;
   
   const hostname = window.location.hostname;
   
@@ -156,7 +149,7 @@ export function isUrlExcluded(url: string, excludePatterns?: string[]): boolean 
  * Check if running on localhost
  */
 export function isLocalhost(): boolean {
-  if (!isBrowser()) return false;
+  if (!hasDOM()) return false;
   
   const hostname = window.location.hostname;
   return hostname === 'localhost' || 
@@ -170,7 +163,7 @@ export function isLocalhost(): boolean {
  * Get document visibility state
  */
 export function isPageHidden(): boolean {
-  if (!isBrowser()) return false;
+  if (!hasDOM()) return false;
   return document.hidden || false;
 }
 
@@ -178,7 +171,7 @@ export function isPageHidden(): boolean {
  * Format screen resolution string
  */
 export function getScreenResolution(): string {
-  if (!isBrowser()) return '';
+  if (!hasDOM()) return '';
   return `${window.screen?.width || 0}x${window.screen?.height || 0}`;
 }
 

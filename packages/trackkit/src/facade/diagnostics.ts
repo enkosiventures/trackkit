@@ -2,9 +2,10 @@ import type { FacadeOptions } from '../types';
 import type { QueueService } from './queues';
 import type { ContextService } from './context';
 import type { ProviderManager } from './provider-manager';
-import { ConsentStatus } from '../consent/types';
+import { ConsentStatus, ConsentStoredState } from '../consent/types';
 import { ProviderState } from '../providers/types';
 import { ProviderStateHistory } from '../util/state';
+import { getSSRQueueLength } from '../util/ssr-queue';
 
 export interface ProviderStateSnapshot {
   provider: string | null;
@@ -13,7 +14,7 @@ export interface ProviderStateSnapshot {
 }
 
 export interface DiagnosticsSnapshot {
-  ts: number;
+  timestamp: number;
   instanceId: string;
   config: {
     debug?: boolean;
@@ -26,8 +27,9 @@ export interface DiagnosticsSnapshot {
     domains?: string[];
   };
   consent: {
-    status: ConsentStatus | 'unknown';
-    policyVersion?: string;
+    status?: ConsentStatus;
+    version?: string;
+    method?: string;
   };
   provider: {
     key: string | null;
@@ -36,6 +38,8 @@ export interface DiagnosticsSnapshot {
   };
   queue: {
     totalBuffered: number;   // SSR + facade
+    ssrQueueBuffered: number;
+    facadeQueueBuffered: number;
     capacity: number;
   };
   urls: {
@@ -49,8 +53,7 @@ export class DiagnosticsService {
     private id: string,
     private cfg: FacadeOptions,
     private consent: {
-      getStatus(): ConsentStatus | undefined;
-      getPolicyVersion?(): string | undefined;
+      snapshot(): ConsentStoredState | undefined;
     } | null,
     private queues: QueueService,
     private ctx: ContextService,
@@ -59,14 +62,13 @@ export class DiagnosticsService {
   ) {}
 
   getSnapshot(): DiagnosticsSnapshot {
-    const status = this.consent?.getStatus() ?? 'unknown';
     const capacity = this.cfg?.queueSize ?? 50;
 
     const p = this.provider.get();
     const providerSnapshot = typeof p?.getSnapshot === 'function' ? p!.getSnapshot() : { state: 'unknown' as ProviderState, history: [] as ProviderStateHistory };
 
     return {
-      ts: Date.now(),
+      timestamp: Date.now(),
       instanceId: this.id,
       config: {
         debug: this.cfg?.debug,
@@ -79,8 +81,7 @@ export class DiagnosticsService {
         domains: this.cfg?.domains,
       },
       consent: {
-        status,
-        policyVersion: this.consent?.getPolicyVersion?.(),
+        ...this.consent?.snapshot(),
       },
       provider: {
         key: this.providerKey,
@@ -88,6 +89,8 @@ export class DiagnosticsService {
       },
       queue: {
         totalBuffered: this.queues.size(),
+        ssrQueueBuffered: getSSRQueueLength(),
+        facadeQueueBuffered: this.queues.size() - getSSRQueueLength(),
         capacity,
       },
       urls: {

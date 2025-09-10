@@ -1,9 +1,9 @@
-import type { ConsentSnapshot, ConsentStatus } from './types';
+import type { ConsentStoredState } from './types';
 import { logger } from '../util/logger';
 import { getFacade } from '../facade/singleton';
 
 
-export function getConsent(): ConsentSnapshot | null {
+export function getConsent(): ConsentStoredState | null {
   return getFacade()?.getSnapshot() || null;
 }
 

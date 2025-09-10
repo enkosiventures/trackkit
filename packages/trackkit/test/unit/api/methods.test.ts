@@ -13,7 +13,7 @@ import {
   flushIfReady,
   destroy,
   hasQueuedEvents,
-} from '../../../src/methods';
+} from '../../../src';
 import { tick } from '../../helpers/core';
 
 describe('Public API wrappers', () => {
@@ -35,20 +35,21 @@ describe('Public API wrappers', () => {
     pageview();
 
     let diag = getDiagnostics();
-    expect(diag?.config.queueSize).toBe(2);
-    expect(await hasQueuedEvents()).toBe(true);
+    expect(diag?.queue.totalBuffered).toBe(2);
+    expect(hasQueuedEvents()).toBe(true);
 
     grantConsent();
 
     await tick(10);
     diag = getDiagnostics();
-    expect(diag?.config.queueSize).toBe(0);
+    expect(diag?.queue.totalBuffered).toBe(0);
   });
 
   it('denyConsent() drops new analytics events but allows identify (essential)', async () => {
     init({
       provider: 'noop',
       debug: true,
+      trackLocalhost: true,
       consent: { initialStatus: 'denied', disablePersistence: true, allowEssentialOnDenied: true },
       domains: ['localhost'],
     });
@@ -57,14 +58,15 @@ describe('Public API wrappers', () => {
     pageview();
     identify('user-1');
 
-    await flushIfReady(); // no-op but ok to call
+    // identify buffered as provider not ready
+    expect(getDiagnostics()?.queue.totalBuffered).toBe(1);
+    
+    await waitForReady();
 
-    // queue remains empty (non-essential dropped), identify executed immediately
+    // queue remains empty (non-essential dropped), identify executed when provider ready
     const consent = getConsent();
     expect(consent?.status).toBe('denied');
-
-    const diag = getDiagnostics();
-    expect(diag?.config.queueSize).toBe(0);
+    expect(getDiagnostics()?.queue.totalBuffered).toBe(0);
   });
 
   it('resetConsent() returns to pending', () => {
@@ -88,8 +90,7 @@ describe('Public API wrappers', () => {
       consent: { initialStatus: 'granted', disablePersistence: true },
       domains: ['localhost'],
     });
-    const p = await waitForReady();
-    expect(p).toBeTruthy();
+    await waitForReady();
   });
 
   it('identify() + destroy() do not throw via wrappers', async () => {

@@ -1,7 +1,7 @@
 import type { EventType, FacadeOptions, InitOptions, Props, ProviderOptions } from '../types';
 import { mergeConfig, validateConfig, getConsentConfig } from './config'; // existing
 import { ConsentManager } from '../consent/ConsentManager';               // existing
-import { ConsentCategory, ConsentSnapshot, ConsentStatus } from '../consent/types';
+import { ConsentCategory, ConsentStatus, ConsentStoredState } from '../consent/types';
 import { PolicyGate } from './policy-gate';
 import { ContextService } from './context';
 import { QueueService } from './queues';
@@ -10,11 +10,11 @@ import { NavigationService } from './navigation';
 import { Dispatcher } from '../dispatcher/dispatcher';
 import { logger, createLogger, setGlobalLogger } from '../util/logger';   // existing
 import { DEFAULT_CATEGORY, ESSENTIAL_CATEGORY } from '../constants';
-import { isSSR } from '../util/ssr-queue';
 import { AnalyticsError, setUserErrorHandler } from '../errors';
 import { DiagnosticsService } from './diagnostics';
 import { StatefulProvider } from '../providers/stateful-wrapper';
 import { EventQueue, QueuedEventUnion } from '../util/queue';
+import { isServer } from '../util/env';
 
 type Deferred<T> = { promise: Promise<T>; resolve: (v: T) => void; reject: (e: unknown) => void };
 function deferred<T = void>(): Deferred<T> {
@@ -23,6 +23,13 @@ function deferred<T = void>(): Deferred<T> {
   const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
   return { promise, resolve, reject };
 }
+
+/**
+ * Wraps a promise and rejects on timeout.
+ * - Resolves/rejects with the same value/error as `p` if it settles before the timer.
+ * - Rejects with the value returned by `onTimeout()` (or an AnalyticsError) if the timer wins.
+ * The resolved type is preserved (Promise<T> in, Promise<T> out).
+ */
 function withTimeout<T>(p: Promise<T>, ms?: number, onTimeout?: () => unknown): Promise<T> {
   if (!ms) return p;
   return new Promise<T>((resolve, reject) => {
@@ -54,7 +61,6 @@ export class AnalyticsFacade {
 
   private providerIsReady = false;
   private overflowNotified = false;
-  private forceQueue = true; // start queued until provider attached/ready
   private providerReady = deferred<void>();
   private trackingReady = deferred<void>();
   private policyReasonsNotified = new Set<string>();
@@ -95,7 +101,7 @@ export class AnalyticsFacade {
     this.consent?.onChange((to, from) => {
       logger.info('Consent changed', { from, to });
       if (to === 'granted') this.flushQueues();
-      if (to === 'denied')  this.queues.clearFacade();
+      if (to === 'denied')  this.consentDeniedFastFlush();
       this.maybeResolveReady(); // resolves tracking when provider already ready
     });
 
@@ -104,7 +110,6 @@ export class AnalyticsFacade {
       // @ts-ignore internal
       this.provider.inject(this._preInjectedProvider);
       this._preInjectedProvider = null;
-      this.forceQueue = false;
       this.providerIsReady = true;
       // this.maybeResolveReady();  // providerReady; trackingReady if consent resolved
     }
@@ -121,8 +126,10 @@ export class AnalyticsFacade {
   private async initialize(): Promise<void> {
     try {
       await this.provider.load();
+      console.warn('Provider loaded:', this.provider?.get()?.name);
       this.attachProviderReadyHandlers();
       console.warn('Initialized provider:', this.provider?.get()?.name);
+      this.handleEventsByConsentStatus();
     } catch (e) {
       // Try to recover by falling back to noop
       try {
@@ -163,7 +170,7 @@ export class AnalyticsFacade {
   getConsent(): ConsentStatus | 'unknown' {
     return this.consent?.getStatus() ?? 'unknown';
   }
-  getSnapshot(): ConsentSnapshot | null {
+  getSnapshot(): ConsentStoredState | null {
     return this.consent?.snapshot() || null;
   }
   grantConsent() { this.consent?.grant(); }
@@ -171,22 +178,146 @@ export class AnalyticsFacade {
   resetConsent() { this.consent?.reset?.(); }
 
   // Ready utilities
-  waitForReady(opts?: { timeoutMs?: number; mode?: 'tracking' | 'provider' }): Promise<void> {
-    const mode = opts?.mode ?? 'tracking';
-    const base = mode === 'provider' ? this.providerReady.promise : this.trackingReady.promise;
-    return withTimeout(base, opts?.timeoutMs, () => new AnalyticsError('Timed out waiting for ready', 'READY_TIMEOUT'));
+
+  /**
+   * Wait for the SDK to be ready.
+   *
+   * There are two notions of "ready":
+   * - "provider": the analytics provider has finished initializing (scripts loaded, SDK ready).
+   *               Consent state is ignored. Use this when you just need the plumbing up.
+   * - "tracking": the provider is ready AND the current policy gate allows sending analytics events
+   *               for the given consent category (defaults to "analytics"). I.e., consent is granted
+   *               (or otherwise allowed), DNT/domain gates pass, etc.
+   *
+   * By default we resolve for **provider** readiness because most callsites want “SDK initialized”
+   * semantics. Use `{ mode: 'tracking' }` when you explicitly need “can send analytics now”.
+   *
+   * Returns:
+   *   Promise<boolean> – resolves to `true` when the requested readiness is achieved;
+   *   rejects with an AnalyticsError('READY_TIMEOUT') if the timeout elapses first.
+   */
+  public waitForReady(opts?: { timeoutMs?: number; mode?: 'tracking' | 'provider' }): Promise<boolean> {
+    const mode = opts?.mode ?? 'provider';
+
+    // Snapshot current readiness
+    const providerReadyNow = !!this.isProviderReady();
+    const consent = this.consent?.getStatus?.() ?? 'pending';
+    const trackingReadyNow = providerReadyNow && consent === 'granted';
+
+    if ((mode === 'provider' && providerReadyNow) ||
+        (mode === 'tracking' && trackingReadyNow)) {
+      return Promise.resolve(true);
+    }
+
+    const p = new Promise<boolean>((resolve) => {
+      let done = () => { cleanup(); resolve(true); };
+      let cleaners: Array<() => void> = [];
+
+      // Provider readiness
+      if (!providerReadyNow && this.provider?.onReady) {
+        const off = this.provider.onReady(() => {
+          if (mode === 'provider') {
+            done();
+          } else {
+            // tracking: need consent granted too
+            const s = this.consent?.getStatus?.() ?? 'pending';
+            if (s === 'granted') done();
+          }
+        });
+        if (typeof off === 'function') cleaners.push(off);
+      }
+
+      // Consent changes (only relevant for tracking mode)
+      if (mode === 'tracking' && this.consent?.onChange) {
+        const offConsent = this.consent.onChange((s) => {
+          if (s === 'granted' && (this.isProviderReady() || providerReadyNow)) {
+            done();
+          }
+        });
+        if (typeof offConsent === 'function') cleaners.push(offConsent);
+      }
+
+      function cleanup() {
+        for (const off of cleaners) { try { off(); } catch {} }
+        cleaners = [];
+      }
+    });
+
+    return withTimeout(p, opts?.timeoutMs);
   }
 
   getQueueSize(): number { return this.queues?.size() ?? this.preInitBuffer.size; }
 
   hasQueuedEvents(): boolean { return this.getQueueSize() > 0; }
 
-  flushIfReady(): boolean {
-    if (this.isProviderReady() && this.consent?.getStatus() === 'granted') {
-      this.flushQueues();
-      return true;
+  /**
+   * Attempt to drain pending queues *if* conditions allow, and return how many
+   * events were processed (sent or dropped by policy).
+   *
+   * Behavior by state:
+   * - Provider NOT ready → no-op, returns 0.
+   * - No ConsentManager → treat as unrestricted; drain all queues; return count.
+   * - Consent = "granted" → drain all queues; return count.
+   * - Consent = "pending" → process only "essential" events; analytics remain queued; return count of essentials processed.
+   * - Consent = "denied"  → process only "essential" events if allowed by `allowEssentialOnDenied`;
+   *                         analytics events are cleared/dropped. The return value includes the number of
+   *                         essential events processed plus the number of analytics events dropped.
+   *
+   * Notes:
+   * - “Processed” == attempted (sent or dropped), so this number can be >0 even if delivery was blocked.
+   * - Safe and idempotent to call repeatedly.
+   *
+   * @returns {number} Number of events processed in this call.
+   */
+  // flushIfReady(): boolean {
+  //   if (this.isProviderReady() && this.consent?.getStatus() === 'granted') {
+  //     this.flushQueues();
+  //     return true;
+  //   }
+  //   return false;
+  // }
+
+  // flushIfReady(): number {
+  //   if (!this.providerIsReady) return 0;
+
+  //   const status = this.consent?.getStatus();
+
+  //   switch (status) {
+  //     // No consent manager → treat as granted
+  //     case 'granted': case undefined:
+  //       return this.flushQueues();
+
+  //     case 'denied':
+  //       return this.consentDeniedFastFlush();
+
+  //     case 'pending':
+  //       return this.flushQueues('execute-essential');
+
+  //     default:
+  //       return 0;
+  //   }
+  // }
+
+  flushIfReady(): number {
+    if (!this.providerIsReady) return 0;
+
+    const status = this.consent?.getStatus?.();
+
+    switch (status) {
+      case 'granted':
+      case undefined: // no consent manager => treat as granted
+        return this.executeQueuedEvents(this.queues.flushAll());
+
+      case 'pending':
+        // run essentials now; keep analytics queued
+        return this.executeQueuedEvents(this.queues.flushEssential());
+
+      case 'denied':
+        return this.consentDeniedFastFlush();
+
+      default:
+        return 0;
     }
-    return false;
   }
 
   getDiagnostics() { return this.diag.getSnapshot(); }
@@ -201,7 +332,6 @@ export class AnalyticsFacade {
     this.providerReady = deferred<void>();   // reset for next init
     this.trackingReady = deferred<void>();
     this.providerIsReady = false;
-    this.forceQueue = true;
   }
 
   // === Internals ===
@@ -209,19 +339,27 @@ export class AnalyticsFacade {
   private execute({ type, args = [], url, category = DEFAULT_CATEGORY }: { type: EventType; args?: unknown[]; url?: string; category?: ConsentCategory; }) {
     console.warn("Executing:", type, args, url, category)
     // If init() hasn’t run yet, we don’t have context/queues. Buffer per instance.
+
     if (!this.context) {
+      console.warn("Pre-init buffering:", type, args, url, category)
       const bufferedCtx = url ? { url: url as string } : undefined;
-      this.preInitBuffer.enqueue(type, args as any, category, bufferedCtx);
+      if (isServer() && type !== 'identify') {
+        console.warn("enqueueing:", args);
+        this.queues.enqueue(type, args as any, category, bufferedCtx); 
+      } else {
+        this.preInitBuffer.enqueue(type, args as any, category, bufferedCtx);
+      }
       return;
     }
 
     const resolvedUrl = this.context.normalizeUrl(url ?? this.context.resolveCurrentUrl());
     const ctx = this.context.buildPageContext(resolvedUrl, this.userId);
 
-    if (this.forceQueue) {
-      this.queues.enqueue(type, args as any, category, ctx);
-      return;
-    }
+    // if (this.forceQueue) {
+    //   console.warn("Forcing to queue:", type, args, url, category)
+    //   this.queues.enqueue(type, args as any, category, ctx);
+    //   return;
+    // }
 
     // if (type === 'pageview') {
     //   if (this.context.isDuplicatePageview(resolvedUrl)) {
@@ -231,10 +369,15 @@ export class AnalyticsFacade {
     //   this.context.markPlanned(resolvedUrl); // ensures immediate subsequent PVs are dropped
     // }
 
-    if (isSSR()) { this.queues.enqueue(type, args as any, category, ctx); return; }
+    if (isServer() && type !== 'identify') {
+      console.warn("SSR queueing:", type, args, url, category)
+      this.queues.enqueue(type, args as any, category, ctx); 
+      return;
+    }
     if (type === 'pageview' && this.context.isDuplicatePageview(resolvedUrl)) { logger.debug('duplicate pageview', { resolvedUrl }); return; }
 
     const decision = this.policy.shouldSend(type, category, resolvedUrl);
+    console.warn("Policy decision:", decision, type, args, url, category)
     const providerReady = this.isProviderReady();
 
     // if (decision.ok && providerReady) {
@@ -263,7 +406,8 @@ export class AnalyticsFacade {
     }
 
     const transient = !providerReady || decision.reason === 'consent-pending';
-    if (transient) {
+    if (transient && decision.reason !== 'consent-denied') {
+      console.warn("Transient queueing:", type, args, url, category, decision.reason)
       this.queues.enqueue(type, args as any, category, ctx);
       if (type === 'track' && decision.reason === 'consent-pending') this.consent?.promoteImplicitIfAllowed?.();
       return;
@@ -274,13 +418,39 @@ export class AnalyticsFacade {
 
   private drainPreInitBuffer() {
     const buffered = this.preInitBuffer.flush();
-    this.executeQueuedEvents(buffered);
+    return this.executeQueuedEvents(buffered);
   }
 
-  private flushQueues() {
-    const fac = this.queues.flushFacade();
-    const ssr = this.queues.flushSSR();
-    this.executeQueuedEvents([...ssr, ...fac]);
+  private flushQueues(policy: 'execute-all' | 'execute-essential' = 'execute-all'): number {
+    let events = this.queues.flushAll();
+    if (policy === 'execute-essential') {
+      events = events.filter(e => e.category === 'essential');
+    }
+    return this.executeQueuedEvents(events);
+  }
+
+  private consentDeniedFastFlush(): number {
+    const essentialsAllowed = this.consent?.isAllowed('essential') ?? false;
+
+    if (!essentialsAllowed) {
+      // nothing is allowed; drop all fast
+      return this.queues.clearAll();
+    }
+
+    // essentials allowed: execute essentials, then drop the rest
+    const processed = this.executeQueuedEvents(this.queues.flushEssential());
+    const dropped = this.queues.clearNonEssential();
+    return processed + dropped;
+  }
+
+  private handleEventsByConsentStatus() {
+    const status = this.consent?.getStatus();
+    if (status === 'granted') {
+      return this.flushQueues();
+    } else if (status === 'denied') {
+      return this.consentDeniedFastFlush();
+    } // else pending: do nothing
+    return 0;
   }
 
   private executeQueuedEvents(events: QueuedEventUnion[]) {
@@ -290,6 +460,7 @@ export class AnalyticsFacade {
       url: e.pageContext?.url,
       category: e.category,
     }));
+    return events.length;
   }
 
   private sendInitialPV() {
@@ -302,7 +473,6 @@ export class AnalyticsFacade {
   private maybeStartAutotrack() {
     if (!this.cfg?.autoTrack) return;
     this.nav.start((url) => {
-      if (!this.consent?.isAllowed(DEFAULT_CATEGORY)) return;
       this.execute({ type: 'pageview', url });
     });
   }
@@ -326,18 +496,40 @@ export class AnalyticsFacade {
     }
   }
 
+  // private attachProviderReadyHandlers() {
+  //   this.provider.onReady(() => {
+  //     this.forceQueue = false; // provider is safe to send to now
+  //     this.providerIsReady = true;
+  //     this.maybeResolveReady();
+  //     this.flushQueues();
+
+  //     if (this.consent?.getStatus() === 'granted') {
+  //       // this.flushQueues();
+  //       this.sendInitialPV();
+  //     }
+  //     // Consent onChange already flushes/drops & resolves ready when != pending
+  //     this.maybeStartAutotrack();
+  //   });
+  // }
+
   private attachProviderReadyHandlers() {
+    if (!this.provider?.onReady) return;
+
     this.provider.onReady(() => {
-      this.forceQueue = false; // provider is safe to send to now
+      // Provider is now safe to talk to
       this.providerIsReady = true;
+
+      // Kick any internal "ready" waiters
       this.maybeResolveReady();
 
-      if (this.consent?.getStatus() === 'granted') {
-        this.flushQueues();
-        this.sendInitialPV();
-      }
-      // Consent onChange already flushes/drops & resolves ready when != pending
+      // Enqueue initial PV now; PolicyGate decides send/queue/drop
+      if (this.cfg?.autoTrack) this.sendInitialPV();
+
+      // Start SPA listeners right away; PolicyGate will handle gating
       this.maybeStartAutotrack();
+
+      // Flush behavior depends on consent
+      this.flushIfReady();
     });
   }
 
@@ -401,7 +593,6 @@ export class AnalyticsFacade {
     console.warn('Setting provider:', p.name);
     if (this.provider) {
       this.provider?.inject(p);
-      this.forceQueue = false; // safe to send to the injected provider
       this.providerIsReady = true; 
       this.providerReady.resolve();
       if (this.isConsentResolved()) this.trackingReady.resolve();
@@ -410,7 +601,6 @@ export class AnalyticsFacade {
     // --- Pre-init injection path ---
     // Stash for init(); treat provider as ready for readiness purposes
     this._preInjectedProvider = p;
-    this.forceQueue = false;
     this.providerIsReady = true; 
     this.providerReady.resolve();
     if (this.isConsentResolved()) this.trackingReady.resolve();
@@ -425,4 +615,9 @@ export class AnalyticsFacade {
 
   /** @internal test-only */
   preInjectForTests(p: any) { this._preInjectedProvider = p; }
+
+  /** @internal test-only */
+  onConsentChange(cb: (status: ConsentStatus) => void): () => void {
+    return this.consent?.onChange(cb) ?? (() => {});
+  }
 }
