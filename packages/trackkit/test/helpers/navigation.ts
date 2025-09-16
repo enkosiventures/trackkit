@@ -1,4 +1,5 @@
 import type { NavigationSource } from '../../src/types';
+import { tick } from './core';
 
 export interface TestNavigationSource extends NavigationSource {
   /** Drive a URL change (unit tests only). */
@@ -27,6 +28,11 @@ export async function navigate(url: string) {
   // Many SPA routers / our sandbox may schedule a macrotask; yield once.
   await new Promise((r) => setTimeout(r, 0));
 }
+
+export const navigateWithTick = async (url: string) => {
+  await navigate(url);
+  await tick();
+};
 
 export function setPath(path: string) {
   window.history.pushState({}, '', path);

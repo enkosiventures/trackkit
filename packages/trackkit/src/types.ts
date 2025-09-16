@@ -2,6 +2,9 @@ import type { ConsentCategory, ConsentOptions } from './consent/types';
 import type { AnalyticsError } from './errors';
 
 
+export type AnalyticsMode = 'singleton' | 'factory';
+
+
 /**
  * Event properties - can be any JSON-serializable data
  */

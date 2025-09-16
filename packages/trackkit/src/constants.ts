@@ -7,6 +7,7 @@ export const STORAGE_KEY = '__trackkit_consent__';
 
 export const DEFAULT_PROVIDER: ProviderType = 'noop';
 export const DEFAULT_PROVIDER_OPTIONS: ProviderOptions = { provider: DEFAULT_PROVIDER }
+export const DEFAULT_PRE_INIT_BUFFER_SIZE = 50;
 export const DEFAULT_QUEUE_SIZE = 50;
 export const DEFAULT_BATCH_SIZE = 10;
 export const DEFAULT_BATCH_TIMEOUT = 1000;

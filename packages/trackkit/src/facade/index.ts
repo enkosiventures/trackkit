@@ -1,5 +1,5 @@
 import type { EventType, FacadeOptions, InitOptions, Props, ProviderOptions } from '../types';
-import { mergeConfig, validateConfig, getConsentConfig } from './config'; // existing
+import { mergeConfig, validateProviderConfig, getConsentConfig } from './config'; // existing
 import { ConsentManager } from '../consent/ConsentManager';               // existing
 import { ConsentCategory, ConsentStatus, ConsentStoredState } from '../consent/types';
 import { PolicyGate } from './policy-gate';
@@ -9,8 +9,8 @@ import { ProviderManager } from './provider-manager';
 import { NavigationService } from './navigation';
 import { Dispatcher } from '../dispatcher/dispatcher';
 import { logger, createLogger, setGlobalLogger } from '../util/logger';   // existing
-import { DEFAULT_CATEGORY, ESSENTIAL_CATEGORY } from '../constants';
-import { AnalyticsError, setUserErrorHandler } from '../errors';
+import { DEFAULT_CATEGORY, DEFAULT_PRE_INIT_BUFFER_SIZE, ESSENTIAL_CATEGORY } from '../constants';
+import { AnalyticsError, dispatchError, setUserErrorHandler } from '../errors';
 import { DiagnosticsService } from './diagnostics';
 import { StatefulProvider } from '../providers/stateful-wrapper';
 import { EventQueue, QueuedEventUnion } from '../util/queue';
@@ -68,7 +68,7 @@ export class AnalyticsFacade {
   private _preInjectedProvider: any | null = null;
 
   // Collect calls made before init() (when context/queues don’t exist yet)
-  private preInitBuffer: EventQueue = new EventQueue({ maxSize: 50 });
+  private preInitBuffer: EventQueue = new EventQueue({ maxSize: DEFAULT_PRE_INIT_BUFFER_SIZE });
 
   init(opts: InitOptions = {}): this {
     if (this.initPromise) return this;
@@ -78,24 +78,34 @@ export class AnalyticsFacade {
     this.pCfg = resolved.providerOptions;
 
     setGlobalLogger(createLogger(!!this.cfg?.debug));
+    logger.debug("Initializing analytics", { provider: this.pCfg.provider});
+
     setUserErrorHandler(this.cfg?.onError);
-    validateConfig(resolved);
+    // validateProviderConfig(resolved);
 
     this.context    = new ContextService(this.cfg!);
     this.queues     = new QueueService(this.cfg!, dropped => this.onOverflow(dropped.length));
-    this.consent    = new ConsentManager(getConsentConfig(this.cfg!, this.pCfg?.provider));
-    this.policy     = new PolicyGate(this.cfg!, this.consent, this.pCfg?.provider || 'noop');
-    this.provider   = new ProviderManager(this.pCfg!, this.cfg!);
+    // this.consent    = new ConsentManager(getConsentConfig(this.cfg!, this.pCfg?.provider));
+    // this.policy     = new PolicyGate(this.cfg!, this.consent, this.pCfg?.provider || 'noop');
+    // this.provider   = new ProviderManager(this.pCfg!, this.cfg!);
     this.nav        = new NavigationService();
     this.dispatcher = new Dispatcher();
-    this.diag       = new DiagnosticsService(
-      this.id, this.cfg!, this.consent as any, this.queues, this.context, this.provider, this.pCfg?.provider ?? null
-    );
+    // this.diag       = new DiagnosticsService(
+    //   this.id, this.cfg!, this.consent as any, this.queues, this.context, this.provider, this.pCfg?.provider ?? null
+    // );
 
     // Readiness (one-shot) + gate
     // this.providerReady = deferred<void>();
     // this.trackingReady = deferred<void>();
     // this.forceQueue    = true;
+
+    try {
+      validateProviderConfig(resolved);
+      this.setupProviderDependencies();
+    } catch (e) {
+      dispatchError(e, 'INVALID_CONFIG', this.pCfg?.provider ?? 'unknown');
+      this.setupFallbackNoopProvider();
+    }
 
     // Consent transitions — attach ONCE per init (not in initialize)
     this.consent?.onChange((to, from) => {
@@ -111,25 +121,29 @@ export class AnalyticsFacade {
       this.provider.inject(this._preInjectedProvider);
       this._preInjectedProvider = null;
       this.providerIsReady = true;
-      // this.maybeResolveReady();  // providerReady; trackingReady if consent resolved
     }
+
+    // Kick off provider load
+    this.initPromise = this.initialize().finally(() => (this.initPromise = null));
 
     this.drainPreInitBuffer();
 
     this.maybeResolveReady();
 
-    // Kick off provider load
-    this.initPromise = this.initialize().finally(() => (this.initPromise = null));
     return this;
   }
 
   private async initialize(): Promise<void> {
     try {
-      await this.provider.load();
-      console.warn('Provider loaded:', this.provider?.get()?.name);
+      // 1) Subscribe BEFORE load to avoid missing a sync “ready”
       this.attachProviderReadyHandlers();
-      console.warn('Initialized provider:', this.provider?.get()?.name);
-      this.handleEventsByConsentStatus();
+
+      // 2) If provider is already considered ready (e.g., noop),
+      //    this makes the ready promises resolve immediately.
+      this.maybeResolveReady(); // idempotent & safe
+
+      // 3) Kick off loading
+      await this.provider.load();
     } catch (e) {
       // Try to recover by falling back to noop
       try {
@@ -269,35 +283,6 @@ export class AnalyticsFacade {
    *
    * @returns {number} Number of events processed in this call.
    */
-  // flushIfReady(): boolean {
-  //   if (this.isProviderReady() && this.consent?.getStatus() === 'granted') {
-  //     this.flushQueues();
-  //     return true;
-  //   }
-  //   return false;
-  // }
-
-  // flushIfReady(): number {
-  //   if (!this.providerIsReady) return 0;
-
-  //   const status = this.consent?.getStatus();
-
-  //   switch (status) {
-  //     // No consent manager → treat as granted
-  //     case 'granted': case undefined:
-  //       return this.flushQueues();
-
-  //     case 'denied':
-  //       return this.consentDeniedFastFlush();
-
-  //     case 'pending':
-  //       return this.flushQueues('execute-essential');
-
-  //     default:
-  //       return 0;
-  //   }
-  // }
-
   flushIfReady(): number {
     if (!this.providerIsReady) return 0;
 
@@ -332,19 +317,18 @@ export class AnalyticsFacade {
     this.providerReady = deferred<void>();   // reset for next init
     this.trackingReady = deferred<void>();
     this.providerIsReady = false;
+    this._preInjectedProvider = null;
+    this.preInitBuffer = new EventQueue({ maxSize: DEFAULT_PRE_INIT_BUFFER_SIZE });
   }
 
   // === Internals ===
 
   private execute({ type, args = [], url, category = DEFAULT_CATEGORY }: { type: EventType; args?: unknown[]; url?: string; category?: ConsentCategory; }) {
-    console.warn("Executing:", type, args, url, category)
     // If init() hasn’t run yet, we don’t have context/queues. Buffer per instance.
 
     if (!this.context) {
-      console.warn("Pre-init buffering:", type, args, url, category)
       const bufferedCtx = url ? { url: url as string } : undefined;
       if (isServer() && type !== 'identify') {
-        console.warn("enqueueing:", args);
         this.queues.enqueue(type, args as any, category, bufferedCtx); 
       } else {
         this.preInitBuffer.enqueue(type, args as any, category, bufferedCtx);
@@ -370,14 +354,12 @@ export class AnalyticsFacade {
     // }
 
     if (isServer() && type !== 'identify') {
-      console.warn("SSR queueing:", type, args, url, category)
       this.queues.enqueue(type, args as any, category, ctx); 
       return;
     }
     if (type === 'pageview' && this.context.isDuplicatePageview(resolvedUrl)) { logger.debug('duplicate pageview', { resolvedUrl }); return; }
 
     const decision = this.policy.shouldSend(type, category, resolvedUrl);
-    console.warn("Policy decision:", decision, type, args, url, category)
     const providerReady = this.isProviderReady();
 
     // if (decision.ok && providerReady) {
@@ -407,7 +389,6 @@ export class AnalyticsFacade {
 
     const transient = !providerReady || decision.reason === 'consent-pending';
     if (transient && decision.reason !== 'consent-denied') {
-      console.warn("Transient queueing:", type, args, url, category, decision.reason)
       this.queues.enqueue(type, args as any, category, ctx);
       if (type === 'track' && decision.reason === 'consent-pending') this.consent?.promoteImplicitIfAllowed?.();
       return;
@@ -512,6 +493,15 @@ export class AnalyticsFacade {
   //   });
   // }
 
+  private setupProviderDependencies() {
+    this.consent    = new ConsentManager(getConsentConfig(this.cfg!, this.pCfg?.provider));
+    this.policy     = new PolicyGate(this.cfg!, this.consent, this.pCfg?.provider || 'noop');
+    this.provider   = new ProviderManager(this.pCfg!, this.cfg!);
+    this.diag       = new DiagnosticsService(
+      this.id, this.cfg!, this.consent as any, this.queues, this.context, this.provider, this.pCfg?.provider ?? null
+    );
+  }
+
   private attachProviderReadyHandlers() {
     if (!this.provider?.onReady) return;
 
@@ -573,13 +563,15 @@ export class AnalyticsFacade {
     } catch {}
   }
 
+  private setupFallbackNoopProvider() {
+    try { this.provider?.destroy(); } catch {}
+    this.pCfg = { provider: 'noop' } as any;
+    this.setupProviderDependencies();
+  }
+
   private async fallbackToNoop(error: unknown) {
     logger.warn('Invalid provider config – falling back to noop', { error });
-    try { this.provider?.destroy(); } catch {}
-
-    // Rebuild provider manager with noop options and wire the same handlers
-    this.pCfg = { provider: 'noop' } as any;
-    this.provider = new ProviderManager(this.pCfg, this.cfg);
+    this.setupFallbackNoopProvider();
     await this.provider.load();
     this.attachProviderReadyHandlers();
   }
@@ -590,7 +582,6 @@ export class AnalyticsFacade {
     // (no public export; tests can use // @ts-expect-error)
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    console.warn('Setting provider:', p.name);
     if (this.provider) {
       this.provider?.inject(p);
       this.providerIsReady = true; 
@@ -605,7 +596,6 @@ export class AnalyticsFacade {
     this.providerReady.resolve();
     if (this.isConsentResolved()) this.trackingReady.resolve();
     // NOTE: do NOT call maybeResolveReady() here, it still references the manager.
-    console.warn('Provider after set:', this.provider?.get()?.name);
   }
 
   /** @internal test-only */

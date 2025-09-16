@@ -1,12 +1,15 @@
 
-import { init } from '../../src';
-import { ConsentCategory } from '../../src/consent/types';
+import { createAnalytics, denyConsent, grantConsent, init } from '../../src';
+import { ConsentCategory, ConsentStatus } from '../../src/consent/types';
 import { DEFAULT_ERROR_HANDLER } from '../../src/constants';
 import { AnalyticsFacade } from '../../src/facade';
+import { injectProviderForTests, waitForReady } from '../../src/facade/singleton';
 import { StatefulProvider } from '../../src/providers/stateful-wrapper';
-import type { ProviderInstance } from '../../src/types';
+import type { AnalyticsMode, ProviderInstance } from '../../src/types';
 import type { InitOptions, PageContext } from '../../src/types';
 
+
+const DEFAULT_ANALYTICS_MODE: AnalyticsMode = 'factory';
 
 export class MockProvider implements ProviderInstance {
   name = 'mock';
@@ -21,7 +24,6 @@ export class MockProvider implements ProviderInstance {
   }
 
   pageview(pageContext?: PageContext): void {
-    console.warn('MockProvider pageview called with:', { pageContext });
     this.pageviewCalls.push(pageContext);
   }
 
@@ -30,7 +32,6 @@ export class MockProvider implements ProviderInstance {
     props?: Record<string, unknown>,
     pageContext?: PageContext
   ): void {
-    console.warn('MockProvider track called with:', { name, props, pageContext });
     this.eventCalls.push({ name, props, pageContext });
   }
 
@@ -92,7 +93,7 @@ export function createFacade(base?: Partial<Parameters<AnalyticsFacade['init']>[
 export async function createMockFacade(opts: Partial<InitOptions> = {}) {
   const { stateful, provider } = await createStatefulMock();
 
-  const facade = await init({
+  const facade = init({
     autoTrack: true,
     domains: ['localhost'],
     trackLocalhost: true,
@@ -103,4 +104,53 @@ export async function createMockFacade(opts: Partial<InitOptions> = {}) {
   // Attach stub provider (adapt if your facade builds it internally)
   facade.setProvider(stateful);
   return { facade, provider };
+}
+
+export async function setupAnalytics(
+  opts?: Partial<InitOptions>,
+  config?: {
+    mode?: AnalyticsMode;
+    setConsent?: ConsentStatus;
+    withMockProvider?: boolean;
+  }
+): Promise<{ facade?: AnalyticsFacade; provider?: MockProvider }> {
+  let facade;
+  let mockProvider;
+  const mode = config?.mode ?? DEFAULT_ANALYTICS_MODE;
+  const setConsent = config?.setConsent;
+  const withMockProvider = config?.withMockProvider ?? true;
+  const options = opts ? opts : {
+    autoTrack: true,
+    trackLocalhost: true,
+    domains: ['localhost'],
+    consent: { disablePersistence: true },
+  };
+
+  if (mode === 'factory') {
+    facade = createAnalytics();
+    if (withMockProvider) {
+    const { stateful, provider } = await createStatefulMock();
+      facade.setProvider(stateful);
+      mockProvider = provider;
+    }
+    facade.init(options);
+
+  } else {
+    if (withMockProvider) {
+      const { stateful, provider } = await createStatefulMock();
+      injectProviderForTests(stateful);
+      mockProvider = provider;
+    }
+
+    init(options);
+  }
+
+  if (setConsent === 'granted' || setConsent === 'denied') {
+    setConsent === 'granted' ?
+      mode === 'factory' ? facade!.grantConsent() : grantConsent() :
+      mode === 'factory' ? facade!.denyConsent() : denyConsent();
+    await (mode == 'factory' ? facade?.waitForReady() : waitForReady());
+  }
+
+  return { facade, provider: mockProvider };
 }

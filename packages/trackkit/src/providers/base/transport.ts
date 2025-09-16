@@ -56,7 +56,6 @@ export async function send(req: TransportRequest): Promise<Response> {
 
   // Decide final URL: add ?cache=... for GET or when we intend to use beacon.
   // Note: if we later fall back from beacon→fetch due to size, the query param is harmless.
-  console.warn('Want beacon:', wantBeacon, 'bustCache:', bustCache, 'method:', method);
   const finalUrl =
     bustCache && (method === 'GET' || wantBeacon) ? appendCacheParam(url) : url;
 

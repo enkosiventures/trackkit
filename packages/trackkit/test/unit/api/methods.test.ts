@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   init,
   track,
@@ -14,19 +14,22 @@ import {
   destroy,
   hasQueuedEvents,
 } from '../../../src';
-import { tick } from '../../helpers/core';
+import { resetTests, tick } from '../../helpers/core';
 
 describe('Public API wrappers', () => {
   beforeEach(() => {
-    // clean up any previous instance
-    try { destroy(); } catch {/* no-op */}
+    resetTests();
   });
+
+  afterEach(() => {
+    resetTests();
+  })
 
   it('init() + pending consent queues, then grant flushes', async () => {
     init({
       provider: 'noop',
       debug: true,
-      consent: { initialStatus: 'pending', disablePersistence: true },
+      consent: { disablePersistence: true },
       queueSize: 10,
       domains: ['localhost'],
     });

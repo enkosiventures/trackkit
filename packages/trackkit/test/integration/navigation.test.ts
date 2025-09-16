@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createMockFacade } from '../helpers/providers';
+import { describe, it, expect, beforeEach, afterEach, assert } from 'vitest';
+import { setupAnalytics } from '../helpers/providers';
 import { navigate } from '../helpers/navigation';
-import { grantConsent, destroy } from '../../src';
+import { destroy, AnalyticsMode } from '../../src';
 
 describe('Integration: real history + sandbox', () => {
   beforeEach(() => {
@@ -13,128 +13,141 @@ describe('Integration: real history + sandbox', () => {
     destroy();
   });
 
-  it('fires an initial pageview after consent with autoTrack', async () => {
-    const { facade, provider } = await createMockFacade({
-      autoTrack: true,
-      domains: ['localhost'],
+  (['factory', 'singleton'] as AnalyticsMode[]).forEach(mode => {
+
+    it(`${mode} fires an initial pageview after consent with autoTrack`, async () => {
+      const { provider } = await setupAnalytics({
+        autoTrack: true,
+        trackLocalhost: true,
+        domains: ['localhost'],
+      }, {
+        mode,
+        setConsent: 'granted',
+      });
+
+      // initial route “/”
+      expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/']);
     });
 
-    await facade.init?.();
-    grantConsent();
+    it(`${mode} emits exactly once on pushState (no double-fire)`, async () => {
+      const { provider } = await setupAnalytics({
+        autoTrack: true,
+        trackLocalhost: true,
+        domains: ['localhost'],
+      }, {
+        mode,
+        setConsent: 'granted',
+      });
 
-    // initial route “/”
-    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/']);
-  });
+      await navigate('/x');
+      expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/', '/x']);
 
-  it('emits exactly once on pushState (no double-fire)', async () => {
-    const { facade, provider } = await createMockFacade({
-      autoTrack: true,
-      domains: ['localhost'],
-    });
-    await facade.init?.();
-    grantConsent();
-    provider.pageviewCalls.length = 0;
-
-    await navigate('/x');
-    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/x']);
-
-    // navigating to the same URL should not add another pageview
-    await navigate('/x');
-    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/x']);
-  });
-
-  it('handles popstate (back/forward)', async () => {
-    const { facade, provider } = await createMockFacade({
-      autoTrack: true,
-      domains: ['localhost'],
-    });
-    await facade.init?.();
-    grantConsent();
-
-    // drop the initial “/”
-    provider.pageviewCalls.length = 0;
-
-    // /a then /b
-    await navigate('/a');
-    await navigate('/b');
-
-    // back -> /a (manual popstate)
-    await navigate('/a');
-    window.dispatchEvent(new PopStateEvent('popstate'));
-    await new Promise(r => setTimeout(r, 0));
-
-    // forward -> /b (manual popstate)
-    await navigate('/b');
-    window.dispatchEvent(new PopStateEvent('popstate'));
-    await new Promise(r => setTimeout(r, 0));
-
-    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/a', '/b', '/a', '/b']);
-  });
-
-  it('respects `exclude` patterns (no emission for excluded paths)', async () => {
-    const { facade, provider } = await createMockFacade({
-      autoTrack: true,
-      domains: ['localhost'],
-      exclude: ['/private/*', '/admin'],
+      // navigating to the same URL should not add another pageview
+      await navigate('/x');
+      expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/', '/x']);
     });
 
-    await facade.init?.();
-    grantConsent();
-    provider.pageviewCalls.length = 0;
+    it(`${mode} handles popstate (back/forward)`, async () => {
+      const { provider } = await setupAnalytics({
+        autoTrack: true,
+        trackLocalhost: true,
+        domains: ['localhost'],
+      }, {
+        mode,
+        setConsent: 'granted',
+      });
 
-    await navigate('/private/area');
-    await navigate('/admin');
-    await navigate('/public');
+      // /a then /b
+      await navigate('/a');
+      await navigate('/b');
 
-    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/public']);
-  });
+      // back -> /a (manual popstate)
+      await navigate('/a');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      await new Promise(r => setTimeout(r, 0));
 
-  it('respects domain allowlist (no emission on non-matching host)', async () => {
-    const { facade, provider } = await createMockFacade({
-      autoTrack: true,
-      domains: ['example.com'], // does not include localhost
+      // forward -> /b (manual popstate)
+      await navigate('/b');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      await new Promise(r => setTimeout(r, 0));
+
+      expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/', '/a', '/b', '/a', '/b']);
     });
-    await facade.init?.();
-    grantConsent();
 
-    provider.pageviewCalls.length = 0;
+    it(`${mode} respects \`exclude\` patterns (no emission for excluded paths)`, async () => {
+      const { provider } = await setupAnalytics({
+        autoTrack: true,
+        trackLocalhost: true,
+        domains: ['localhost'],
+        exclude: ['/private/*', '/admin'],
+      }, {
+        mode,
+        setConsent: 'granted',
+      });
 
-    await navigate('/somewhere');
-    expect(provider.pageviewCalls.length).toBe(0);
-  });
+      await navigate('/private/area');
+      await navigate('/admin');
+      await navigate('/public');
 
-  it('includes hash in URL when `includeHash: true`', async () => {
-    const { facade, provider } = await createMockFacade({
-      autoTrack: true,
-      domains: ['localhost'],
-      includeHash: true,
+      expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/', '/public']);
     });
-    await facade.init?.();
-    grantConsent();
 
-    provider.pageviewCalls.length = 0;
+    it(`${mode} respects domain allowlist (no emission on non-matching host)`, async () => {
+      const { provider } = await setupAnalytics({
+        autoTrack: true,
+        trackLocalhost: true,
+        domains: ['example.com'], // does not include localhost
+      }, {
+        mode,
+        setConsent: 'granted',
+      });
 
-    // push a hash-only change
-    window.location.hash = '#tab-2';
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
-    await new Promise(r => setTimeout(r, 0));
+      assert(provider);
 
-    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/#tab-2']);
-  });
+      provider.pageviewCalls.length = 0;
 
-  it('unsubscribes listeners on destroy()', async () => {
-    const { facade, provider } = await createMockFacade({
-      autoTrack: true,
-      domains: ['localhost'],
+      await navigate('/somewhere');
+      expect(provider.pageviewCalls.length).toBe(0);
+
     });
-    await facade.init?.();
-    grantConsent();
 
-    provider.pageviewCalls.length = 0;
+    it(`${mode} includes hash in URL when \`includeHash: true\``, async () => {
+      const { provider } = await setupAnalytics({
+        autoTrack: true,
+        trackLocalhost: true,
+        domains: ['localhost'],
+        includeHash: true,
+      }, {
+        mode,
+        setConsent: 'granted',
+      });
 
-    destroy(); // should remove navigation listeners
+      // push a hash-only change
+      window.location.hash = '#tab-2';
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      await new Promise(r => setTimeout(r, 0));
 
-    await navigate('/after-destroy');
-    expect(provider.pageviewCalls.length).toBe(0);
+      expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/', '/#tab-2']);
+    });
+
+    it(`${mode} unsubscribes listeners on destroy()`, async () => {
+      const { facade, provider } = await setupAnalytics({
+        autoTrack: true,
+        domains: ['localhost'],
+      }, {
+        mode,
+        setConsent: 'granted',
+      });
+
+      // remove navigation listeners
+      if (mode === 'factory') {
+        facade?.destroy();
+      } else {
+        destroy(); 
+      }
+
+      await navigate('/after-destroy');
+      expect(provider?.pageviewCalls.length).toBe(0);
+    });
   });
 });

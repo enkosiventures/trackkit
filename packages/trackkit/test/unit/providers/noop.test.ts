@@ -2,17 +2,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import noopProvider from '../../../src/providers/noop';
 import { init, waitForReady, grantConsent, destroy, track, PageContext } from '../../../src';
+import { resetTests } from '../../helpers/core';
 
 describe('No-op Provider', () => {
   beforeEach(() => {
-    destroy();
-    vi.clearAllMocks();
-    window.history.replaceState({}, '', '/');
+    // destroy();
+    // vi.clearAllMocks();
+    // window.history.replaceState({}, '', '/');
+    resetTests(vi);
   });
 
   afterEach(() => {
-    destroy();
-    vi.clearAllMocks();
+    // destroy();
+    // vi.clearAllMocks();
+    resetTests(vi);
   });
 
   it('implements all required methods', () => {
@@ -46,7 +49,7 @@ describe('No-op Provider', () => {
   it('logs method calls in debug mode via facade flow', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
-    init({ debug: true, trackLocalhost: true });
+    init({ debug: true, trackLocalhost: true, consent: { disablePersistence: true }});
     await waitForReady();
     grantConsent();
 
@@ -78,7 +81,7 @@ describe('No-op Provider', () => {
   });
 
   it('identify and pageview flow through facade to provider', async () => {
-    init({ debug: false, trackLocalhost: true });
+    init({ debug: false, trackLocalhost: true, consent: { disablePersistence: true }});
     await waitForReady();
     grantConsent();
 

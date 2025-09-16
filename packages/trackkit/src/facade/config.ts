@@ -1,6 +1,6 @@
 import { readEnvConfig } from '../util/env';
 import { getProviderMetadata } from '../providers/metadata';
-import { AnalyticsError } from '../errors';
+import { AnalyticsError, dispatchError } from '../errors';
 import type { FacadeOptions, InitOptions, ProviderOptions, ProviderType, ResolvedOptions } from '../types';
 import { DEFAULT_BATCH_SIZE, DEFAULT_BATCH_TIMEOUT, DEFAULT_CACHING, DEFAULT_ERROR_HANDLER, DEFAULT_QUEUE_SIZE } from '../constants';
 import { logger } from '../util/logger';
@@ -73,7 +73,7 @@ export function mergeConfig(userOptions: InitOptions): ResolvedOptions {
   return { facadeOptions, providerOptions };
 }
 
-export function validateConfig({ providerOptions }: ResolvedOptions): void {
+export function validateProviderConfig({ providerOptions }: ResolvedOptions): void {
   const { provider, site } = providerOptions;
 
   let field;

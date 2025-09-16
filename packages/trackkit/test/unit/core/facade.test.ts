@@ -12,7 +12,7 @@ import {
   hasQueuedEvents,
   flushIfReady,
 } from '../../../src';
-import { createStatefulMock } from '../../helpers/providers';
+import { setupAnalytics, createStatefulMock } from '../../helpers/providers';
 import { injectProviderForTests } from '../../../src/facade/singleton';
 // import { getFacade } from '../../../src/facade/singleton';
 
@@ -66,19 +66,14 @@ describe('Trackkit Facade (core API)', () => {
       pageview(); // also queues
       expect(hasQueuedEvents()).toBe(true);
 
-      const { stateful, provider } = await createStatefulMock();
-      injectProviderForTests(stateful);
-
-      // Init and attach a mock provider so we can assert deliveries
-      init({
+      const { facade, provider } = await setupAnalytics({
         autoTrack: false,
         trackLocalhost: true,
         domains: ['localhost'],
         doNotTrack: false,
         consent: { disablePersistence: true, initialStatus: 'pending' },
-      });
+      }, { mode: 'singleton' });
 
-      const facade = getFacade();
       console.warn('Facade provider after init:', facade?.getProvider()?.name);
 
       // Still queued until consent granted
@@ -92,11 +87,11 @@ describe('Trackkit Facade (core API)', () => {
       await flushIfReady();
       await new Promise(r => setTimeout(r, 30));
 
-      console.warn('Current provider:', provider.name);
+      console.warn('Current provider:', provider?.name);
       console.warn('Facade provider:', facade?.getProvider()?.name);
 
-      expect(provider.eventCalls.map(e => e.name)).toEqual(['early_event']);
-      expect(provider.pageviewCalls.length).toBe(1);
+      expect(provider?.eventCalls.map(e => e.name)).toEqual(['early_event']);
+      expect(provider?.pageviewCalls.length).toBe(1);
     });
 
     it('drops queued events when consent is denied', async () => {
@@ -104,21 +99,22 @@ describe('Trackkit Facade (core API)', () => {
       track('will_be_dropped');
       pageview();
 
-      init({
+      const { provider } = await setupAnalytics({
         autoTrack: false,
         trackLocalhost: true,
+        domains: ['localhost'],
+        doNotTrack: false,
         consent: { disablePersistence: true, initialStatus: 'pending' },
+      }, { 
+        mode: 'singleton',
+        setConsent: 'denied',
       });
-      const { stateful, provider } = await createStatefulMock();
-      injectProviderForTests(stateful);
-      denyConsent(); // policy: drop queued analytics
 
-      await waitForReady();
       await flushIfReady();
       await new Promise(r => setTimeout(r, 30));
 
-      expect(provider.eventCalls.length).toBe(0);
-      expect(provider.pageviewCalls.length).toBe(0);
+      expect(provider?.eventCalls.length).toBe(0);
+      expect(provider?.pageviewCalls.length).toBe(0);
     });
   });
 
@@ -130,21 +126,20 @@ describe('Trackkit Facade (core API)', () => {
     });
 
     it('delegates to the facade after initialization', async () => {
-      init({ autoTrack: false, trackLocalhost: true, consent: { disablePersistence: true, initialStatus: 'granted' } });
-      const { stateful, provider } = await createStatefulMock();
-      injectProviderForTests(stateful);
+      const { provider } = await setupAnalytics({
+        autoTrack: false,
+        trackLocalhost: true,
+        consent: { disablePersistence: true, initialStatus: 'granted' },
+      }, { mode: 'singleton' });
 
-      await waitForReady();
       track('delegated_event', { value: 42 });
       pageview();
       identify('abc');
 
-      await new Promise(r => setTimeout(r, 20));
-
-      expect(provider.eventCalls.map(e => e.name)).toContain('delegated_event');
-      expect(provider.pageviewCalls.length).toBeGreaterThanOrEqual(1);
+      expect(provider?.eventCalls.map(e => e.name)).toContain('delegated_event');
+      expect(provider?.pageviewCalls.length).toBeGreaterThanOrEqual(1);
       // identify payload shape depends on the mock; at least assert it was called:
-      expect(provider.identifyCalls.length).toBeGreaterThan(0);
+      expect(provider?.identifyCalls.length).toBeGreaterThan(0);
     });
   });
 
