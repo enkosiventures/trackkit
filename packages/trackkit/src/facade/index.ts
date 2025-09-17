@@ -16,14 +16,6 @@ import { StatefulProvider } from '../providers/stateful-wrapper';
 import { EventQueue, QueuedEventUnion } from '../util/queue';
 import { isServer } from '../util/env';
 
-type Deferred<T> = { promise: Promise<T>; resolve: (v: T) => void; reject: (e: unknown) => void };
-function deferred<T = void>(): Deferred<T> {
-  let resolve!: (v: T) => void;
-  let reject!: (e: unknown) => void;
-  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
-  return { promise, resolve, reject };
-}
-
 /**
  * Wraps a promise and rejects on timeout.
  * - Resolves/rejects with the same value/error as `p` if it settles before the timer.
@@ -61,8 +53,6 @@ export class AnalyticsFacade {
 
   private providerIsReady = false;
   private overflowNotified = false;
-  private providerReady = deferred<void>();
-  private trackingReady = deferred<void>();
   private policyReasonsNotified = new Set<string>();
 
   private _preInjectedProvider: any | null = null;
@@ -81,23 +71,11 @@ export class AnalyticsFacade {
     logger.debug("Initializing analytics", { provider: this.pCfg.provider});
 
     setUserErrorHandler(this.cfg?.onError);
-    // validateProviderConfig(resolved);
 
     this.context    = new ContextService(this.cfg!);
     this.queues     = new QueueService(this.cfg!, dropped => this.onOverflow(dropped.length));
-    // this.consent    = new ConsentManager(getConsentConfig(this.cfg!, this.pCfg?.provider));
-    // this.policy     = new PolicyGate(this.cfg!, this.consent, this.pCfg?.provider || 'noop');
-    // this.provider   = new ProviderManager(this.pCfg!, this.cfg!);
     this.nav        = new NavigationService();
     this.dispatcher = new Dispatcher();
-    // this.diag       = new DiagnosticsService(
-    //   this.id, this.cfg!, this.consent as any, this.queues, this.context, this.provider, this.pCfg?.provider ?? null
-    // );
-
-    // Readiness (one-shot) + gate
-    // this.providerReady = deferred<void>();
-    // this.trackingReady = deferred<void>();
-    // this.forceQueue    = true;
 
     try {
       validateProviderConfig(resolved);
@@ -112,7 +90,6 @@ export class AnalyticsFacade {
       logger.info('Consent changed', { from, to });
       if (to === 'granted') this.flushQueues();
       if (to === 'denied')  this.consentDeniedFastFlush();
-      this.maybeResolveReady(); // resolves tracking when provider already ready
     });
 
     // If a test stashed a provider, inject it BEFORE load starts
@@ -128,21 +105,12 @@ export class AnalyticsFacade {
 
     this.drainPreInitBuffer();
 
-    this.maybeResolveReady();
-
     return this;
   }
 
   private async initialize(): Promise<void> {
     try {
-      // 1) Subscribe BEFORE load to avoid missing a sync “ready”
       this.attachProviderReadyHandlers();
-
-      // 2) If provider is already considered ready (e.g., noop),
-      //    this makes the ready promises resolve immediately.
-      this.maybeResolveReady(); // idempotent & safe
-
-      // 3) Kick off loading
       await this.provider.load();
     } catch (e) {
       // Try to recover by falling back to noop
@@ -150,8 +118,6 @@ export class AnalyticsFacade {
         await this.fallbackToNoop(e);
       } catch (fallbackErr) {
         // Hard failure: make waiters fail fast
-        this.providerReady.reject(fallbackErr);
-        this.trackingReady.reject(fallbackErr);
         this.cfg?.onError?.(
           new AnalyticsError(
             'Initialization failure',
@@ -314,8 +280,6 @@ export class AnalyticsFacade {
     this.queues.clearAll();
     this.context.reset();
     setUserErrorHandler(null);
-    this.providerReady = deferred<void>();   // reset for next init
-    this.trackingReady = deferred<void>();
     this.providerIsReady = false;
     this._preInjectedProvider = null;
     this.preInitBuffer = new EventQueue({ maxSize: DEFAULT_PRE_INIT_BUFFER_SIZE });
@@ -334,20 +298,6 @@ export class AnalyticsFacade {
 
     const resolvedUrl = this.context.normalizeUrl(url ?? this.context.resolveCurrentUrl());
     const ctx = this.context.buildPageContext(resolvedUrl, this.userId);
-
-    // if (this.forceQueue) {
-    //   console.warn("Forcing to queue:", type, args, url, category)
-    //   this.queues.enqueue(type, args as any, category, ctx);
-    //   return;
-    // }
-
-    // if (type === 'pageview') {
-    //   if (this.context.isDuplicatePageview(resolvedUrl)) {
-    //     logger.debug('duplicate pageview', { resolvedUrl });
-    //     return;
-    //   }
-    //   this.context.markPlanned(resolvedUrl); // ensures immediate subsequent PVs are dropped
-    // }
 
     if (isServer() && type !== 'identify') {
       this.queues.enqueue(type, args as any, category, ctx); 
@@ -456,16 +406,6 @@ export class AnalyticsFacade {
     return s === 'granted' || s === 'denied';
   }
 
-  private maybeResolveReady() {
-    // Idempotent: resolving an already-resolved deferred is a no-op
-    if (this.isProviderReady()) {
-      this.providerReady.resolve();
-    }
-    if (this.isProviderReady() && this.isConsentResolved()) {
-      this.trackingReady.resolve();
-    }
-  }
-
   private setupProviderDependencies() {
     this.consent    = new ConsentManager(getConsentConfig(this.cfg!, this.pCfg?.provider));
     this.policy     = new PolicyGate(this.cfg!, this.consent, this.pCfg?.provider || 'noop');
@@ -481,9 +421,6 @@ export class AnalyticsFacade {
     this.provider.onReady(() => {
       // Provider is now safe to talk to
       this.providerIsReady = true;
-
-      // Kick any internal "ready" waiters
-      this.maybeResolveReady();
 
       // Enqueue initial PV now; PolicyGate decides send/queue/drop
       if (this.cfg?.autoTrack) this.sendInitialPV();
@@ -558,17 +495,12 @@ export class AnalyticsFacade {
     if (this.provider) {
       this.provider?.inject(p);
       this.providerIsReady = true; 
-      this.providerReady.resolve();
-      if (this.isConsentResolved()) this.trackingReady.resolve();
     }
 
     // --- Pre-init injection path ---
     // Stash for init(); treat provider as ready for readiness purposes
     this._preInjectedProvider = p;
     this.providerIsReady = true; 
-    this.providerReady.resolve();
-    if (this.isConsentResolved()) this.trackingReady.resolve();
-    // NOTE: do NOT call maybeResolveReady() here, it still references the manager.
   }
 
   /** @internal test-only */
