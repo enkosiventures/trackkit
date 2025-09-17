@@ -328,11 +328,7 @@ export class AnalyticsFacade {
 
     if (!this.context) {
       const bufferedCtx = url ? { url: url as string } : undefined;
-      if (isServer() && type !== 'identify') {
-        this.queues.enqueue(type, args as any, category, bufferedCtx); 
-      } else {
-        this.preInitBuffer.enqueue(type, args as any, category, bufferedCtx);
-      }
+      this.preInitBuffer.enqueue(type, args as any, category, bufferedCtx);
       return;
     }
 
@@ -362,13 +358,6 @@ export class AnalyticsFacade {
     const decision = this.policy.shouldSend(type, category, resolvedUrl);
     const providerReady = this.isProviderReady();
 
-    // if (decision.ok && providerReady) {
-    //   const run = () => this.provider.call(type, args, ctx);
-    //   this.dispatcher.enqueue({ id: `d_${Date.now()}_${Math.random()}`, type, run }).then(() => {
-    //     if (type === 'pageview') this.context.markSent(resolvedUrl);
-    //   }).catch(err => this.signalProviderError(type, err));
-    //   return;
-    // }
     if (decision.ok && providerReady) {
       if (type === 'pageview') {
         if (this.context.isDuplicatePageview(resolvedUrl)) {
@@ -476,22 +465,6 @@ export class AnalyticsFacade {
       this.trackingReady.resolve();
     }
   }
-
-  // private attachProviderReadyHandlers() {
-  //   this.provider.onReady(() => {
-  //     this.forceQueue = false; // provider is safe to send to now
-  //     this.providerIsReady = true;
-  //     this.maybeResolveReady();
-  //     this.flushQueues();
-
-  //     if (this.consent?.getStatus() === 'granted') {
-  //       // this.flushQueues();
-  //       this.sendInitialPV();
-  //     }
-  //     // Consent onChange already flushes/drops & resolves ready when != pending
-  //     this.maybeStartAutotrack();
-  //   });
-  // }
 
   private setupProviderDependencies() {
     this.consent    = new ConsentManager(getConsentConfig(this.cfg!, this.pCfg?.provider));
