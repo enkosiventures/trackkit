@@ -303,7 +303,6 @@ export class AnalyticsFacade {
       this.queues.enqueue(type, args as any, category, ctx); 
       return;
     }
-    if (type === 'pageview' && this.context.isDuplicatePageview(resolvedUrl)) { logger.debug('duplicate pageview', { resolvedUrl }); return; }
 
     const decision = this.policy.shouldSend(type, category, resolvedUrl);
     const providerReady = this.isProviderReady();
@@ -363,16 +362,6 @@ export class AnalyticsFacade {
     return processed + dropped;
   }
 
-  private handleEventsByConsentStatus() {
-    const status = this.consent?.getStatus();
-    if (status === 'granted') {
-      return this.flushQueues();
-    } else if (status === 'denied') {
-      return this.consentDeniedFastFlush();
-    } // else pending: do nothing
-    return 0;
-  }
-
   private executeQueuedEvents(events: QueuedEventUnion[]) {
     events.forEach(e => this.execute({
       type: e.type as EventType,
@@ -386,8 +375,7 @@ export class AnalyticsFacade {
   private sendInitialPV() {
     if (!this.cfg?.autoTrack) return;
     const url = this.context.normalizeUrl(this.context.resolveCurrentUrl());
-    if (this.context.isDuplicatePageview(url)) return;
-    this.pageview();
+    this.pageview(url);
   }
 
   private maybeStartAutotrack() {
