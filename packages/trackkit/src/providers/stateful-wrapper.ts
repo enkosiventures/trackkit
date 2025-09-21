@@ -18,7 +18,6 @@ export class StatefulProvider implements ProviderInstance {
   constructor(
     provider: ProviderInstance,
     onError?: (error: AnalyticsError) => void,
-    // private onReady?: (provider: StatefulProvider) => void,
   ) {
     this.provider = provider;
     this.state = new StateMachine();
@@ -39,8 +38,6 @@ export class StatefulProvider implements ProviderInstance {
             this.provider.name,
           )
         );
-      } else if (newState === 'destroyed') {
-        this.provider.destroy();
       }
       if (newState === 'ready' && oldState !== 'ready') {
         // Notify all ready callbacks
@@ -52,7 +49,6 @@ export class StatefulProvider implements ProviderInstance {
           }
         });
         this.readyCallbacks = [];
-        // this.onReady?.(this);
       }
     });
   }
@@ -89,12 +85,18 @@ export class StatefulProvider implements ProviderInstance {
   /**
    * Register a callback for when provider is ready
    */
-  onReady(callback: () => void): void {
+  onReady(callback: () => void): () => void {
     if (this.state.getState() === 'ready') {
       // Already ready, call immediately
-      callback();
+      queueMicrotask(() => {
+        try { callback(); } catch { /* swallow */ }
+      });
+      return () => { /* no-op */ };
     } else {
       this.readyCallbacks.push(callback);
+      return () => {
+        this.readyCallbacks = this.readyCallbacks.filter(cb => cb !== callback);
+      };
     }
   }
 

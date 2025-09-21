@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { ConsentManager } from '../../../src/consent/ConsentManager';
+import { resetTests } from '../../helpers/core';
+import { STORAGE_KEY } from '../../../src/constants';
 
 describe('ConsentManager', () => {
   beforeEach(() => {
-    // Clear localStorage
-    window.localStorage.clear();
-    vi.clearAllMocks();
+    resetTests(vi);
+  });
+
+  afterEach(() => {
+    resetTests(vi);
   });
 
   describe('initialization', () => {
@@ -23,7 +27,7 @@ describe('ConsentManager', () => {
         version: '1.0',
         method: 'explicit' as const,
       };
-      window.localStorage.setItem('__trackkit_consent__', JSON.stringify(stored));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
 
       const mgr = new ConsentManager();
       expect(mgr.getStatus()).toBe('granted');
@@ -36,14 +40,14 @@ describe('ConsentManager', () => {
         version: '1.0',
         method: 'explicit' as const,
       };
-      window.localStorage.setItem('__trackkit_consent__', JSON.stringify(stored));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
 
       const mgr = new ConsentManager({ policyVersion: '2.0' });
       expect(mgr.getStatus()).toBe('pending');
     });
 
     it('handles corrupt localStorage gracefully', () => {
-      window.localStorage.setItem('__trackkit_consent__', 'invalid-json');
+      window.localStorage.setItem(STORAGE_KEY, 'invalid-json');
       
       const mgr = new ConsentManager();
       expect(mgr.getStatus()).toBe('pending');
@@ -54,14 +58,14 @@ describe('ConsentManager', () => {
       mgr.grant();
 
       expect(window.localStorage.getItem('custom_consent')).toBeTruthy();
-      expect(window.localStorage.getItem('__trackkit_consent__')).toBeNull();
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
     });
 
     it('respects disablePersistence option', () => {
       const mgr = new ConsentManager({ disablePersistence: true });
       mgr.grant();
 
-      expect(window.localStorage.getItem('__trackkit_consent__')).toBeNull();
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
     });
   });
 
@@ -78,7 +82,7 @@ describe('ConsentManager', () => {
       expect(listener).toHaveBeenCalledWith('granted', 'pending');
 
       // Check persistence
-      const stored = JSON.parse(window.localStorage.getItem('__trackkit_consent__')!);
+      const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!);
       expect(stored.status).toBe('granted');
       expect(stored.method).toBe('explicit');
     });
@@ -107,7 +111,7 @@ describe('ConsentManager', () => {
       mgr.promoteImplicitIfAllowed();
       expect(mgr.getStatus()).toBe('granted');
 
-      const stored = JSON.parse(window.localStorage.getItem('__trackkit_consent__')!);
+      const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!);
       expect(stored.method).toBe('implicit');
     });
 
@@ -171,7 +175,7 @@ describe('ConsentManager', () => {
 
       expect(mgr.getStatus()).toBe('granted');
       // Should not write anything because persistence disabled
-      expect(window.localStorage.getItem('__trackkit_consent__')).toBeNull();
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
     });
 
     it('does not write to storage on implicit promotion when disablePersistence=true', () => {
@@ -180,12 +184,12 @@ describe('ConsentManager', () => {
 
       expect(mgr.getStatus()).toBe('granted');
       // Should not write anything because persistence disabled
-      expect(window.localStorage.getItem('__trackkit_consent__')).toBeNull();
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
     });
 
     it('re-prompts (pending) when a policy version is introduced but stored state had no version', () => {
       // Simulate older sessions that stored without a version
-      window.localStorage.setItem('__trackkit_consent__', JSON.stringify({
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
         status: 'granted',
         timestamp: Date.now() - 1000,
         // no version key

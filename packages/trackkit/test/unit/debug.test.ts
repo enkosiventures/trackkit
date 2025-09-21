@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { init, track, destroy, waitForReady, grantConsent } from '../../src';
+import { resetTests } from '../helpers/core';
 
 // @vitest-environment jsdom
 
@@ -9,11 +10,11 @@ describe('Debug mode', () => {
   
   beforeEach(() => {
     consoleLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    destroy();
+    resetTests();
   });
   
   afterEach(() => {
-    destroy();
+    resetTests();
     consoleLog.mockRestore();
   });
   

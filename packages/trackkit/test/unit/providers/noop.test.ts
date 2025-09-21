@@ -6,15 +6,10 @@ import { resetTests } from '../../helpers/core';
 
 describe('No-op Provider', () => {
   beforeEach(() => {
-    // destroy();
-    // vi.clearAllMocks();
-    // window.history.replaceState({}, '', '/');
     resetTests(vi);
   });
 
   afterEach(() => {
-    // destroy();
-    // vi.clearAllMocks();
     resetTests(vi);
   });
 

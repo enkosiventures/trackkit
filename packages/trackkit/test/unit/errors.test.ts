@@ -7,6 +7,7 @@ import {
   waitForReady,
   getDiagnostics,
 } from '../../src';
+import { resetTests } from '../helpers/core';
 
 // @vitest-environment jsdom
 
@@ -15,13 +16,11 @@ describe('Error handling (Facade)', () => {
 
   beforeEach(() => {
     consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    destroy();
-    vi.clearAllMocks();
+    resetTests(vi);
   });
 
   afterEach(async () => {
-    await destroy();
-    vi.restoreAllMocks();
+    resetTests(vi);
   });
 
   it('falls back to noop for unknown provider (no INVALID_CONFIG emitted)', async () => {

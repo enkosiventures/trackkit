@@ -10,7 +10,7 @@ import type { ProviderFactory } from './types';
  */
 function create(
   options: ProviderOptions,
-  cache?: boolean,
+  bustCache?: boolean,
   debug?: boolean,
 ): ProviderInstance {
   logger.debug('Creating no-op provider instance', options);
@@ -27,12 +27,14 @@ function create(
   return {
     name: 'noop',
     
-    track(name: string, props: Props, pageContext: PageContext): void {
+    track(name: string, props: Props, pageContext: PageContext): Promise<void> {
       log('track', { name, props, pageContext: stripEmptyFields(pageContext) });
+      return Promise.resolve();
     },
     
-    pageview(pageContext: PageContext): void {
+    pageview(pageContext: PageContext): Promise<void> {
       log('pageview', { pageContext: stripEmptyFields(pageContext) });
+      return Promise.resolve();
     },
     
     identify(userId: string | null): void {

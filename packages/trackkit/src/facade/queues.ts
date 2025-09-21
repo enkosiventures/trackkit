@@ -1,8 +1,6 @@
 import { EventQueue, QueuedEventUnion } from '../util/queue';
-import { hydrateSSRQueue, getSSRQueueLength, flushSSRAll, flushSSREssential, clearSSRAll, clearSSRNonEssential } from '../util/ssr-queue';
+import { getSSRQueueLength, flushSSRAll, flushSSREssential, clearSSRAll, clearSSRNonEssential } from '../util/ssr-queue';
 import type { FacadeOptions, EventType, PageContext } from '../types';
-import { logger } from '../util/logger';
-
 
 
 export class QueueService {
@@ -39,8 +37,6 @@ export class QueueService {
     return [...ssrEss, ...facEss];
   }
 
-  // flushEssential(): QueuedEventUnion[] { return this.flushAll().filter(e => e.category === 'essential'); }
-  // clearAll(): number { return this.flushAll().length; }
   /** Drop *everything* without materializing; returns how many were dropped. */
   clearAll(): number {
     const droppedSSR = clearSSRAll();

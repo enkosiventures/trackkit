@@ -1,9 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createMockFacade, createStatefulMock } from '../../helpers/providers';
 import { grantConsent } from '../../../src';
 import { navigate } from '../../helpers/navigation';
+import { resetTests } from '../../helpers/core';
 
 describe('Facade routes to active provider only', () => {
+  beforeEach(() => {
+    resetTests();
+  });
+
+  afterEach(() => {
+    resetTests();
+  });
+
   it('swaps providers without double-sending', async () => {
     const { facade, provider } = await createMockFacade();
     grantConsent();

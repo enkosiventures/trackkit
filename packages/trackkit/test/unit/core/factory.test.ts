@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // Factory API (additive to the singleton)
 import { createAnalytics } from '../../../src/factory';
@@ -6,6 +6,7 @@ import { createAnalytics } from '../../../src/factory';
 // Useful to reset browser-ish env between tests
 import { JSDOM } from 'jsdom';
 import { createStatefulMock } from '../../helpers/providers';
+import { resetTests } from '../../helpers/core';
 
 function resetEnv() {
   // keep URL stable for PV policy logic
@@ -37,11 +38,18 @@ function makeStatefulMock(name = 'mock') {
   return { stateful, provider: { eventCalls, pageviewCalls } };
 }
 
-beforeEach(() => {
-  resetEnv();
-});
+
 
 describe('Factory API', () => {
+  beforeEach(() => {
+    resetTests();
+    resetEnv();
+  });
+
+  afterEach(() => {
+    resetTests();
+  });
+
   it('creates two independent instances; pre-init queues flush to the correct provider', async () => {
     const a1 = createAnalytics(); // not initialized yet
     const a2 = createAnalytics();

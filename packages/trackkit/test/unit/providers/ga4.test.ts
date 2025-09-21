@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import type { PageContext } from '../../../src/types';
+import { resetTests } from '../../helpers/core';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Shared helpers
@@ -48,10 +49,11 @@ describe('GA4 client (mapping & endpoints)', () => {
 
   beforeEach(() => {
     hoisted.sendMock.mockClear();
+    resetTests(vi);
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    resetTests(vi);
   });
 
   it('requires measurementId', () => {

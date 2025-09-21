@@ -5,6 +5,7 @@ import type { PageContext } from '../../../src/types';
 
 // IMPORTANT: mock the adapter transport so we can capture calls deterministically
 import * as transport from '../../../src/providers/base/transport';
+import { resetTests } from '../../helpers/core';
 
 vi.mock('../../../src/providers/base/transport', async () => {
   const actual = await vi.importActual<typeof import('../../../src/providers/base/transport')>(
@@ -33,11 +34,12 @@ function ctx(overrides: Partial<PageContext> = {}): PageContext {
 
 describe('Plausible provider (spec adapter)', () => {
   beforeEach(() => {
+    resetTests(vi);
     sendMock.mockClear();
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    resetTests(vi);
   });
 
   // --- defaults / validation ---
@@ -88,8 +90,10 @@ describe('Plausible provider (spec adapter)', () => {
       name: 'pageview',
       url: '/a?x=1#h',
       referrer: '/prev',
-      page_title: 'Title A',
       domain: 'example.com',
+      props: {
+        "page_title": "Title A",
+      },
     });
   });
 

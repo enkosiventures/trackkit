@@ -8,10 +8,10 @@ import { stripEmptyFields } from "../shared/utils";
  * - Centralizes headers/body serialization
  *
  * Cache behavior:
- *   cache === true  -> enable cache-busting
+ *   bustCache === true  -> enable cache-busting
  *     - GET / BEACON (or AUTO→beacon): add ?cache=timestamp to URL
  *     - POST/fetch fallback: add no-store request headers
- *   cache !== true  -> no cache-busting (default)
+ *   bustCache !== true  -> no cache-busting (default)
  */
 export type TransportMethod = 'GET' | 'POST' | 'BEACON' | 'AUTO';
 
@@ -26,7 +26,7 @@ export type TransportRequest = {
   /** Optional controller for aborts in the future. */
   signal?: AbortSignal | null;
   /** When true, perform cache-busting (query param for GET/beacon; no-store headers for POST). */
-  cache?: boolean;
+  bustCache?: boolean;
 };
 
 function appendCacheParam(url: string): string {
@@ -51,8 +51,8 @@ export async function send(req: TransportRequest): Promise<Response> {
   // Will we *attempt* beacon? (AUTO prefers beacon if available)
   const wantBeacon = method === 'BEACON' || (method === 'AUTO' && canBeacon);
 
-  // Enable cache-busting when req.cache === true
-  const bustCache = req.cache === true;
+  // Enable cache-busting when req.bustCache === true
+  const bustCache = req.bustCache === true;
 
   // Decide final URL: add ?cache=... for GET or when we intend to use beacon.
   // Note: if we later fall back from beacon→fetch due to size, the query param is harmless.
@@ -76,7 +76,7 @@ export async function send(req: TransportRequest): Promise<Response> {
     headers,
     maxBeaconBytes,
     signal: req.signal ? 'exists' : 'none',
-    cacheBust: bustCache,
+    bustCache,
     wantBeacon,
   });
   logger.debug('Transport.body', strippedBody);

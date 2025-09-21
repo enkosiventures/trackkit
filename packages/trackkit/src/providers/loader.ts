@@ -16,16 +16,14 @@ const providerRegistry = new Map(
 
 export async function loadProvider(
   providerOptions: ProviderOptions | null,
-  cache?: boolean,
+  bustCache?: boolean,
   debug?: boolean,
   onError: (error: AnalyticsError) => void = DEFAULT_ERROR_HANDLER,
 ): Promise<StatefulProvider> {
   const options = providerOptions || DEFAULT_PROVIDER_OPTIONS;
 
   // alias GA → GA4 (common config name)
-  const rawName = options.provider ?? DEFAULT_PROVIDER;
-  const name = rawName === 'ga4' ? 'ga4' : rawName as ProviderType;
-
+  const name = options.provider ?? DEFAULT_PROVIDER;
   logger.debug('Loading provider:', name);
 
   const loader = providerRegistry.get(name);
@@ -46,7 +44,7 @@ export async function loadProvider(
       throw new Error(msg);
     }
 
-    const provider = factory.create(options, cache, debug);
+    const provider = factory.create(options, bustCache, debug);
     const stateful = new StatefulProvider(provider, onError);
 
     // Init without blocking; surface errors

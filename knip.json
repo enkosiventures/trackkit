@@ -1,0 +1,37 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+
+  "workspaces": {
+    ".": {
+      "entry": [
+        "scripts/*.mjs"
+      ],
+      "project": [
+        "scripts/**/*.mjs",
+        "docs/**/*.md"
+      ],
+      "ignore": [
+        "**/*.d.ts"
+      ]
+    },
+
+    "packages/trackkit": {
+      "entry": [
+        "src/index.ts",
+        "src/entries/providers/*.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "test/**/*.ts",
+        "vitest.config.ts",
+        "tsup.config.ts"
+      ],
+      "ignore": [
+        "coverage/**",
+        "test/**",
+        "**/*.d.ts",
+        "tsconfig.tsbuildinfo"
+      ]
+    }
+  }
+}

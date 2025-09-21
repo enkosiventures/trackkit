@@ -1,7 +1,8 @@
 import { UMAMI_ENDPOINT, UMAMI_HOST } from '../../constants';
-import type { PageContext, ProviderOptions, UmamiOptions } from '../../types';
+import type { EventType, PageContext, ProviderOptions } from '../../types';
 import { displaySizeFromContext } from '../shared/browser';
 import { createConfigProvider, type ProviderSpec } from '../base/adapter';
+import { UmamiOptions, UmamiPayload, UmamiSendBody } from './types';
 
 
 function normalizeHost(host?: string): string {
@@ -28,13 +29,13 @@ const umamiSpec: ProviderSpec<UmamiOptions> = {
 
   version: '1.0.0',
 
-  defaults: (options: ProviderOptions) => {
-    const website = (options as UmamiOptions).website?.trim();
+  defaults: (options: UmamiOptions) => {
+    const website = options.website?.trim();
     if (!website) throw new Error('[umami] "website" is required');
     return {
       provider: 'umami',
       website,
-      host: normalizeHost((options as UmamiOptions).host),
+      host: normalizeHost(options.host),
     };
   },
 
@@ -56,24 +57,23 @@ const umamiSpec: ProviderSpec<UmamiOptions> = {
   headers: () => ({}),
 
   payload: {
-    pageview: (pageContext, options) => ({
-      type: 'event',
+    pageview: (pageContext, options): UmamiSendBody => ({
+      type: 'event' as EventType,
       payload: {
         name: 'pageview',
         website: options.website,
-        data: {},
         ...getUmamiPageContext(pageContext),
-      },
+      } satisfies UmamiPayload,
     }),
 
-    event: (name, props, pageContext, options) => ({
-      type: 'event',
+    event: (name, props, pageContext, options): UmamiSendBody => ({
+      type: 'event' as EventType,
       payload: {
         name,
         website: options.website,
-        data: props ?? {},
         ...getUmamiPageContext(pageContext),
-      },
+        ...(props ? { data: props } : {}),
+      } satisfies UmamiPayload,
     }),
   },
 };

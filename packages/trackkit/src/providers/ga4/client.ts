@@ -1,5 +1,6 @@
-import type { GA4Options, PageContext, ProviderInstance, ProviderOptions } from '../../types';
+import type { PageContext, ProviderInstance, ProviderOptions } from '../../types';
 import { send, type TransportMethod } from '../base/transport';
+import { GA4Options } from './types';
 
 /**
  * Minimal GA4 client.

@@ -130,7 +130,6 @@ export class AnalyticsFacade {
     }
   }
 
-
   // === Public API (compat with README & legacy singleton) ===
 
   track(name: string, props?: Props, category = DEFAULT_CATEGORY) {
@@ -387,11 +386,6 @@ export class AnalyticsFacade {
 
   private isProviderReady(): boolean {
     return this.providerIsReady;
-  }
-
-  private isConsentResolved(): boolean {
-    const s = this.consent?.getStatus();
-    return s === 'granted' || s === 'denied';
   }
 
   private setupProviderDependencies() {

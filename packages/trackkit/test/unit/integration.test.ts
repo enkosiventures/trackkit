@@ -1,13 +1,17 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { init, track, pageview, destroy, waitForReady, grantConsent } from '../../src';
 import { createStatefulMock } from '../helpers/providers';
 import { navigate } from '../helpers/navigation';
 import { getFacade } from '../../src/facade/singleton';
+import { resetTests } from '../helpers/core';
 
 describe('Queue and State Integration', () => {
   beforeEach(() => {
-    destroy();
-    vi.clearAllMocks();
+    resetTests(vi);
+  });
+
+  afterEach(() => {
+    resetTests(vi);
   });
 
   it('queues events before initialization and flushes in order after ready + consent', async () => {

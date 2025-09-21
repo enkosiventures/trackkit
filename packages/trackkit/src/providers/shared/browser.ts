@@ -4,10 +4,6 @@ import { hasDOM } from "../../util/env";
 
 export function getDocumentTitle(): string | undefined { return hasDOM() ? document.title : undefined; }
 export function getInitialReferrer(): string | undefined { return hasDOM() ? document.referrer : undefined; }
-// export function getViewportSize(): { width: number; height: number } { return isBrowser() ? { width: window.innerWidth || 0, height: window.innerHeight || 0 } : { width: 0, height: 0 }; }
-// export function getScreenSize(): { width: number; height: number } { return isBrowser() ? { width: window.screen?.width || 0, height: window.screen?.height || 0 } : { width: 0, height: 0 }; }
-// export function getLanguage(): string { return isBrowser() ? navigator.language || navigator.languages?.[0] || 'en' : 'en'; }
-// export function getHostname(): string { return isBrowser() ? window.location.hostname || '' : ''; }
 
 function getHostname(): string | undefined {
   if (typeof window === 'undefined') return undefined;

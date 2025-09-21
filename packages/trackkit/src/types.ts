@@ -1,5 +1,8 @@
 import type { ConsentCategory, ConsentOptions } from './consent/types';
 import type { AnalyticsError } from './errors';
+import { GA4Options } from './providers/ga4/types';
+import { PlausibleOptions } from './providers/plausible/types';
+import { UmamiOptions } from './providers/umami/types';
 
 
 export type AnalyticsMode = 'singleton' | 'factory';
@@ -139,10 +142,10 @@ export type InitOptions = {
   transport?: 'auto' | 'beacon' | 'fetch' | 'xhr';
 
   /**
-   * Enable caching for requests
-   * @default true
+   * Enable cache-busting (ie disable caching) for requests
+   * @default false
    */
-  cache?: boolean;
+  bustCache?: boolean;
 
   /**
    * Enable page tracking when the page is hidden
@@ -281,7 +284,7 @@ export interface FacadeOptions {
   autoTrack: boolean;
   doNotTrack: boolean;
   trackLocalhost: boolean;
-  cache: boolean;
+  bustCache: boolean;
   allowWhenHidden: boolean;
   includeHash: boolean;
   domains?: string[];
@@ -300,33 +303,6 @@ export type NoopOptions = {
   provider: 'noop' 
   site?: string;
   host?: string;
-};
-
-export type UmamiOptions = {
-  provider: 'umami';
-  site?: string;
-  website: string;
-  host?: string;
-};
-
-export type PlausibleOptions =  {
-  provider: 'plausible';
-  site?: string;
-  domain: string;
-  host?: string;
-  revenue?: { currency: string; trackingEnabled: boolean };
-};
-
-export type GA4Options = {
-  provider: 'ga4';
-  site?: string;
-  measurementId: string;
-  apiSecret?: string;
-  customDimensions?: Record<string, string>;
-  customMetrics?: Record<string, string>;
-  host?: string;
-  debugEndpoint?: boolean;
-  debugMode?: boolean;
 };
 
 // ---- Final input type
@@ -377,12 +353,12 @@ export interface ProviderInstance {
    * @param props - List of event properties (may be empty)
    * @param pageContext - Page context for the event
    */
-  track(name: string, props: Props, pageContext: PageContext): void;
+  track(name: string, props: Props, pageContext: PageContext): Promise<void>;
   /**
    * Track a page view
    * @param pageContext - Page context for the page view
    */
-  pageview(pageContext: PageContext): void;
+  pageview(pageContext: PageContext): Promise<void>;
   /**
    * Identify the current user
    * @param userId - User identifier or null to clear

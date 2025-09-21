@@ -14,7 +14,7 @@ import {
   destroy,
   hasQueuedEvents,
 } from '../../../src';
-import { resetTests, tick } from '../../helpers/core';
+import { resetTests } from '../../helpers/core';
 
 describe('Public API wrappers', () => {
   beforeEach(() => {
@@ -28,7 +28,6 @@ describe('Public API wrappers', () => {
   it('init() + pending consent queues, then grant flushes', async () => {
     init({
       provider: 'noop',
-      debug: true,
       consent: { disablePersistence: true },
       queueSize: 10,
       domains: ['localhost'],
@@ -42,8 +41,8 @@ describe('Public API wrappers', () => {
     expect(hasQueuedEvents()).toBe(true);
 
     grantConsent();
+    await waitForReady();
 
-    await tick(10);
     diag = getDiagnostics();
     expect(diag?.queue.totalBuffered).toBe(0);
   });
@@ -51,7 +50,6 @@ describe('Public API wrappers', () => {
   it('denyConsent() drops new analytics events but allows identify (essential)', async () => {
     init({
       provider: 'noop',
-      debug: true,
       trackLocalhost: true,
       consent: { initialStatus: 'denied', disablePersistence: true, allowEssentialOnDenied: true },
       domains: ['localhost'],

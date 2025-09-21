@@ -23,16 +23,18 @@ export class MockProvider implements ProviderInstance {
     await new Promise(resolve => setTimeout(resolve, 10));
   }
 
-  pageview(pageContext?: PageContext): void {
+  pageview(pageContext?: PageContext): Promise<void> {
     this.pageviewCalls.push(pageContext);
+    return Promise.resolve();
   }
 
   track(
     name: string,
     props?: Record<string, unknown>,
     pageContext?: PageContext
-  ): void {
+  ): Promise<void> {
     this.eventCalls.push({ name, props, pageContext });
+    return Promise.resolve();
   }
 
   identify(userId: string | null): void {

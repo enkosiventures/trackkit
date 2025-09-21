@@ -14,7 +14,7 @@ const FACADE_DEFAULTS: FacadeOptions = {
   autoTrack: true,
   doNotTrack: true,
   trackLocalhost: undefined as any, // handled via provider meta fallback
-  cache: DEFAULT_CACHING,
+  bustCache: DEFAULT_CACHING,
   allowWhenHidden: false,
   includeHash: false,
   transport: 'auto',
@@ -74,33 +74,33 @@ export function mergeConfig(userOptions: InitOptions): ResolvedOptions {
 }
 
 export function validateProviderConfig({ providerOptions }: ResolvedOptions): void {
-  const { provider, site } = providerOptions;
+  const { provider } = providerOptions;
 
   let field;
   let errorMessage;
   switch (provider) {
     case 'plausible':
-      field = site ? 'site' : 'domain';
+      field = 'domain';
       if (!providerOptions.domain) {
         errorMessage = "Plausible requires a domain to be provided (using either 'domain' or 'site' option)";
       } else if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(providerOptions.domain)) {
-        errorMessage = `Plausible provider requires a ${field} in a valid domain format`;
+        errorMessage = `Plausible provider requires a 'site' or '${field}' in a valid domain format`;
       }
       break;
     case 'umami':
-      field = site ? 'site' : 'website';
+      field = 'website';
       if (!providerOptions.website) {
         errorMessage = "Umami requires a website to be provided (using either 'website' or 'site' option)";
       } else if (!/^[0-9a-f-]{36}$/i.test(providerOptions.website)) {
-        errorMessage = `Umami provider requires a ${field} in a valid UUID format`;
+        errorMessage = `Umami provider requires a 'site' or '${field}' in a valid UUID format`;
       }
       break;
     case 'ga4':
-      field = site ? 'site' : 'measurementId';
+      field = 'measurementId';
       if (!providerOptions.measurementId) {
         errorMessage = "Google Analytics 4 requires a measurementId to be provided (using either 'measurementId' or 'site' option)";
       } else if (!/^G-[A-Z0-9]{6,}$/.test(providerOptions.measurementId)) {
-        errorMessage = `Google Analytics 4 provider requires a ${field} in a valid format (e.g. 'G-XXXXXXXXXX')`;
+        errorMessage = `Google Analytics 4 provider requires a 'site' or '${field}' in a valid format (e.g. 'G-XXXXXXXXXX')`;
       }
       break;
     case 'noop':

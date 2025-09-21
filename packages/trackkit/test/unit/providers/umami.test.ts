@@ -1,15 +1,24 @@
 /// <reference types="vitest" />
-import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, afterEach, beforeEach } from 'vitest';
 import { server } from '../../setup/msw';
 import { http, HttpResponse } from 'msw';
 import type { PageContext } from '../../../src';
 import { TEST_SITE_ID } from '../../setup/providers';
+import { resetTests } from '../../helpers/core';
 
 // @vitest-environment jsdom
 
 beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
+
+  beforeEach(() => {
+    resetTests(vi);
+  });
+
+  afterEach(() => {
+    resetTests(vi);
+    server.resetHandlers()
+  });
 
 describe('Umami provider / client', () => {
   it('pageview maps ctx → payload (no window reads)', async () => {

@@ -28,8 +28,8 @@ export type ProviderSpec<ProviderOptions> = {
 
   /** Map from our PageContext to provider’s payload for pageview/event. */
   payload: {
-    pageview: (pageContext: PageContext, options: ProviderOptions) => Record<string, unknown>;
-    event:    (name: string, props: Record<string, unknown>, pageContext: PageContext, options: ProviderOptions) => Record<string, unknown>;
+    pageview: (pageContext: PageContext, options: ProviderOptions) => unknown;
+    event:    (name: string, props: Record<string, unknown>, pageContext: PageContext, options: ProviderOptions) => unknown;
   };
 
   /** Optional success predicate; default is Response.ok */
@@ -52,7 +52,7 @@ async function defaultParseError(res: Response): Promise<Error> {
 export function createConfigProvider<ProviderOptions>(spec: ProviderSpec<ProviderOptions>) {
   return {
     /** Factory to keep parity with your existing “provider factories” */
-    create(options: ProviderOptions, cache?: boolean): ProviderInstance {
+    create(options: ProviderOptions, bustCache?: boolean): ProviderInstance {
       const providerOptions = spec.defaults(options);
       const headers = spec.headers?.(providerOptions);
       const ok = spec.ok ?? defaultOk;
@@ -62,7 +62,7 @@ export function createConfigProvider<ProviderOptions>(spec: ProviderSpec<Provide
         const res = await send({
           method, url, headers, body,
           maxBeaconBytes: spec.limits?.maxBeaconBytes,
-          cache,
+          bustCache,
         });
         if (!ok(res)) throw await parseError(res);
       };
