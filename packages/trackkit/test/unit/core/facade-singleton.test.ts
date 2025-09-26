@@ -71,6 +71,7 @@ describe('Singleton behavior', () => {
 
     // Init + attach a mock provider for observation
     const { stateful, provider } = await createStatefulMock();
+    const { eventCalls } = provider.diagnostics;
     injectProviderForTests(stateful); // <-- inject BEFORE init
 
     init({
@@ -89,6 +90,6 @@ describe('Singleton behavior', () => {
     await flushIfReady();
     await new Promise(r => setTimeout(r, 10));
 
-    expect(provider.eventCalls.map(e => e.name)).toEqual(['early']);
+    expect(eventCalls.map(e => e.name)).toEqual(['early']);
   });
 });

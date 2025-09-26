@@ -26,7 +26,7 @@ describe('Integration: real history + sandbox', () => {
       });
 
       // initial route “/”
-      expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/']);
+      expect(provider!.diagnostics.pageviewCalls.map(c => c?.url)).toEqual(['/']);
     });
 
     it(`${mode} emits exactly once on pushState (no double-fire)`, async () => {
@@ -40,11 +40,12 @@ describe('Integration: real history + sandbox', () => {
       });
 
       await navigate('/x');
-      expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/', '/x']);
+      const { pageviewCalls } = provider!.diagnostics;
+      expect(pageviewCalls.map(c => c?.url)).toEqual(['/', '/x']);
 
       // navigating to the same URL should not add another pageview
       await navigate('/x');
-      expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/', '/x']);
+      expect(pageviewCalls.map(c => c?.url)).toEqual(['/', '/x']);
     });
 
     it(`${mode} handles popstate (back/forward)`, async () => {
@@ -71,7 +72,7 @@ describe('Integration: real history + sandbox', () => {
       window.dispatchEvent(new PopStateEvent('popstate'));
       await new Promise(r => setTimeout(r, 0));
 
-      expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/', '/a', '/b', '/a', '/b']);
+      expect(provider!.diagnostics.pageviewCalls.map(c => c?.url)).toEqual(['/', '/a', '/b', '/a', '/b']);
     });
 
     it(`${mode} respects \`exclude\` patterns (no emission for excluded paths)`, async () => {
@@ -89,7 +90,7 @@ describe('Integration: real history + sandbox', () => {
       await navigate('/admin');
       await navigate('/public');
 
-      expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/', '/public']);
+      expect(provider!.diagnostics.pageviewCalls.map(c => c?.url)).toEqual(['/', '/public']);
     });
 
     it(`${mode} respects domain allowlist (no emission on non-matching host)`, async () => {
@@ -104,10 +105,11 @@ describe('Integration: real history + sandbox', () => {
 
       assert(provider);
 
-      provider.pageviewCalls.length = 0;
+      const { pageviewCalls } = provider.diagnostics;
+      pageviewCalls.length = 0;
 
       await navigate('/somewhere');
-      expect(provider.pageviewCalls.length).toBe(0);
+      expect(pageviewCalls.length).toBe(0);
 
     });
 
@@ -127,7 +129,7 @@ describe('Integration: real history + sandbox', () => {
       window.dispatchEvent(new HashChangeEvent('hashchange'));
       await new Promise(r => setTimeout(r, 0));
 
-      expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/', '/#tab-2']);
+      expect(provider!.diagnostics.pageviewCalls.map(c => c?.url)).toEqual(['/', '/#tab-2']);
     });
 
     it(`${mode} unsubscribes listeners on destroy()`, async () => {
@@ -147,7 +149,7 @@ describe('Integration: real history + sandbox', () => {
       }
 
       await navigate('/after-destroy');
-      expect(provider?.pageviewCalls.length).toBe(0);
+      expect(provider!.diagnostics.pageviewCalls.length).toBe(0);
     });
   });
 });

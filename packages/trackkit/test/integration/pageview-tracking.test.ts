@@ -28,8 +28,9 @@ describe('Facade autotrack with real history', () => {
       setConsent: 'granted',
     })
 
-    expect(provider?.pageviewCalls.length).toBe(1);
-    expect(provider?.pageviewCalls[0]?.url).toBe('/');
+    const { pageviewCalls } = provider!.diagnostics;
+    expect(pageviewCalls.length).toBe(1);
+    expect(pageviewCalls[0]?.url).toBe('/');
   });
 
   it('sends SPA navigations and dedupes repeats', async () => {
@@ -46,9 +47,10 @@ describe('Facade autotrack with real history', () => {
     await navigateWithTick('/a'); // duplicate
     await navigateWithTick('/b?x=1#h');
 
-    expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/', '/a', '/b?x=1#h']);
-    expect(provider?.pageviewCalls[1]?.referrer ?? '').toBe('/');  // A referrer
-    expect(provider?.pageviewCalls[2]?.referrer ?? '').toBe('/a'); // B referrer
+    const { pageviewCalls } = provider!.diagnostics;
+    expect(pageviewCalls.map(c => c?.url)).toEqual(['/', '/a', '/b?x=1#h']);
+    expect(pageviewCalls[1]?.referrer ?? '').toBe('/');  // A referrer
+    expect(pageviewCalls[2]?.referrer ?? '').toBe('/a'); // B referrer
   });
 
   it('applies exclusions', async () => {
@@ -64,7 +66,7 @@ describe('Facade autotrack with real history', () => {
     await navigateWithTick('/secret/alpha'); // excluded
     await navigateWithTick('/public');
 
-    expect(provider?.pageviewCalls.map(c => c?.url)).toEqual(['/', '/public']);
+    expect(provider!.diagnostics.pageviewCalls.map(c => c?.url)).toEqual(['/', '/public']);
   });
 
   it('gates by consent per policy', async () => {
@@ -89,8 +91,9 @@ describe('Facade autotrack with real history', () => {
 
     await new Promise(resolve => setTimeout(resolve, 50));
 
-    expect(provider?.pageviewCalls.length).toBe(1);
-    expect(provider?.pageviewCalls[0]).toEqual(expect.objectContaining({
+    const { pageviewCalls } = provider!.diagnostics;
+    expect(pageviewCalls.length).toBe(1);
+    expect(pageviewCalls[0]).toEqual(expect.objectContaining({
       url: '/after-consent',
       title: '',
       referrer: '',

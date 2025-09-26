@@ -15,6 +15,8 @@ import { DiagnosticsService } from './diagnostics';
 import { StatefulProvider } from '../providers/stateful-wrapper';
 import { EventQueue, QueuedEventUnion } from '../util/queue';
 import { isServer } from '../util/env';
+import { ConnectionMonitor } from '../connection/monitor';
+import { OfflineStore } from '../connection/offline-store';
 
 /**
  * Wraps a promise and rejects on timeout.
@@ -37,6 +39,8 @@ export class AnalyticsFacade {
   private cfg: FacadeOptions | null = null;
   private pCfg: ProviderOptions | null = null;
   private consent: ConsentManager | null = null;
+  private monitor: ConnectionMonitor | null = null;
+  private offline: OfflineStore | null = null;
 
   private context!: ContextService;
   private queues!: QueueService;
@@ -75,7 +79,17 @@ export class AnalyticsFacade {
     this.context    = new ContextService(this.cfg!);
     this.queues     = new QueueService(this.cfg!, dropped => this.onOverflow(dropped.length));
     this.nav        = new NavigationService();
-    this.dispatcher = new Dispatcher();
+    this.dispatcher = new Dispatcher({
+      batching: this.cfg?.batching?.enabled ? this.cfg.batching : undefined,
+      performance: this.cfg?.performance,
+    });
+
+    // optional connection+offline
+    this.monitor = this.cfg?.connection?.monitor ? new ConnectionMonitor({
+      slowThreshold: this.cfg.connection?.slowThreshold, checkInterval: this.cfg.connection?.checkInterval
+    }) : null;
+
+    this.offline = this.cfg?.connection?.offlineStorage ? new OfflineStore() : null;
 
     try {
       validateProviderConfig(resolved);
@@ -99,6 +113,14 @@ export class AnalyticsFacade {
       this._preInjectedProvider = null;
       this.providerIsReady = true;
     }
+
+    // drain offline on reconnect
+    this.monitor?.subscribe(async (state) => {
+      if (state === 'online' && this.offline) {
+        const items = await this.offline.drainOffline();
+        items.forEach(e => this.execute(e)); // re-checks policy/consent
+      }
+    });
 
     // Kick off provider load
     this.initPromise = this.initialize().finally(() => (this.initPromise = null));
@@ -248,26 +270,41 @@ export class AnalyticsFacade {
    *
    * @returns {number} Number of events processed in this call.
    */
-  flushIfReady(): number {
+  async flushIfReady(): Promise<number> {
     if (!this.providerIsReady) return 0;
 
     const status = this.consent?.getStatus?.();
 
+    let processed = 0;
     switch (status) {
       case 'granted':
       case undefined: // no consent manager => treat as granted
-        return this.executeQueuedEvents(this.queues.flushAll());
+        // return this.executeQueuedEvents(this.queues.flushAll());
+        processed += this.executeQueuedEvents(this.queues.flushAll());
+        break;
 
       case 'pending':
         // run essentials now; keep analytics queued
-        return this.executeQueuedEvents(this.queues.flushEssential());
+        // return this.executeQueuedEvents(this.queues.flushEssential());
+        processed += this.executeQueuedEvents(this.queues.flushEssential());
+        break;
 
       case 'denied':
-        return this.consentDeniedFastFlush();
+        // return this.consentDeniedFastFlush();
+        processed += this.consentDeniedFastFlush();
+        break;
 
       default:
         return 0;
     }
+
+    // If batching is enabled, ensure pending batches are sent now.
+    // This makes flushIfReady deterministic for tests and apps.
+    if (this.dispatcher && typeof this.dispatcher.flush === 'function') {
+      await this.dispatcher.flush();
+    }
+
+    return processed;
   }
 
   getDiagnostics() { return this.diag.getSnapshot(); }
@@ -300,6 +337,22 @@ export class AnalyticsFacade {
 
     if (isServer() && type !== 'identify') {
       this.queues.enqueue(type, args as any, category, ctx); 
+      return;
+    }
+
+    if (this.monitor && !this.monitor.isHealthy() && this.offline) {
+      // Fire-and-forget; storage may be sync (localStorage) or async (future IndexedDB)
+      try {
+        const maybePromise = this.offline.saveOffline([
+          { type, args, url: resolvedUrl, category, timestamp: Date.now() }
+        ]);
+        // If it’s promise-like, don’t await—just catch to avoid unhandled rejections.
+        if (maybePromise && typeof (maybePromise as any).then === 'function') {
+          (maybePromise as Promise<void>).catch(() => { logger.error('offline save failed'); });
+        }
+      } catch {
+        logger.error('offline save threw synchronously');
+      }
       return;
     }
 

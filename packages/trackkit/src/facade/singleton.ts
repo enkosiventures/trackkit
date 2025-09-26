@@ -77,7 +77,9 @@ export function waitForReady(opts?: { timeoutMs?: number; mode?: 'tracking' | 'p
   const { mode = 'provider', timeoutMs } = opts ?? {};
   return ensureInstance().waitForReady({ mode, timeoutMs });
 }
-export function flushIfReady() { return ensureInstance().flushIfReady() ?? false; }
+export async function flushIfReady(): Promise<number> {
+  return ensureInstance().flushIfReady() ?? 0;
+}
 export function getDiagnostics() { return ensureInstance().getDiagnostics() ?? null; }
 
 // -- test-only provider injection (works pre- and post-init) --

@@ -82,9 +82,9 @@ describe('Factory API', () => {
     await (a2 as any).waitForReady();
 
     // Verify isolation
-    expect(p1.eventCalls.map(e => e.name)).toEqual(['e1']);
-    expect(p2.eventCalls.map(e => e.name)).toEqual(['e2']);
-    expect(p1.pageviewCalls).toEqual([{
+    expect(p1.diagnostics.eventCalls.map(e => e.name)).toEqual(['e1']);
+    expect(p2.diagnostics.eventCalls.map(e => e.name)).toEqual(['e2']);
+    expect(p1.diagnostics.pageviewCalls).toEqual([{
       "hostname": "localhost",
       "language": "en-US",
       "referrer": "",
@@ -99,7 +99,7 @@ describe('Factory API', () => {
       },
     }]);
 
-    expect(p2.pageviewCalls).toEqual([{
+    expect(p2.diagnostics.pageviewCalls).toEqual([{
       "hostname": "localhost",
       "language": "en-US",
       "referrer": "",

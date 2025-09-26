@@ -1,4 +1,5 @@
 import type { ConsentCategory, ConsentOptions } from './consent/types';
+import { BatchingOptions, ConnectionOptions, PerformanceOptions, ResilienceOptions } from './dispatcher/types';
 import type { AnalyticsError } from './errors';
 import { GA4Options } from './providers/ga4/types';
 import { PlausibleOptions } from './providers/plausible/types';
@@ -214,6 +215,10 @@ export type InitOptions = {
 
   navigationSource?: NavigationSource;
 
+  batching?: BatchingOptions;
+  connection?: ConnectionOptions;
+  performance?: PerformanceOptions;
+  resilience?: ResilienceOptions;
 
   // Umami-specific options
   /**
@@ -292,6 +297,10 @@ export interface FacadeOptions {
   transport: 'auto' |'beacon' | 'xhr' | 'fetch';
   consent?: ConsentOptions;
   navigationSource?: NavigationSource;
+  batching?: BatchingOptions;
+  connection?: ConnectionOptions;
+  performance?: PerformanceOptions;
+  resilience?: ResilienceOptions;
   onError?: (error: AnalyticsError) => void;
   urlResolver?: () => string;
   urlTransform?: (url: string) => string;

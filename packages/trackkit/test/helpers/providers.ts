@@ -11,11 +11,28 @@ import type { InitOptions, PageContext } from '../../src/types';
 
 const DEFAULT_ANALYTICS_MODE: AnalyticsMode = 'factory';
 
-export class MockProvider implements ProviderInstance {
+
+export interface TestProvider extends ProviderInstance {
+  diagnostics: Record<string, any>;
+}
+
+export class MockProvider implements TestProvider {
   name = 'mock';
-  pageviewCalls: Array<PageContext | undefined> = [];
-  eventCalls: Array<{ name: string; props?: Record<string, unknown>; url?: string; category?: ConsentCategory; pageContext?: PageContext }> = [];
   identifyCalls: Array<string | null> = [];
+  pageviewCalls: Array<PageContext | undefined> = [];
+  eventCalls: Array<{
+    name: string;
+    props?: Record<string, unknown>;
+    url?: string;
+    category?: ConsentCategory;
+    pageContext?: PageContext;
+  }> = [];
+
+  diagnostics = {
+    identifyCalls: this.identifyCalls,
+    pageviewCalls: this.pageviewCalls,
+    eventCalls: this.eventCalls,
+  };
 
   // Add _init to simulate async initialization
   async _init(): Promise<void> {
@@ -24,7 +41,7 @@ export class MockProvider implements ProviderInstance {
   }
 
   pageview(pageContext?: PageContext): Promise<void> {
-    this.pageviewCalls.push(pageContext);
+    this.diagnostics.pageviewCalls.push(pageContext);
     return Promise.resolve();
   }
 
@@ -33,12 +50,12 @@ export class MockProvider implements ProviderInstance {
     props?: Record<string, unknown>,
     pageContext?: PageContext
   ): Promise<void> {
-    this.eventCalls.push({ name, props, pageContext });
+    this.diagnostics.eventCalls.push({ name, props, pageContext });
     return Promise.resolve();
   }
 
   identify(userId: string | null): void {
-    this.identifyCalls.push(userId);
+    this.diagnostics.identifyCalls.push(userId);
   }
 
   destroy(): void {
@@ -50,8 +67,8 @@ export class MockProvider implements ProviderInstance {
  * Build a real StatefulProvider that wraps our ProviderDouble.
  * Returns both so tests can assert on the double’s recorded calls.
  */
-export async function createStatefulMock() {
-  const provider = new MockProvider();
+export async function createStatefulMock(providerOverride?: TestProvider): Promise<{ stateful: StatefulProvider; provider: TestProvider }> {
+  const provider = providerOverride ?? new MockProvider();
   const stateful = new StatefulProvider(provider, DEFAULT_ERROR_HANDLER);
   
   // Initialize the stateful provider
@@ -108,19 +125,23 @@ export async function createMockFacade(opts: Partial<InitOptions> = {}) {
   return { facade, provider };
 }
 
+type SetupConfig = {
+  mode?: AnalyticsMode;
+  setConsent?: ConsentStatus;
+  withMockProvider?: boolean;
+  providerOverride?: TestProvider | StatefulProvider;
+};
+
 export async function setupAnalytics(
   opts?: Partial<InitOptions>,
-  config?: {
-    mode?: AnalyticsMode;
-    setConsent?: ConsentStatus;
-    withMockProvider?: boolean;
-  }
-): Promise<{ facade?: AnalyticsFacade; provider?: MockProvider }> {
-  let facade;
-  let mockProvider;
-  const mode = config?.mode ?? DEFAULT_ANALYTICS_MODE;
-  const setConsent = config?.setConsent;
-  const withMockProvider = config?.withMockProvider ?? true;
+  config: SetupConfig = {},
+): Promise<{ facade?: AnalyticsFacade; provider?: TestProvider }> {
+  let facade: AnalyticsFacade | undefined;
+  let providerForAsserts: any | undefined;
+  let statefulToInject: StatefulProvider | undefined;
+  const mode = config.mode ?? DEFAULT_ANALYTICS_MODE;
+  const setConsent = config.setConsent;
+  const withMockProvider = config.withMockProvider ?? true;
   const options = opts ? opts : {
     autoTrack: true,
     trackLocalhost: true,
@@ -128,22 +149,20 @@ export async function setupAnalytics(
     consent: { disablePersistence: true },
   };
 
+  if (config.providerOverride instanceof StatefulProvider) {
+    statefulToInject = config.providerOverride;
+  } else {
+    const { stateful, provider } = await createStatefulMock(config.providerOverride);
+    statefulToInject = stateful;
+    providerForAsserts = provider;
+  }
+
   if (mode === 'factory') {
     facade = createAnalytics();
-    if (withMockProvider) {
-    const { stateful, provider } = await createStatefulMock();
-      facade.setProvider(stateful);
-      mockProvider = provider;
-    }
+    if (withMockProvider && statefulToInject) facade.setProvider(statefulToInject);
     facade.init(options);
-
   } else {
-    if (withMockProvider) {
-      const { stateful, provider } = await createStatefulMock();
-      injectProviderForTests(stateful);
-      mockProvider = provider;
-    }
-
+    if (withMockProvider && statefulToInject) injectProviderForTests(statefulToInject);
     init(options);
   }
 
@@ -154,5 +173,5 @@ export async function setupAnalytics(
     await (mode == 'factory' ? facade?.waitForReady() : waitForReady());
   }
 
-  return { facade, provider: mockProvider };
+  return { facade, provider: providerForAsserts };
 }

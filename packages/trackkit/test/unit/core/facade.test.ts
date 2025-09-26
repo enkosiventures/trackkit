@@ -7,14 +7,12 @@ import {
   destroy,
   waitForReady,
   grantConsent,
-  denyConsent,
   getFacade,
   hasQueuedEvents,
   flushIfReady,
 } from '../../../src';
-import { setupAnalytics, createStatefulMock } from '../../helpers/providers';
-import { injectProviderForTests } from '../../../src/facade/singleton';
-// import { getFacade } from '../../../src/facade/singleton';
+import { setupAnalytics } from '../../helpers/providers';
+
 
 describe('Trackkit Facade (core API)', () => {
   beforeEach(() => {
@@ -74,10 +72,8 @@ describe('Trackkit Facade (core API)', () => {
         consent: { disablePersistence: true, initialStatus: 'pending' },
       }, { mode: 'singleton' });
 
-      console.warn('Facade provider after init:', facade?.getProvider()?.name);
 
       // Still queued until consent granted
-      // await waitForReady(); // consent unresolved yet
       await new Promise(r => setTimeout(r, 0));
       expect(hasQueuedEvents()).toBe(true);
 
@@ -87,11 +83,9 @@ describe('Trackkit Facade (core API)', () => {
       await flushIfReady();
       await new Promise(r => setTimeout(r, 30));
 
-      console.warn('Current provider:', provider?.name);
-      console.warn('Facade provider:', facade?.getProvider()?.name);
-
-      expect(provider?.eventCalls.map(e => e.name)).toEqual(['early_event']);
-      expect(provider?.pageviewCalls.length).toBe(1);
+      const { eventCalls, pageviewCalls } = provider!.diagnostics;
+      expect(eventCalls.map(e => e.name)).toEqual(['early_event']);
+      expect(pageviewCalls.length).toBe(1);
     });
 
     it('drops queued events when consent is denied', async () => {
@@ -113,8 +107,9 @@ describe('Trackkit Facade (core API)', () => {
       await flushIfReady();
       await new Promise(r => setTimeout(r, 30));
 
-      expect(provider?.eventCalls.length).toBe(0);
-      expect(provider?.pageviewCalls.length).toBe(0);
+      const { eventCalls, pageviewCalls } = provider!.diagnostics;
+      expect(eventCalls.length).toBe(0);
+      expect(pageviewCalls.length).toBe(0);
     });
   });
 
@@ -136,10 +131,11 @@ describe('Trackkit Facade (core API)', () => {
       pageview();
       identify('abc');
 
-      expect(provider?.eventCalls.map(e => e.name)).toContain('delegated_event');
-      expect(provider?.pageviewCalls.length).toBeGreaterThanOrEqual(1);
+      const { eventCalls, identifyCalls, pageviewCalls } = provider!.diagnostics;
+      expect(eventCalls.map(e => e.name)).toContain('delegated_event');
+      expect(pageviewCalls.length).toBeGreaterThanOrEqual(1);
       // identify payload shape depends on the mock; at least assert it was called:
-      expect(provider?.identifyCalls.length).toBeGreaterThan(0);
+      expect(identifyCalls.length).toBeGreaterThan(0);
     });
   });
 

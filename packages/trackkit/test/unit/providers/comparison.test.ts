@@ -17,23 +17,27 @@ describe('Facade routes to active provider only', () => {
     const { facade, provider } = await createMockFacade();
     grantConsent();
 
+    const { pageviewCalls } = provider.diagnostics;
+
     // Ignore initial autotracked '/'
-    provider.pageviewCalls.length = 0;
+    pageviewCalls.length = 0;
 
     await navigate('/a');
-    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/a']);
+    expect(pageviewCalls.map(c => c?.url)).toEqual(['/a']);
 
     // Create a fresh provider and attach
     const b = await createStatefulMock();
-    expect(b.provider.pageviewCalls.length).toBe(0);
+    const { pageviewCalls: bPageviewCalls } = b.provider.diagnostics;
+
+    expect(bPageviewCalls.length).toBe(0);
 
     facade.setProvider(b.stateful);
-    b.provider.pageviewCalls.length = 0; // ignore new provider’s initial '/'
+    bPageviewCalls.length = 0; // ignore new provider’s initial '/'
 
     await navigate('/b');
 
     // New provider got the new pageview, old one stayed as-is
-    expect(b.provider.pageviewCalls.map(c => c?.url)).toEqual(['/b']);
-    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/a']);
+    expect(bPageviewCalls.map(c => c?.url)).toEqual(['/b']);
+    expect(pageviewCalls.map(c => c?.url)).toEqual(['/a']);
   });
 });

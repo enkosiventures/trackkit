@@ -79,14 +79,15 @@ describe('SSR hydration (browser)', () => {
       mode: 'singleton',
     });
 
-    expect(provider?.eventCalls.length).toBe(0);           // nothing yet
-    expect(getSSRQueueLength()).toBe(1);                    // still present
+    const { eventCalls } = provider!.diagnostics;
+    expect(eventCalls.length).toBe(0);           // nothing yet
+    expect(getSSRQueueLength()).toBe(1);         // still present
 
     grantConsent();
     await tick(10);
 
-    expect(provider?.eventCalls.length).toBe(1);           // now replayed
-    expect(getSSRQueueLength()).toBe(0);                    // drained
+    expect(eventCalls.length).toBe(1);           // now replayed
+    expect(getSSRQueueLength()).toBe(0);         // drained
   });
 
   it('drops SSR analytics on denied; allows essential when allowEssentialOnDenied', async () => {
@@ -105,7 +106,7 @@ describe('SSR hydration (browser)', () => {
     });
 
     // analytics was dropped, identify allowed
-    expect(provider?.eventCalls.length).toBe(0);
+    expect(provider!.diagnostics.eventCalls.length).toBe(0);
 
     // if your spy tracks identify calls, assert 1; otherwise assert queue drained:
     expect(getSSRQueueLength()).toBe(0);
@@ -125,6 +126,6 @@ describe('SSR hydration (browser)', () => {
     });
 
     await tick(10);
-    expect(provider?.pageviewCalls.length).toBe(1); // SSR PV only
+    expect(provider!.diagnostics.pageviewCalls.length).toBe(1); // SSR PV only
   });
 });

@@ -5,6 +5,8 @@ import { STORAGE_KEY } from "../../src/constants";
 
 export const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 
+export const nextTick = () => Promise.resolve();
+
 export const testLog = (message: string, ...args: unknown[]): void => {
   logger.debug(`[TEST] ${message}`, ...args);
 }
