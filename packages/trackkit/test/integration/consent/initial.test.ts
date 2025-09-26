@@ -47,9 +47,10 @@ describe('Consent: initial state behavior', () => {
 
     await tick();
 
-    expect(provider.pageviewCalls.length).toBe(0);
-    expect(provider.eventCalls.length).toBe(0);
-    expect(provider.identifyCalls.length).toBe(0);
+    const { eventCalls, pageviewCalls, identifyCalls } = provider.diagnostics;
+    expect(pageviewCalls.length).toBe(0);
+    expect(eventCalls.length).toBe(0);
+    expect(identifyCalls.length).toBe(0);
 
     // No queueing under denied
     expect(facade.getQueueSize()).toBe(0);
@@ -80,11 +81,12 @@ describe('Consent: initial state behavior', () => {
 
     await tick();
 
-    expect(provider.identifyCalls.length).toBe(1);
-    expect(provider.identifyCalls[0]).toBe('u-1');
+    const { identifyCalls, pageviewCalls, eventCalls } = provider.diagnostics;
+    expect(identifyCalls.length).toBe(1);
+    expect(identifyCalls[0]).toBe('u-1');
 
-    expect(provider.pageviewCalls.length).toBe(0);
-    expect(provider.eventCalls.length).toBe(0);
+    expect(pageviewCalls.length).toBe(0);
+    expect(eventCalls.length).toBe(0);
     expect(facade.getQueueSize()).toBe(0);
   });
 
@@ -112,8 +114,10 @@ describe('Consent: initial state behavior', () => {
     await tick();
 
     expect(facade.getQueueSize()).toBe(0);
-    expect(provider.eventCalls.length).toBe(1);
-    expect(provider.eventCalls[0]?.name).toBe('queued_event');
+
+    const { eventCalls } = provider.diagnostics;
+    expect(eventCalls.length).toBe(1);
+    expect(eventCalls[0]?.name).toBe('queued_event');
   });
 
   it("initial: 'granted' sends immediately", async () => {
@@ -136,9 +140,10 @@ describe('Consent: initial state behavior', () => {
 
     await tick();
 
-    expect(provider.pageviewCalls.length).toBe(1);
-    expect(provider.eventCalls.length).toBe(1);
-    expect(provider.eventCalls[0]?.name).toBe('immediate');
+    const { eventCalls, pageviewCalls } = provider.diagnostics;
+    expect(pageviewCalls.length).toBe(1);
+    expect(eventCalls.length).toBe(1);
+    expect(eventCalls[0]?.name).toBe('immediate');
     expect(facade.getQueueSize()).toBe(0);
   });
 
@@ -181,8 +186,9 @@ describe('Consent: initial state behavior', () => {
 
     await tick();
 
-    expect(provider.eventCalls.length).toBe(1);
-    expect(provider.eventCalls[0]?.name).toBe('should_send_immediately');
+    const { eventCalls } = provider.diagnostics;
+    expect(eventCalls.length).toBe(1);
+    expect(eventCalls[0]?.name).toBe('should_send_immediately');
     expect(facade.getQueueSize()).toBe(0);
   });
 
@@ -216,8 +222,9 @@ describe('Consent: initial state behavior', () => {
     facade.pageview();
     await tick();
 
-    expect(provider.eventCalls.length).toBe(0);
-    expect(provider.pageviewCalls.length).toBe(0);
+    const { eventCalls, pageviewCalls } = provider.diagnostics;
+    expect(eventCalls.length).toBe(0);
+    expect(pageviewCalls.length).toBe(0);
     expect(facade.getQueueSize()).toBe(0);
   });
 });

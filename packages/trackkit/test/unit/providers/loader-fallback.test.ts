@@ -28,7 +28,7 @@ vi.mock('../../src/providers/loader', () => {
 
 import { AnalyticsFacade } from '../../../src/facade';
 import { resetTests, tick } from '../../helpers/core';
-import { TEST_SITE_ID } from '../../setup/providers';
+import { TEST_SITE_ID } from '../../helpers/providers';
 
 describe('Provider loader fallback', () => {
   beforeEach(() => {

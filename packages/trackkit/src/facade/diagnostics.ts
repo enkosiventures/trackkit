@@ -1,11 +1,10 @@
 import type { FacadeOptions } from '../types';
-import type { QueueService } from './queues';
+import { type QueueService, getSSRQueueLength } from '../queues';
 import type { ContextService } from './context';
 import type { ProviderManager } from './provider-manager';
 import { ConsentStatus, ConsentStoredState } from '../consent/types';
 import { ProviderState } from '../providers/types';
 import { ProviderStateHistory } from '../util/state';
-import { getSSRQueueLength } from '../util/ssr-queue';
 
 export interface ProviderStateSnapshot {
   provider: string | null;

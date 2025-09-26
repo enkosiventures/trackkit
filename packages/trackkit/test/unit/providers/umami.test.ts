@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeAll, afterAll, afterEach, beforeEach } 
 import { server } from '../../setup/msw';
 import { http, HttpResponse } from 'msw';
 import type { PageContext } from '../../../src';
-import { TEST_SITE_ID } from '../../setup/providers';
+import { TEST_SITE_ID } from '../../helpers/providers';
 import { resetTests } from '../../helpers/core';
 
 // @vitest-environment jsdom

@@ -77,8 +77,10 @@ describe('Consent Flow Integration', () => {
     // Queue empty and deliveries happened
     const diagnostics = getDiagnostics();
     expect(diagnostics?.queue.totalBuffered).toBe(0);
-    expect(provider.eventCalls.map(e => e.name)).toEqual(['purchase']);
-    expect(provider.pageviewCalls.length).toBe(1);
+
+    const { eventCalls, pageviewCalls } = provider.diagnostics;
+    expect(eventCalls.map(e => e.name)).toEqual(['purchase']);
+    expect(pageviewCalls.length).toBe(1);
   });
 
   it('drops new events when consent is denied', async () => {
@@ -274,6 +276,6 @@ describe('Consent Flow Integration', () => {
     await flushIfReady();
     await new Promise(r => setTimeout(r, 30));
 
-    expect(provider.eventCalls.map(e => e.name)).toEqual(['heartbeat']);
+    expect(provider.diagnostics.eventCalls.map(e => e.name)).toEqual(['heartbeat']);
   });
 });

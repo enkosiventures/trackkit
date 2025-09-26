@@ -1,7 +1,7 @@
 import { ConsentCategory } from '../consent/types';
 import { EventType, PageContext } from '../types';
-import { hasDOM, isClient, isServer } from './env';
-import type { QueuedEvent, QueuedEventUnion } from './queue';
+import { hasDOM, isClient, isServer } from '../util/env';
+import type { IQueue, QueuedEventUnion } from './types';
 
 /**
  * Global queue for SSR environments
@@ -126,7 +126,16 @@ export function serializeSSRQueue(queue: QueuedEventUnion[]): string {
   return `<script>window.__TRACKKIT_SSR_QUEUE__=${json};</script>`;
 }
 
+// Thin wrapper to satisfy IQueue<T>
+export class SSRQueue implements IQueue {
+  flush() { return flushSSRAll(); }
+  flushEssential() { return flushSSREssential(); }
+  clear() { return clearSSRAll(); }
+  clearNonEssential() { return clearSSRNonEssential(); }
+  get size() { return getSSRQueueLength(); }
+}
 
 // Legacy
 export const hydrateSSRQueue = flushSSRAll;
 export const clearSSRQueue = clearSSRAll;
+

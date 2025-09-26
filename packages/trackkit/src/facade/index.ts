@@ -4,7 +4,6 @@ import { ConsentManager } from '../consent/ConsentManager';               // exi
 import { ConsentCategory, ConsentStatus, ConsentStoredState } from '../consent/types';
 import { PolicyGate } from './policy-gate';
 import { ContextService } from './context';
-import { QueueService } from './queues';
 import { ProviderManager } from './provider-manager';
 import { NavigationService } from './navigation';
 import { Dispatcher } from '../dispatcher/dispatcher';
@@ -13,7 +12,7 @@ import { DEFAULT_CATEGORY, DEFAULT_PRE_INIT_BUFFER_SIZE, ESSENTIAL_CATEGORY } fr
 import { AnalyticsError, dispatchError, setUserErrorHandler } from '../errors';
 import { DiagnosticsService } from './diagnostics';
 import { StatefulProvider } from '../providers/stateful-wrapper';
-import { EventQueue, QueuedEventUnion } from '../util/queue';
+import { QueueService, EventQueue, type QueuedEventUnion } from '../queues';
 import { isServer } from '../util/env';
 import { ConnectionMonitor } from '../connection/monitor';
 import { OfflineStore } from '../connection/offline-store';
@@ -76,9 +75,13 @@ export class AnalyticsFacade {
 
     setUserErrorHandler(this.cfg?.onError);
 
-    this.context    = new ContextService(this.cfg!);
-    this.queues     = new QueueService(this.cfg!, dropped => this.onOverflow(dropped.length));
     this.nav        = new NavigationService();
+    this.context    = new ContextService(this.cfg!);
+    this.queues     = new QueueService({
+      maxSize: this.cfg!.queueSize,
+      debug: !!this.cfg?.debug,
+      onOverflow: dropped => this.onOverflow(dropped.length),
+    });
     this.dispatcher = new Dispatcher({
       batching: this.cfg?.batching?.enabled ? this.cfg.batching : undefined,
       performance: this.cfg?.performance,

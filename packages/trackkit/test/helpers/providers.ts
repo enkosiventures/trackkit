@@ -11,6 +11,11 @@ import type { InitOptions, PageContext } from '../../src/types';
 
 const DEFAULT_ANALYTICS_MODE: AnalyticsMode = 'factory';
 
+export const TEST_SITE_ID = {
+    umami: '9e1e6d6e-7c0e-4b0e-8f0a-5c5b5b5b5b5b',
+    plausible: 'test.com',
+    ga4: 'G-XXXXXXXXXX',
+};
 
 export interface TestProvider extends ProviderInstance {
   diagnostics: Record<string, any>;

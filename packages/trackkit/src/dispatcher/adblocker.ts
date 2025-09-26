@@ -11,6 +11,10 @@ export async function detectBlockers(): Promise<BlockerDetection> {
 }
 
 function checkFetch(): Promise<BlockerDetection> {
+  // SSR-safe: if fetch is absent, we cannot meaningfully probe; return neutral
+  if (typeof fetch === 'undefined') {
+    return Promise.resolve({ blocked: false, confidence: 0 });
+  }
   return new Promise(resolve => {
     const ctrl = new AbortController();
     const t = setTimeout(() => { ctrl.abort(); resolve({ blocked: true, method: 'fetch', confidence: 0.7 }); }, 1000);
@@ -20,20 +24,36 @@ function checkFetch(): Promise<BlockerDetection> {
   });
 }
 
+function safeRemove(node: any) {
+  try {
+    if (node && typeof node.remove === 'function') {
+      node.remove();
+    } else if (node?.parentNode && typeof node.parentNode.removeChild === 'function') {
+      node.parentNode.removeChild(node);
+    }
+  } catch {
+    // swallow – removal is best-effort in detection code
+  }
+}
+
 function checkScript(): Promise<BlockerDetection> {
   if (typeof document === 'undefined') return Promise.resolve({ blocked: false, confidence: 0 });
   return new Promise(resolve => {
     const s = document.createElement('script');
-    const t = setTimeout(() => { s.remove(); resolve({ blocked: true, method: 'script', confidence: 0.8 }); }, 1000);
+    const t = setTimeout(() => { safeRemove(s); resolve({ blocked: true, method: 'script', confidence: 0.8 }); }, 1000);
     s.src = 'https://www.google-analytics.com/analytics.js';
     s.async = true;
-    s.onload = () => { clearTimeout(t); s.remove(); resolve({ blocked: false, confidence: 0.9 }); };
-    s.onerror = () => { clearTimeout(t); s.remove(); resolve({ blocked: true, method: 'script', confidence: 0.9 }); };
+    s.onload = () => { clearTimeout(t); safeRemove(s); resolve({ blocked: false, confidence: 0.9 }); };
+    s.onerror = () => { clearTimeout(t); safeRemove(s); resolve({ blocked: true, method: 'script', confidence: 0.9 }); };
     document.head.appendChild(s);
   });
 }
 
 function checkDNS(): Promise<BlockerDetection> {
+  // SSR-safe: no Image constructor in non-DOM environments
+  if (typeof Image === 'undefined') {
+    return Promise.resolve({ blocked: false, confidence: 0 });
+  }
   return new Promise(resolve => {
     const img = new Image();
     const t = setTimeout(() => resolve({ blocked: true, method: 'dns', confidence: 0.6 }), 1000);

@@ -3,7 +3,7 @@
  * Supports build-time (process.env) and runtime (window) access
  */
 
-import { stripEmptyFields } from "../providers/shared/utils";
+import { stripEmptyFields } from "../util";
 import type { InitOptions } from "../types";
 
 export interface EnvConfig {

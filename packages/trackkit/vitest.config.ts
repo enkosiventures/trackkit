@@ -9,7 +9,7 @@ export default defineConfig({
     setupFiles: [
       'test/setup/sandbox.ts',
       'test/setup/msw.ts',
-      'test/setup/providers.ts'
+      'test/helpers/providers.ts'
     ],
     restoreMocks: true,
     clearMocks: true,

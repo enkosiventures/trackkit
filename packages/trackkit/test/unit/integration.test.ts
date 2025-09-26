@@ -33,8 +33,9 @@ describe('Queue and State Integration', () => {
     // Give the facade a beat to flush
     await new Promise(r => setTimeout(r, 30));
 
-    expect(provider.eventCalls.map(e => e.name)).toEqual(['first']);
-    expect(provider.pageviewCalls.map(p => p?.url)).toEqual(['/pre']);
+    const { eventCalls, pageviewCalls } = provider.diagnostics;
+    expect(eventCalls.map(e => e.name)).toEqual(['first']);
+    expect(pageviewCalls.map(p => p?.url)).toEqual(['/pre']);
   });
 
   it('handles rapid successive calls', async () => {
@@ -75,7 +76,8 @@ describe('Queue and State Integration', () => {
     await new Promise(r => setTimeout(r, 30));
 
     // Assert strict order using the mock’s call arrays
-    expect(provider.eventCalls.map(e => e.name)).toEqual(['first']);
-    expect(provider.pageviewCalls.map(p => p?.url)).toEqual(['/second']);
+    const { eventCalls, pageviewCalls } = provider.diagnostics;
+    expect(eventCalls.map(e => e.name)).toEqual(['first']);
+    expect(pageviewCalls.map(p => p?.url)).toEqual(['/second']);
   });
 });

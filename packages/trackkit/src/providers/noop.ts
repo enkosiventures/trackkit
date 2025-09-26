@@ -1,6 +1,6 @@
 import type { PageContext, Props, ProviderInstance, ProviderOptions } from '../types';
 import { logger } from '../util/logger';
-import { stripEmptyFields } from './shared/utils';
+import { stripEmptyFields } from '../util';
 import type { ProviderFactory } from './types';
 
 

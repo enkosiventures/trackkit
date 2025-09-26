@@ -3,7 +3,7 @@ import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { AnalyticsFacade } from './index';
 import { ConsentCategory, ConsentStatus } from '../consent/types';
 import { isServer } from '../util/env';
-import { enqueueSSREvent } from '../util/ssr-queue';
+import { enqueueSSREvent } from '../queues';
 import { DEFAULT_CATEGORY } from '../constants';
 
 let instance: AnalyticsFacade | null = null;

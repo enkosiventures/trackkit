@@ -3,7 +3,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach } from
 import { server } from '../setup/msw';
 import { http, HttpResponse } from 'msw';
 import { init, track, destroy, waitForReady, grantConsent, pageview } from '../../src';
-import { TEST_SITE_ID } from '../setup/providers';
+import { TEST_SITE_ID } from '../helpers/providers';
 import { UMAMI_ENDPOINT, UMAMI_HOST } from '../../src/constants';
 import { testLog } from '../helpers/core';
 // import { installBeaconPolyfill } from '../setup/install-beacon-polyfill';

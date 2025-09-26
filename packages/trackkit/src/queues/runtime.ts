@@ -1,62 +1,10 @@
-import type { ConsentCategory } from '../consent/types';
+import { ConsentCategory } from '../consent/types';
 import { DEFAULT_CATEGORY } from '../constants';
-import type { EventType, PageContext, Props } from '../types';
-import { deepClone } from './helpers';
-import { logger } from './logger';
+import { PageContext } from '../types';
+import { deepClone } from '../util';
+import { logger } from '../util/logger';
+import type { IQueue, QueueConfig, QueuedEvent, QueuedEventUnion } from './types';
 
-
-/**
- * Queued event structure
- */
-export interface QueuedEvent {
-  id: string;
-  type: EventType;
-  timestamp: number;
-  args: unknown[];
-  category: ConsentCategory;
-  pageContext?: PageContext;
-}
-
-/**
- * Track event in queue
- */
-export interface QueuedTrackEvent extends QueuedEvent {
-  type: 'track';
-  args: [name: string, props?: Props, url?: string];
-}
-
-/**
- * Pageview event in queue
- */
-export interface QueuedPageviewEvent extends QueuedEvent {
-  type: 'pageview';
-  args: [url?: string];
-}
-
-/**
- * Identify event in queue
- */
-export interface QueuedIdentifyEvent extends QueuedEvent {
-  type: 'identify';
-  args: [userId: string | null];
-}
-
-/**
- * Union of all queued event types
- */
-export type QueuedEventUnion = 
-  | QueuedTrackEvent 
-  | QueuedPageviewEvent 
-  | QueuedIdentifyEvent; 
-
-/**
- * Event queue configuration
- */
-export interface QueueConfig {
-  maxSize: number;
-  onOverflow?: (dropped: QueuedEventUnion[]) => void;
-  debug?: boolean;
-}
 
 /**
  * Generate unique event ID
@@ -66,14 +14,11 @@ function generateEventId(): string {
   return `evt_${Date.now()}_${++eventCounter}`;
 }
 
-/**
- * In-memory event queue with overflow protection
- */
-export class EventQueue {
+export class EventQueue implements IQueue {
   private queue: QueuedEventUnion[] = [];
   private config: QueueConfig;
   private isPaused = false;
-  
+
   constructor(config: QueueConfig) {
     this.config = config;
     logger.debug('EventQueue initialized', { maxSize: config.maxSize });
@@ -82,9 +27,9 @@ export class EventQueue {
   /**
    * Add event to queue
    */
-  enqueue<T extends QueuedEventUnion['type']>(
-    type: T,
-    args: Extract<QueuedEventUnion, { type: T }>['args'],
+  enqueue(
+    type: QueuedEventUnion['type'],
+    args: Extract<QueuedEventUnion, { type: typeof type }>['args'],
     category: ConsentCategory = DEFAULT_CATEGORY,
     pageContext?: PageContext
   ): string | undefined {

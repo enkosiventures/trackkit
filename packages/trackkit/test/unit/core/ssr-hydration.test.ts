@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { AnalyticsFacade } from '../../../src/facade';
-import { getSSRQueueLength } from '../../../src/util/ssr-queue';
+import { getSSRQueueLength } from '../../../src/queues';
 
 function spyProvider() {
   const eventCalls: any[] = [];
