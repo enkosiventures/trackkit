@@ -1,17 +1,59 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, assert, afterEach } from 'vitest';
 import { getSSRQueueLength, hydrateSSRQueue, serializeSSRQueue } from '../../../src/queues/ssr';
-import { tick } from '../../helpers/core';
+import { resetTests, tick } from '../../helpers/core';
 import { setupAnalytics } from '../../helpers/providers';
-import { destroy, grantConsent } from '../../../src';
+import { grantConsent } from '../../../src';
+
+
+describe('SSR hydration from facade', () => {
+  beforeEach(() => {
+    resetTests();
+  });
+
+  afterEach(() => {
+    resetTests();
+  });
+
+  it('replays SSR events when provider ready and consent granted', async () => {
+    // Seed the exact key hydrateSSRQueue() reads
+    (globalThis as any).__TRACKKIT_SSR_QUEUE__ = [{
+      id: 'ssr1',
+      type: 'track',
+      timestamp: Date.now(),
+      args: ['ssr_event', { z: 1 }],
+      category: 'analytics',         // OK when consent is granted
+      pageContext: { url: '/from-ssr' },
+    }];
+
+    const { facade, provider } = await setupAnalytics({
+      autoTrack: false,
+      trackLocalhost: true,
+      consent: { initialStatus: 'granted', disablePersistence: true },
+    }, { 
+      mode: 'factory',
+    });
+    assert(facade);
+
+    await facade.waitForReady?.({ timeoutMs: 200, mode: 'provider' });
+    console.warn('After init, SSR queue length:', getSSRQueueLength());
+
+    console.warn('Provider name:', facade.getProvider()?.name)
+    expect(provider!.diagnostics.eventCalls.length).toBe(1);
+    expect(getSSRQueueLength()).toBe(0); // hydrate clears the queue
+  });
+});
+
 
 describe('SSR hydration (browser)', () => {
   beforeEach(() => {
-    // Ensure a clean window
-    delete (window as any).__TRACKKIT_SSR_QUEUE__;
-    destroy();
+    resetTests();
+  });
+
+  afterEach(() => {
+    resetTests();
   });
 
   it('hydrates from window.__TRACKKIT_SSR_QUEUE__ and clears it afterwards', () => {

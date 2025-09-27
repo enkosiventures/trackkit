@@ -1,5 +1,5 @@
-import type { PageContext } from "../../types";
-import { hasDOM } from "../../util/env";
+import type { PageContext } from "../types";
+import { hasDOM } from "../util/env";
 
 
 export function getDocumentTitle(): string | undefined { return hasDOM() ? document.title : undefined; }
@@ -91,8 +91,11 @@ export function isDoNotTrackEnabled(): boolean {
   
   const dnt = 
     (window as any).doNotTrack || 
+    (window as any).navigator.doNotTrack || 
     navigator.doNotTrack || 
     (navigator as any).msDoNotTrack;
+
+  console.warn('DNT value:', dnt);
     
   return dnt === '1' || dnt === 'yes' || dnt === true;
 }

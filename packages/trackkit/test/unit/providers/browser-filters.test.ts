@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isUrlExcluded } from '../../../src/providers/shared/browser';
+import { isUrlExcluded } from '../../../src/providers/browser';
 
 describe('URL exclusion filters', () => {
   it('matches simple prefix and wildcard patterns', () => {

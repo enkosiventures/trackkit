@@ -26,7 +26,7 @@ export function stripEmptyFields<T>(input: T): T {
   if (Array.isArray(input)) {
     const cleaned = (input as unknown[]).map(stripEmptyFields)
       .filter((v) => v !== undefined && v !== null && v !== '');
-    // (Optional) If you want to also drop empty objects inside arrays, uncomment:
+    // (Optional) Uncomment to drop empty objects inside arrays:
     // .filter((v) => !(isPlainObject(v) && Object.keys(v as object).length === 0));
     return cleaned as unknown as T;
   }

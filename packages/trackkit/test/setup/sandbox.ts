@@ -1,5 +1,5 @@
 import { afterEach, beforeEach } from 'vitest';
-import { ensureNavigationSandbox } from '../../src/providers/shared/navigationSandbox';
+import { ensureNavigationSandbox } from '../../src/providers/navigation-sandbox';
 
 // Import your sandbox to hard reset between tests
 

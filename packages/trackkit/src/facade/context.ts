@@ -1,5 +1,5 @@
 import type { PageContext } from '../types';
-import { getPageContext } from '../providers/shared/browser';
+import { getPageContext } from '../providers/browser';
 import type { FacadeOptions } from '../types';
 
 export class ContextService {

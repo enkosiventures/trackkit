@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventQueue } from '../../../src/queues';
-import { getPageContext } from '../../../src/providers/shared/browser';
+import { getPageContext } from '../../../src/providers/browser';
 
 const pageContext = getPageContext();
 

@@ -3,36 +3,6 @@ import { AnalyticsFacade } from '../../../src/facade';
 import { tick } from '../../helpers/core';
 import { createFacade, createSpyProvider } from '../../helpers/providers';
 
-// type SpyCall = { args: any[]; ctx?: any };
-// function createSpyProvider() {
-//   const pageviewCalls: SpyCall[] = [];
-//   const eventCalls: SpyCall[] = [];
-//   const identifyCalls: SpyCall[] = [];
-//   const readyCallbacks: Array<() => void> = [];
-
-//   const api = {
-//     name: 'spy',
-//     onReady(cb: () => void) { readyCallbacks.push(cb); cb(); },
-//     getState() { return { provider: 'ready', history: [] as any[] }; },
-//     pageview: (...args: any[]) => { pageviewCalls.push({ args }); },
-//     track: (...args: any[]) => { eventCalls.push({ args }); },
-//     identify: (...args: any[]) => { identifyCalls.push({ args }); },
-//     destroy: () => {},
-//     _get() { return { pageviewCalls, eventCalls, identifyCalls }; },
-//   };
-//   return api;
-// }
-
-// function makeFacade(base?: Partial<Parameters<AnalyticsFacade['init']>[0]>) {
-//   const f = new AnalyticsFacade();
-//   f.init({
-//     debug: true,
-//     domains: ['localhost'],
-//     consent: { initialStatus: 'granted', disablePersistence: true },
-//     ...base,
-//   });
-//   return f;
-// }
 
 describe('AnalyticsFacade policy gates', () => {
   beforeEach(() => {

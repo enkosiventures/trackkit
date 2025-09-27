@@ -1,7 +1,7 @@
 import type { EventType, ProviderType } from '../types';
 import { isBrowserMainThread } from '../util/env';
 import { getProviderMetadata } from '../providers/metadata';
-import { isDoNotTrackEnabled, isLocalhost, isDomainAllowed, isUrlExcluded } from '../providers/shared/browser';
+import { isDoNotTrackEnabled, isLocalhost, isDomainAllowed, isUrlExcluded } from '../providers/browser';
 import { DEFAULT_CATEGORY } from '../constants';
 import type { ConsentManager } from '../consent/ConsentManager';
 import type { FacadeOptions } from '../types';

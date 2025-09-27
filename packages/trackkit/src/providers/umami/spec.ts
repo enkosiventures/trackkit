@@ -1,6 +1,6 @@
 import { UMAMI_ENDPOINT, UMAMI_HOST } from '../../constants';
 import type { EventType, PageContext, ProviderOptions } from '../../types';
-import { displaySizeFromContext } from '../shared/browser';
+import { displaySizeFromContext } from '../browser';
 import { createConfigProvider, type ProviderSpec } from '../base/adapter';
 import { UmamiOptions, UmamiPayload, UmamiSendBody } from './types';
 

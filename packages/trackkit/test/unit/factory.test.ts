@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // Factory API (additive to the singleton)
-import { createAnalytics } from '../../../src/factory';
+import { createAnalytics } from '../../src/factory';
 
 // Useful to reset browser-ish env between tests
 import { JSDOM } from 'jsdom';
-import { createStatefulMock } from '../../helpers/providers';
-import { resetTests } from '../../helpers/core';
+import { createStatefulMock } from '../helpers/providers';
+import { resetTests } from '../helpers/core';
 
 function resetEnv() {
   // keep URL stable for PV policy logic

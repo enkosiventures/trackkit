@@ -1,4 +1,4 @@
-import { ensureNavigationSandbox } from '../providers/shared/navigationSandbox';
+import { ensureNavigationSandbox } from '../providers/navigation-sandbox';
 import { logger } from '../util/logger';
 
 export class NavigationService {
