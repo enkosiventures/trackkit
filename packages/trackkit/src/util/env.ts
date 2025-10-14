@@ -74,32 +74,47 @@ function maybeFormat(value: string | undefined, formatter?: (val: string) => any
 }
 
 export function readEnvConfig(): InitOptions {
-  return stripEmptyFields({
+  return stripEmptyFields<InitOptions>({
+    // CORE OPTIONS
     provider: maybeFormat(getEnvVar('PROVIDER')),
     site: maybeFormat(getEnvVar('SITE')),
     host: maybeFormat(getEnvVar('HOST')),
-    queueSize: maybeFormat(getEnvVar('QUEUE_SIZE'), parseInt),
-    debug: parseEnvBoolean(getEnvVar('DEBUG')),
+
+    // GENERAL OPTIONS
+    allowWhenHidden: parseEnvBoolean(getEnvVar('ALLOW_WHEN_HIDDEN')),
+    autoTrack: parseEnvBoolean(getEnvVar('AUTO_TRACK')),
     batchSize: maybeFormat(getEnvVar('BATCH_SIZE'), parseInt),
     batchTimeout: maybeFormat(getEnvVar('BATCH_TIMEOUT'), parseInt),
-    autoTrack: parseEnvBoolean(getEnvVar('AUTO_TRACK')),
-    doNotTrack: parseEnvBoolean(getEnvVar('DO_NOT_TRACK')),
+    bustCache: parseEnvBoolean(getEnvVar('BUST_CACHE')),
+    debug: parseEnvBoolean(getEnvVar('DEBUG')),
     domains: maybeFormat(getEnvVar('DOMAINS'), s => s.split(',').map(x => x.trim())),
-    cache: parseEnvBoolean(getEnvVar('CACHE')),
-    allowWhenHidden: parseEnvBoolean(getEnvVar('ALLOW_WHEN_HIDDEN')),
+    doNotTrack: parseEnvBoolean(getEnvVar('DO_NOT_TRACK')),
+    exclude: maybeFormat(getEnvVar('EXCLUDE'), s => s.split(',').map(x => x.trim())),
+    includeHash: parseEnvBoolean(getEnvVar('INCLUDE_HASH')),
+    queueSize: maybeFormat(getEnvVar('QUEUE_SIZE'), parseInt),
+    trackLocalhost: parseEnvBoolean(getEnvVar('TRACK_LOCALHOST')),
+    transport: maybeFormat(getEnvVar('TRANSPORT')) as any,
+
+    // OPTION COLLECTIONS
+    consent: maybeFormat(getEnvVar('CONSENT')),
+  
+    // PROVIDER-SPECIFIC OPTIONS
+
+    // - Plausible
+    defaultProps: maybeFormat(getEnvVar('DEFAULT_PROPS')),
+    domain: maybeFormat(getEnvVar('DOMAIN')),
+    revenue: maybeFormat(getEnvVar('REVENUE')),
+
+    // - Umami
+    website: maybeFormat(getEnvVar('WEBSITE')),
+
+    // - GA4
     apiSecret: maybeFormat(getEnvVar('API_SECRET')),
     customDimensions: maybeFormat(getEnvVar('CUSTOM_DIMENSIONS')),
     customMetrics: maybeFormat(getEnvVar('CUSTOM_METRICS')),
-    transport: maybeFormat(getEnvVar('TRANSPORT')) as any,
-    includeHash: parseEnvBoolean(getEnvVar('INCLUDE_HASH')),
+    debugEndpoint: parseEnvBoolean(getEnvVar('DEBUG_ENDPOINT')),
+    debugMode: parseEnvBoolean(getEnvVar('DEBUG_MODE')),
     measurementId: maybeFormat(getEnvVar('MEASUREMENT_ID')),
-    trackLocalhost: parseEnvBoolean(getEnvVar('TRACK_LOCALHOST')),
-    exclude: maybeFormat(getEnvVar('EXCLUDE'), s => s.split(',').map(x => x.trim())),
-    defaultProps: maybeFormat(getEnvVar('DEFAULT_PROPS')),
-    revenue: maybeFormat(getEnvVar('REVENUE')),
-    consent: maybeFormat(getEnvVar('CONSENT')),
-    domain: maybeFormat(getEnvVar('DOMAIN')),
-    website: maybeFormat(getEnvVar('WEBSITE')),
   });
 }
 

@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": false,          // <- off to avoid map/patched text mismatch
+    "stripInternal": false,           // set true if you use /** @internal */ to hide things
+    "removeComments": false,          // doc comments are preserved in .d.ts either way
+    "rootDir": "src",
+    "outDir": "dist/types",
+    "composite": false,               // set true only if using TS project references
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"]
+}

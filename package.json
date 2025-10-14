@@ -3,6 +3,9 @@
   "packageManager": "pnpm@10.13.1",
   "private": true,
   "scripts": {
+    "build:types": "pnpm -r run build:types",
+    "defaults:inject": "pnpm -r run defaults:inject",
+    "defaults:assert": "pnpm -r run defaults:assert",
     "test": "pnpm -r run test",
     "test:coverage": "pnpm -r run test:coverage",
     "deadcode": "pnpm -r run deadcode",
@@ -12,7 +15,9 @@
     "typecheck": "pnpm -r run typecheck",
     "lint": "eslint . --ext .ts,.tsx --cache",
     "size": "pnpm -r run size",
-    "clean": "pnpm -r run clean"
+    "clean": "pnpm -r run clean",
+    "release": "pnpm -r run clean && pnpm -r run build && pnpm run defaults:inject && pnpm run defaults:assert",
+    "release:docs": "pnpm run release && pnpm --filter trackkit run typedoc"
   },
   "devDependencies": {
     "@eslint/js": "^9.31.0",
@@ -27,6 +32,8 @@
     "msw": "^2.10.4",
     "prettier": "^3.6.2",
     "tsup": "^8.5.0",
+    "tsx": "^4.20.6",
+    "typedoc": "^0.28.13",
     "typescript": "^5.5.4",
     "vitest": "^3.2.4"
   }

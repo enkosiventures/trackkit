@@ -93,6 +93,9 @@ export type EventContext = PageContext;
 
 // ---- Facade-only options (always honored, even on noop fallback)
 export type InitOptions = {
+
+  // CORE OPTIONS
+
   /**
    * Analytics provider type
    * @default 'noop'
@@ -112,41 +115,7 @@ export type InitOptions = {
    */
   host?: string;
 
-  /**
-   * Maximum number of events to queue before dropping oldest
-   * @default 50
-   */
-  queueSize?: number;          // default 50
-
-  /**
-   * Number of events to batch together
-   * @default 10
-   */
-  batchSize?: number;          // default 10
-
-  /**
-   * Time in ms before forcing batch send
-   * @default 1000
-   */
-  batchTimeout?: number;       // default 1000
-
-  /**
-   * Enable debug logging to console
-   * @default false
-   */
-  debug?: boolean;
-
-  /**
-   * Transport mechanism for sending events
-   * @default 'beacon'
-   */
-  transport?: 'auto' | 'beacon' | 'fetch' | 'xhr';
-
-  /**
-   * Enable cache-busting (ie disable caching) for requests
-   * @default false
-   */
-  bustCache?: boolean;
+  // GENERAL OPTIONS
 
   /**
    * Enable page tracking when the page is hidden
@@ -158,24 +127,42 @@ export type InitOptions = {
    * Automatically track page views
    * @default true
    */
-  autoTrack?: boolean;         // default true
+  autoTrack?: boolean;
 
   /**
-   * Honor Do Not Track browser setting
-   * @default true
+   * Number of events to batch together
+   * @default 10
    */
-  doNotTrack?: boolean;        // default true
+  batchSize?: number;
 
   /**
-   * Track localhost events (Plausible)
+   * Time in ms before forcing batch send
+   * @default 1000
+   */
+  batchTimeout?: number;
+
+  /**
+   * Enable cache-busting (ie disable caching) for requests
    * @default false
    */
-  trackLocalhost?: boolean;    // default false
+  bustCache?: boolean;
+
+  /**
+   * Enable debug logging to console
+   * @default false
+   */
+  debug?: boolean;
 
   /**
    * Whitelist of domains to track
    */
   domains?: string[];
+
+  /**
+   * Honor Do Not Track browser setting
+   * @default true
+   */
+  doNotTrack?: boolean;
 
   /**
    * Exclude paths from tracking (Plausible)
@@ -188,37 +175,38 @@ export type InitOptions = {
   includeHash?: boolean;
 
   /**
+   * Maximum number of events to queue before dropping oldest
+   * @default 50
+   */
+  queueSize?: number;
+
+  /**
+   * Track localhost events (Plausible)
+   * @default false
+   */
+  trackLocalhost?: boolean;
+
+  /**
+   * Transport mechanism for sending events
+   * @default 'beacon'
+   */
+  transport?: 'auto' | 'beacon' | 'fetch' | 'xhr';
+
+  // OPTION COLLECTIONS
+
+  batching?: BatchingOptions;
+  connection?: ConnectionOptions;
+
+  /**
    * Custom consent options for GDPR compliance
    */
   consent?: ConsentOptions;
 
-  /**
-   * Default properties for all events (Plausible)
-   */
-  defaultProps?: Record<string, string>;
-
-  /**
-   * Custom error handler for analytics errors
-   * @default console.error
-   */
-  onError?: (error: AnalyticsError) => void;
-
-  /**
-   * Provide a custom way to resolve the current URL. Default derives from window.location.
-   */
-  urlResolver?: () => string;
-
-  /**
-   * Transform the resolved URL (e.g., strip PII tokens) before dedupe/exclusions.
-   */
-  urlTransform?: (url: string) => string;
-
   navigationSource?: NavigationSource;
-
-  batching?: BatchingOptions;
-  connection?: ConnectionOptions;
   performance?: PerformanceOptions;
   resilience?: ResilienceOptions;
+
+  // PROVIDER-SPECIFIC OPTIONS
 
   // Umami-specific options
   /**
@@ -229,6 +217,11 @@ export type InitOptions = {
 
 
   // Plausible-specific options
+  /**
+   * Default properties for all events (Plausible)
+   */
+  defaultProps?: Record<string, string>;
+
   /**
    * Plausible domain to track
    * @example 'example.com'
@@ -242,12 +235,6 @@ export type InitOptions = {
 
 
   // GA4-specific options
-  /**
-   * Google Analytics 4 measurement ID
-   * @example 'G-XXXXXXXXXX'
-   */
-  measurementId?: string;
-
   /**
    * Custom API secret for server-side tracking
    * Required for providers that support server-side events
@@ -279,6 +266,30 @@ export type InitOptions = {
    * @default false
    */
   debugMode?: boolean;
+
+  /**
+   * Google Analytics 4 measurement ID
+   * @example 'G-XXXXXXXXXX'
+   */
+  measurementId?: string;
+
+  // FUNCTION OPTIONS
+
+  /**
+   * Custom error handler for analytics errors
+   * @default console.error
+   */
+  onError?: (error: AnalyticsError) => void;
+
+  /**
+   * Provide a custom way to resolve the current URL. Default derives from window.location.
+   */
+  urlResolver?: () => string;
+
+  /**
+   * Transform the resolved URL (e.g., strip PII tokens) before dedupe/exclusions.
+   */
+  urlTransform?: (url: string) => string;
 }
 
 export interface FacadeOptions {
@@ -296,9 +307,9 @@ export interface FacadeOptions {
   exclude?: string[];
   transport: 'auto' |'beacon' | 'xhr' | 'fetch';
   consent?: ConsentOptions;
-  navigationSource?: NavigationSource;
   batching?: BatchingOptions;
   connection?: ConnectionOptions;
+  navigationSource?: NavigationSource;
   performance?: PerformanceOptions;
   resilience?: ResilienceOptions;
   onError?: (error: AnalyticsError) => void;
@@ -307,9 +318,8 @@ export interface FacadeOptions {
 }
 
 /** Normalized alias: accept `site` at input, but canonicalize below and drop `site`. */
-// export type NoopOptions = ProviderBase;
 export type NoopOptions = {
-  provider: 'noop' 
+  provider: 'noop';
   site?: string;
   host?: string;
 };
@@ -317,6 +327,7 @@ export type NoopOptions = {
 // ---- Final input type
 export type ProviderOptions = NoopOptions | UmamiOptions | PlausibleOptions | GA4Options;
 
+export type ResolvedProviderOptions = ProviderOptions;
 
 // Internal resolved shape
 export interface ResolvedOptions {

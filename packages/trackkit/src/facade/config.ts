@@ -1,45 +1,31 @@
 import { readEnvConfig } from '../util/env';
 import { getProviderMetadata } from '../providers/metadata';
-import { AnalyticsError, dispatchError } from '../errors';
+import { AnalyticsError } from '../errors';
 import type { FacadeOptions, InitOptions, ProviderOptions, ProviderType, ResolvedOptions } from '../types';
-import { DEFAULT_BATCH_SIZE, DEFAULT_BATCH_TIMEOUT, DEFAULT_CACHING, DEFAULT_ERROR_HANDLER, DEFAULT_QUEUE_SIZE } from '../constants';
+import { normalizeProviderOptions } from '../providers/normalize';
+import { applyFacadeDefaults } from './normalize';
 import { logger } from '../util/logger';
 
 
-const FACADE_DEFAULTS: FacadeOptions = {
-  queueSize: DEFAULT_QUEUE_SIZE,
-  batchSize: DEFAULT_BATCH_SIZE,
-  batchTimeout: DEFAULT_BATCH_TIMEOUT,
-  debug: false,
-  autoTrack: true,
-  doNotTrack: true,
-  trackLocalhost: undefined as any, // handled via provider meta fallback
-  bustCache: DEFAULT_CACHING,
-  allowWhenHidden: false,
-  includeHash: false,
-  transport: 'auto',
-  onError: DEFAULT_ERROR_HANDLER,
-};
-
-function extractProviderOptions(options: InitOptions): ProviderOptions {
+export function extractProviderOptions(options: InitOptions): ProviderOptions {
   switch (options.provider) {
     case 'plausible':
       return {
         provider: 'plausible',
-        domain: options.domain || options.site!,
+        domain: options.domain ?? options.site!,
         host: options.host,
         revenue: options.revenue,
       };
     case 'umami':
       return {
         provider: 'umami',
-        website: options.website || options.site!,
-        host: options.host
+        website: options.website ?? options.site!,
+        host: options.host,
       };
     case 'ga4':
       return {
         provider: 'ga4',
-        measurementId: options.measurementId || options.site!,
+        measurementId: options.measurementId ?? options.site!,
         host: options.host,
         apiSecret: options.apiSecret,
         customDimensions: options.customDimensions,
@@ -55,22 +41,12 @@ function extractProviderOptions(options: InitOptions): ProviderOptions {
 export function mergeConfig(userOptions: InitOptions): ResolvedOptions {
   const env = readEnvConfig();
   const combined = { ...env, ...userOptions };
-  const providerOptions = extractProviderOptions(combined);
 
-  // Fill facade defaults
-  const facadeOptions: ResolvedOptions['facadeOptions'] = {
-    ...FACADE_DEFAULTS,
-    ...combined, // user/env override
-  };
+  const rawProvider = extractProviderOptions(combined);
+  const providerOptions = normalizeProviderOptions(rawProvider);
 
-  // trackLocalhost default via provider meta if not explicitly set
-  const meta = getProviderMetadata(providerOptions.provider ?? 'noop');
-  const allowLocalhostDefault = meta?.trackLocalhost ?? true;
-  if (facadeOptions.trackLocalhost === undefined) {
-    facadeOptions.trackLocalhost = allowLocalhostDefault;
-  }
-
-  return { facadeOptions, providerOptions };
+  const facadeOptions = applyFacadeDefaults(combined, providerOptions.provider);
+  return { facadeOptions, providerOptions } as const;
 }
 
 export function validateProviderConfig({ providerOptions }: ResolvedOptions): void {

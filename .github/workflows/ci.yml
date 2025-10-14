@@ -7,11 +7,9 @@ on:
     branches: [main, develop]
 
 jobs:
-  build-test-lint:
-    name: Test Packages
-
+  repo-hygiene:
+    name: Repo hygiene (lint + typecheck + tests + build + size)
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
 
@@ -19,65 +17,75 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-        name: Install pnpm
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
           version: 10.13.1
           run_install: false
 
-      - name: Setup Node (22 LTS) with Corepack
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Type check
-        run: pnpm run typecheck
-
-      - name: Lint
-        run: pnpm run lint
-
-      - name: Test
-        run: pnpm run test -- --run
-
-      - name: Build
-        run: pnpm run build
-
-      - name: Check bundle size
-        run: pnpm run size
-
-  test-trackkit:
-    name: Test Trackkit Core
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v2
-        
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'pnpm'
-          
+          node-version: 22
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check (all)
+        run: pnpm -r run typecheck
+
+      - name: Lint (all)
+        run: pnpm run lint
+
+      - name: Test (all)
+        run: pnpm -r run test
+
+      - name: Build (all)
+        run: pnpm -r run build
+
+      - name: Check bundle size (all)
+        run: pnpm -r run size
+
+  trackkit-core:
+    name: Trackkit core (defaults sync + dead code gate)
+    runs-on: ubuntu-latest
+    needs: repo-hygiene
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        
-      - name: Lint
-        run: pnpm --filter trackkit lint
-        
-      - name: Type check
-        run: pnpm --filter trackkit typecheck
-        
-      - name: Test
-        run: pnpm --filter trackkit test:coverage
-        
-      - name: Build
-        run: pnpm --filter trackkit build
-        
-      - name: Check bundle size
-        run: pnpm --filter trackkit size
+
+      # ---- Defaults sync against .d.ts (uses sync-doc-defaults)
+      - name: Inject @defaultValue literals into .d.ts (trackkit)
+        run: pnpm --filter trackkit run defaults:inject
+
+      - name: Assert source JSDoc defaults use @link (no literals)
+        run: pnpm --filter trackkit run defaults:assert
+
+      # ---- Dead code: coverage + Knip merge with hard gate
+      - name: Dead code gate (trackkit)
+        run: pnpm --filter trackkit run deadcode:gate
+
+      - name: Upload deadcode report
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: deadcode-report
+          path: packages/trackkit/deadcode-report.md
+          if-no-files-found: ignore

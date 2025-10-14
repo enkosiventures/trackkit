@@ -1,0 +1,7 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./dist/types/index.d.ts"],
+  "entryPointStrategy": "resolve",
+  "out": "../../docs/api",
+  "excludeExternals": true
+}

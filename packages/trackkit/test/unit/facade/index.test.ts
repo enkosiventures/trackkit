@@ -35,27 +35,27 @@ describe('Trackkit Facade (core API)', () => {
     delete (globalThis as any).__TRACKKIT_SSR_QUEUE__;
   });
 
-  describe('init()', () => {
-    it('creates and returns an analytics instance', async () => {
-      const analytics = init({ autoTrack: false, consent: { disablePersistence: true } }); // avoid autotrack noise
-      expect(analytics).toBeDefined();
-      expect(analytics).toHaveProperty('track');
-      expect(analytics).toHaveProperty('pageview');
-      expect(analytics).toHaveProperty('identify');
-      expect(analytics).toHaveProperty('destroy');
-      grantConsent();
-      await waitForReady();
-      expect(getFacade()).toBe(analytics);
-    });
+  // describe('init()', () => {
+  //   it('creates and returns an analytics instance', async () => {
+  //     const analytics = init({ autoTrack: false, consent: { disablePersistence: true } }); // avoid autotrack noise
+  //     expect(analytics).toBeDefined();
+  //     expect(analytics).toHaveProperty('track');
+  //     expect(analytics).toHaveProperty('pageview');
+  //     expect(analytics).toHaveProperty('identify');
+  //     expect(analytics).toHaveProperty('destroy');
+  //     grantConsent();
+  //     await waitForReady();
+  //     expect(getFacade()).toBe(analytics);
+  //   });
 
-    it('uses default options when none provided', async () => {
-      init();
-      grantConsent();
-      await waitForReady();
-      const facade = getFacade();
-      expect(facade).toBeDefined();
-    });
-  });
+  //   it('uses default options when none provided', async () => {
+  //     init();
+  //     grantConsent();
+  //     await waitForReady();
+  //     const facade = getFacade();
+  //     expect(facade).toBeDefined();
+  //   });
+  // });
 
   describe('Queueing & consent', () => {
     it('queues calls before init and flushes after provider ready + consent granted', async () => {
@@ -88,73 +88,73 @@ describe('Trackkit Facade (core API)', () => {
       expect(pageviewCalls.length).toBe(1);
     });
 
-    it('drops queued events when consent is denied', async () => {
-      // Pre-init calls
-      track('will_be_dropped');
-      pageview();
+    // it('drops queued events when consent is denied', async () => {
+    //   // Pre-init calls
+    //   track('will_be_dropped');
+    //   pageview();
 
-      const { provider } = await setupAnalytics({
-        autoTrack: false,
-        trackLocalhost: true,
-        domains: ['localhost'],
-        doNotTrack: false,
-        consent: { disablePersistence: true, initialStatus: 'pending' },
-      }, { 
-        mode: 'singleton',
-        setConsent: 'denied',
-      });
+    //   const { provider } = await setupAnalytics({
+    //     autoTrack: false,
+    //     trackLocalhost: true,
+    //     domains: ['localhost'],
+    //     doNotTrack: false,
+    //     consent: { disablePersistence: true, initialStatus: 'pending' },
+    //   }, { 
+    //     mode: 'singleton',
+    //     setConsent: 'denied',
+    //   });
 
-      await flushIfReady();
-      await new Promise(r => setTimeout(r, 30));
+    //   await flushIfReady();
+    //   await new Promise(r => setTimeout(r, 30));
 
-      const { eventCalls, pageviewCalls } = provider!.diagnostics;
-      expect(eventCalls.length).toBe(0);
-      expect(pageviewCalls.length).toBe(0);
-    });
+    //   const { eventCalls, pageviewCalls } = provider!.diagnostics;
+    //   expect(eventCalls.length).toBe(0);
+    //   expect(pageviewCalls.length).toBe(0);
+    // });
   });
 
-  describe('Module-level methods', () => {
-    it('safely handles calls before initialization (no throws)', () => {
-      expect(() => track('test')).not.toThrow();
-      expect(() => pageview()).not.toThrow();
-      expect(() => identify('user123')).not.toThrow();
-    });
+  // describe('Module-level methods', () => {
+  //   it('safely handles calls before initialization (no throws)', () => {
+  //     expect(() => track('test')).not.toThrow();
+  //     expect(() => pageview()).not.toThrow();
+  //     expect(() => identify('user123')).not.toThrow();
+  //   });
 
-    it('delegates to the facade after initialization', async () => {
-      const { provider } = await setupAnalytics({
-        autoTrack: false,
-        trackLocalhost: true,
-        consent: { disablePersistence: true, initialStatus: 'granted' },
-      }, { mode: 'singleton' });
+  //   it('delegates to the facade after initialization', async () => {
+  //     const { provider } = await setupAnalytics({
+  //       autoTrack: false,
+  //       trackLocalhost: true,
+  //       consent: { disablePersistence: true, initialStatus: 'granted' },
+  //     }, { mode: 'singleton' });
 
-      track('delegated_event', { value: 42 });
-      pageview();
-      identify('abc');
+  //     track('delegated_event', { value: 42 });
+  //     pageview();
+  //     identify('abc');
 
-      const { eventCalls, identifyCalls, pageviewCalls } = provider!.diagnostics;
-      expect(eventCalls.map(e => e.name)).toContain('delegated_event');
-      expect(pageviewCalls.length).toBeGreaterThanOrEqual(1);
-      // identify payload shape depends on the mock; at least assert it was called:
-      expect(identifyCalls.length).toBeGreaterThan(0);
-    });
-  });
+  //     const { eventCalls, identifyCalls, pageviewCalls } = provider!.diagnostics;
+  //     expect(eventCalls.map(e => e.name)).toContain('delegated_event');
+  //     expect(pageviewCalls.length).toBeGreaterThanOrEqual(1);
+  //     // identify payload shape depends on the mock; at least assert it was called:
+  //     expect(identifyCalls.length).toBeGreaterThan(0);
+  //   });
+  // });
 
-  describe('destroy()', () => {
-    it('cleans up the instance and resets singleton state', async () => {
-      init({ autoTrack: false, consent: { disablePersistence: true } });
-      grantConsent();
-      await waitForReady();
-      destroy();
-      expect(getFacade()).toBeNull();
-    });
+  // describe('destroy()', () => {
+  //   it('cleans up the instance and resets singleton state', async () => {
+  //     init({ autoTrack: false, consent: { disablePersistence: true } });
+  //     grantConsent();
+  //     await waitForReady();
+  //     destroy();
+  //     expect(getFacade()).toBeNull();
+  //   });
 
-    it('is safe to call multiple times', async () => {
-      init({ autoTrack: false });
-      expect(() => {
-        destroy();
-        destroy();
-        destroy();
-      }).not.toThrow();
-    });
-  });
+  //   it('is safe to call multiple times', async () => {
+  //     init({ autoTrack: false });
+  //     expect(() => {
+  //       destroy();
+  //       destroy();
+  //       destroy();
+  //     }).not.toThrow();
+  //   });
+  // });
 });

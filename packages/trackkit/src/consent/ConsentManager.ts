@@ -1,32 +1,19 @@
-import { STORAGE_KEY } from '../constants';
+import { applyConsentDefaults } from '../facade/normalize';
 import { hasWebStorage } from '../util/env';
 import { logger } from '../util/logger';
-import type { ConsentCategory, ConsentOptions, ConsentStatus, ConsentStoredState, Listener } from './types';
+import type { ConsentCategory, ConsentOptions, ConsentStatus, ConsentStoredState, Listener, ResolvedConsentOptions } from './types';
 
 
 export class ConsentManager {
   private status: ConsentStatus = 'pending';
-  private opts: Required<Omit<ConsentOptions,'policyVersion'|'requireExplicit'>> & {
-    policyVersion?: string; requireExplicit?: boolean;
-  };
+  private opts: ResolvedConsentOptions;
   private listeners = new Set<Listener>();
   private storageAvailable = false;
-  // private queueCounter = 0;
-  // private droppedDeniedCounter = 0;
 
   constructor(options: ConsentOptions = {}) {
-    this.opts = {
-      initialStatus: options.initialStatus || 'pending',
-      storageKey: options.storageKey || STORAGE_KEY,
-      disablePersistence: !!options.disablePersistence,
-      policyVersion: options.policyVersion,
-      requireExplicit: options.requireExplicit ?? true,
-      allowEssentialOnDenied: options.allowEssentialOnDenied ?? false,
-    };
-
+    console.warn('ConsentManager options:', options);
+    this.opts = applyConsentDefaults(options);
     this.status = this.opts.initialStatus;
-
-    logger.debug('ConsentManager Options:', this.opts);
     this.initFromStorage();
   }
 

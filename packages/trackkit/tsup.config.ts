@@ -9,7 +9,7 @@ export default defineConfig({
     'providers/ga4': 'src/entries/providers/ga4.ts',
   },
   format: ['esm', 'cjs'],
-  dts: true,
+  dts: false,
   splitting: true,
   treeshake: true,
   minify: true,
