@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import noopProvider from '../../../src/providers/noop';
-import { init, waitForReady, grantConsent, destroy, track, PageContext } from '../../../src';
+import { init, waitForReady, grantConsent, track, PageContext } from '../../../src';
 import { resetTests } from '../../helpers/core';
 
 describe('No-op Provider', () => {

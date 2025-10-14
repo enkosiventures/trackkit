@@ -1,5 +1,5 @@
 import type { ConsentCategory, ConsentOptions, ResolvedConsentOptions } from "./consent/types";
-import { BatchingOptions, ConnectionOptions, PerformanceOptions, RetryOptions } from "./dispatcher/types";
+import type { BatchingOptions, ConnectionOptions, PerformanceOptions, RetryOptions } from "./dispatcher/types";
 import type { AnalyticsError } from "./errors";
 import type { FacadeOptions, ProviderOptions, ProviderType } from "./types";
 import { logger } from "./util/logger";

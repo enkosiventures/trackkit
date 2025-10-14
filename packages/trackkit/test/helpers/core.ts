@@ -1,4 +1,4 @@
-import { VitestUtils } from "vitest";
+import type { VitestUtils } from "vitest";
 import { destroy } from "../../src";
 import { logger } from "../../src/util/logger";
 import { STORAGE_KEY } from "../../src/constants";

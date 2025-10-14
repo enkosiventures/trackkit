@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { grantConsent, destroy } from '../../src';
+import { grantConsent } from '../../src';
 import { setupAnalytics } from '../helpers/providers';
 import { navigate, navigateWithTick } from '../helpers/navigation';
 import { resetTests } from '../helpers/core';

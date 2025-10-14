@@ -1,9 +1,9 @@
 import type { ConsentCategory, ConsentOptions } from './consent/types';
-import { BatchingOptions, ConnectionOptions, PerformanceOptions, ResilienceOptions } from './dispatcher/types';
+import type { BatchingOptions, ConnectionOptions, PerformanceOptions, ResilienceOptions } from './dispatcher/types';
 import type { AnalyticsError } from './errors';
-import { GA4Options } from './providers/ga4/types';
-import { PlausibleOptions } from './providers/plausible/types';
-import { UmamiOptions } from './providers/umami/types';
+import type { GA4Options } from './providers/ga4/types';
+import type { PlausibleOptions } from './providers/plausible/types';
+import type { UmamiOptions } from './providers/umami/types';
 
 
 export type AnalyticsMode = 'singleton' | 'factory';

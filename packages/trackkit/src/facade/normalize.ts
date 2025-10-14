@@ -1,11 +1,11 @@
-import { ConsentOptions, ResolvedConsentOptions } from '../consent/types';
+import type { ConsentOptions, ResolvedConsentOptions } from '../consent/types';
 import {
   CONSENT_DEFAULTS, RETRY_DEFAULTS, BATCHING_DEFAULTS, CONNECTION_DEFAULTS,
   PERFORMANCE_DEFAULTS, RESILIENCE_DEFAULTS, FACADE_BASE_DEFAULTS
 } from '../constants';
-import { BatchingOptions, ConnectionOptions, PerformanceOptions, ResilienceOptions, RetryOptions } from '../dispatcher/types';
+import type { BatchingOptions, ConnectionOptions, PerformanceOptions, ResilienceOptions, RetryOptions } from '../dispatcher/types';
 import { getProviderMetadata } from '../providers/metadata';
-import { NavigationSource } from '../types';
+import type { NavigationSource } from '../types';
 import { makeWindowNavigationSource } from './navigation';
 
 

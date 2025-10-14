@@ -34,11 +34,9 @@ describe('Error pipeline', () => {
 
 
 describe('Error handling (Facade)', () => {
-  let consoleError: any;
   let logger: any;
 
   beforeEach(() => {
-    consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     logger = vi.spyOn(Log, 'logger', 'get').mockReturnValue({
       error: vi.fn(),
       warn: vi.fn(),

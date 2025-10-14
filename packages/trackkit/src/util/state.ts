@@ -1,4 +1,4 @@
-import { ProviderState } from '../providers/types';
+import type { ProviderState } from '../providers/types';
 import { logger } from './logger';
 
 export type ProviderStateHistory = Array<{ state: ProviderState; timestamp: number; event: StateEvent }>;

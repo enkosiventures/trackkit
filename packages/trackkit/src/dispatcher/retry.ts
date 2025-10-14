@@ -1,4 +1,4 @@
-import { RetryOptions } from "./types";
+import type { RetryOptions } from "./types";
 
 
 export function calculateRetryDelay(attempt: number, config: Required<RetryOptions>) {

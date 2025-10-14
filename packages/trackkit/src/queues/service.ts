@@ -1,6 +1,6 @@
-import { ConsentCategory } from '../consent/types';
+import type { ConsentCategory } from '../consent/types';
 import { DEFAULT_CATEGORY } from '../constants';
-import { PageContext } from '../types';
+import type { PageContext } from '../types';
 import { EventQueue } from './runtime';
 import { SSRQueue } from './ssr';
 import type { IQueue, QueueConfig, QueuedEventUnion } from './types';

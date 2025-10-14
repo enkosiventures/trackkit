@@ -4,13 +4,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createAnalytics } from '../../src/factory';
 
 // Useful to reset browser-ish env between tests
-import { JSDOM } from 'jsdom';
 import { createStatefulMock } from '../helpers/providers';
 import { resetTests } from '../helpers/core';
 
 function resetEnv() {
-  // keep URL stable for PV policy logic
-  const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
   // Vitest’s global already points to a DOM; but ensure location/history are reset
   history.replaceState(null, '', '/');
   try { localStorage.removeItem('__trackkit_consent__'); } catch {}
@@ -22,23 +19,20 @@ function resetEnv() {
 function makeStatefulMock(name = 'mock') {
   const eventCalls: Array<{ name: string; props?: any }> = [];
   const pageviewCalls: string[] = [];
-  let readyCb: (() => void) | null = null;
 
   const state = { provider: 'initializing' as 'initializing' | 'ready' | 'destroyed', version: '1.0.0' };
   const stateful = {
     name,
     getState: () => state,
-    onReady: (cb: () => void) => { readyCb = cb; setTimeout(() => { state.provider = 'ready'; cb(); }, 0); },
+    onReady: (cb: () => void) => { setTimeout(() => { state.provider = 'ready'; cb(); }, 0); },
     track: (name: string, props?: any) => { eventCalls.push({ name, props }); },
     pageview: (url?: string) => { pageviewCalls.push(url ?? '/'); },
-    identify: (userId: string | null) => { /* could capture if needed */ },
+    identify: () => { /* could capture if needed */ },
     destroy: () => { state.provider = 'destroyed'; },
   };
 
   return { stateful, provider: { eventCalls, pageviewCalls } };
 }
-
-
 
 describe('Factory API', () => {
   beforeEach(() => {

@@ -1,7 +1,7 @@
 import type { InitOptions, Props } from '../types';
 import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { AnalyticsFacade } from './index';
-import { ConsentCategory, ConsentStatus } from '../consent/types';
+import type { ConsentCategory, ConsentStatus } from '../consent/types';
 import { isServer } from '../util/env';
 import { enqueueSSREvent } from '../queues';
 import { DEFAULT_CATEGORY } from '../constants';

@@ -1,5 +1,5 @@
 import { RetryManager } from './retry';
-import { RetryOptions } from './types';
+import type { RetryOptions } from './types';
 
 export type BatchedEvent = {
   id: string;
@@ -96,16 +96,6 @@ export class EventBatchProcessor {
     }
   }
 
-  // async flush() {
-  //   if (this.sendTimer) { clearTimeout(this.sendTimer); this.sendTimer = null; }
-  //   if (this.current && this.current.events.length) {
-  //     await this.sendBatch(this.current);
-  //     this.current = null;
-  //   }
-  //   // wait for any in-flight batches to finish
-  //   while (this.sending.size) { await new Promise(r => setTimeout(r, 50)); }
-  // }
-
   async flush() {
     // cancel scheduled auto-flush
     if (this.sendTimer) { clearTimeout(this.sendTimer); this.sendTimer = null; }
@@ -121,14 +111,6 @@ export class EventBatchProcessor {
       await Promise.all([...this.inflight]);
     }
   }
-
-  // destroy() {
-  //   if (this.sendTimer) clearTimeout(this.sendTimer);
-  //   this.retry.cancelAll();
-  //   this.current = null;
-  //   this.sending.clear();
-  //   this.dedupe.clear();
-  // }
 
   destroy() {
     if (this.sendTimer) clearTimeout(this.sendTimer);
@@ -173,25 +155,6 @@ export class EventBatchProcessor {
     }
   }
 
-  // private async sendBatch(batch: Batch) {
-  //   if (this.sending.size >= this.cfg.concurrency) await this.waitForSlot();
-  //   this.sending.add(batch.id);
-  //   batch.status = 'sending';
-  //   batch.attempts++;
-
-  //   try {
-  //     await this.sendFn(batch);
-  //     batch.status = 'sent';
-  //   } catch (err) {
-  //     batch.status = 'failed';
-  //     if (batch.attempts < this.cfg.retry.maxAttempts!) {
-  //       this.retry.scheduleRetry(batch.id, () => this.sendBatch(batch), batch.attempts);
-  //     }
-  //   } finally {
-  //     this.sending.delete(batch.id);
-  //   }
-  // }
-
   private sendBatch(batch: Batch): Promise<void> {
     const p = (async () => {
       await this.acquireSlot();
@@ -200,7 +163,7 @@ export class EventBatchProcessor {
       try {
         await this.sendFn(batch);
         batch.status = 'sent';
-      } catch (err) {
+      } catch {
         batch.status = 'failed';
         if (batch.attempts < this.cfg.retry.maxAttempts!) {
           // Schedule a retry; it will create its own tracked promise via sendBatch

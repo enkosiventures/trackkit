@@ -1,5 +1,5 @@
-import { ConsentCategory } from "../consent/types";
-import { EventType } from "../types";
+import type { ConsentCategory } from "../consent/types";
+import type { EventType } from "../types";
 
 export type OfflineEvent = {
   type: EventType;

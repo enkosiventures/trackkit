@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { init, track, pageview, destroy, waitForReady, grantConsent } from '../../src';
+import { init, track, pageview, waitForReady, grantConsent } from '../../src';
 import { createStatefulMock } from '../helpers/providers';
 import { navigate } from '../helpers/navigation';
 import { getFacade } from '../../src/facade/singleton';

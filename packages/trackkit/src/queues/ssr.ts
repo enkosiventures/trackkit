@@ -1,5 +1,5 @@
-import { ConsentCategory } from '../consent/types';
-import { EventType, PageContext } from '../types';
+import type { ConsentCategory } from '../consent/types';
+import type { EventType, PageContext } from '../types';
 import { hasDOM, isClient, isServer } from '../util/env';
 import type { IQueue, QueuedEventUnion } from './types';
 

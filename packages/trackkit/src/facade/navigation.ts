@@ -1,5 +1,5 @@
 import { ensureNavigationSandbox } from '../providers/navigation-sandbox';
-import { NavigationSource } from '../types';
+import type { NavigationSource } from '../types';
 import { logger } from '../util/logger';
 
 export class NavigationService {

@@ -1,6 +1,6 @@
 
 import { createAnalytics, denyConsent, grantConsent, init } from '../../src';
-import { ConsentCategory, ConsentStatus } from '../../src/consent/types';
+import type { ConsentCategory, ConsentStatus } from '../../src/consent/types';
 import { DEFAULT_ERROR_HANDLER } from '../../src/constants';
 import { AnalyticsFacade } from '../../src/facade';
 import { injectProviderForTests, waitForReady } from '../../src/facade/singleton';

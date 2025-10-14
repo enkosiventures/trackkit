@@ -1,7 +1,7 @@
 import type { EventType, FacadeOptions, InitOptions, Props, ProviderOptions } from '../types';
 import { mergeConfig, validateProviderConfig, getConsentConfig } from './config'; // existing
 import { ConsentManager } from '../consent/ConsentManager';               // existing
-import { ConsentCategory, ConsentStatus, ConsentStoredState } from '../consent/types';
+import type { ConsentCategory, ConsentStatus, ConsentStoredState } from '../consent/types';
 import { PolicyGate } from './policy-gate';
 import { ContextService } from './context';
 import { ProviderManager } from './provider-manager';
@@ -11,7 +11,7 @@ import { logger, createLogger, setGlobalLogger } from '../util/logger';   // exi
 import { DEFAULT_CATEGORY, DEFAULT_PRE_INIT_BUFFER_SIZE, ESSENTIAL_CATEGORY } from '../constants';
 import { AnalyticsError, dispatchError, setUserErrorHandler } from '../errors';
 import { DiagnosticsService } from './diagnostics';
-import { StatefulProvider } from '../providers/stateful-wrapper';
+import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { QueueService, EventQueue, type QueuedEventUnion } from '../queues';
 import { isServer } from '../util/env';
 import { ConnectionMonitor } from '../connection/monitor';
@@ -528,7 +528,7 @@ export class AnalyticsFacade {
   setProvider(p: any) {
     // Delegate to ProviderManager test hook
     // (no public export; tests can use // @ts-expect-error)
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+     
     // @ts-ignore
     if (this.provider) {
       this.provider?.inject(p);

@@ -1,5 +1,5 @@
 import { GA_HOST, PLAUSIBLE_HOST, UMAMI_HOST } from "../constants";
-import { ProviderOptions, ResolvedProviderOptions } from "../types";
+import type { ProviderOptions, ResolvedProviderOptions } from "../types";
 
 
 export function normalizeProviderOptions(options: ProviderOptions): ResolvedProviderOptions{

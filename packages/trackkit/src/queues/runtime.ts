@@ -1,6 +1,6 @@
-import { ConsentCategory } from '../consent/types';
+import type { ConsentCategory } from '../consent/types';
 import { DEFAULT_CATEGORY } from '../constants';
-import { PageContext } from '../types';
+import type { PageContext } from '../types';
 import { deepClone } from '../util';
 import { logger } from '../util/logger';
 import type { IQueue, QueueConfig, QueuedEvent, QueuedEventUnion } from './types';
