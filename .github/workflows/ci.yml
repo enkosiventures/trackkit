@@ -38,7 +38,7 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Install deps
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build (all)
@@ -79,6 +79,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build (all)
+        run: pnpm -r run build
 
       # ---- Defaults sync against .d.ts (uses sync-doc-defaults)
       - name: Inject @defaultValue literals into .d.ts (trackkit)
@@ -125,7 +128,7 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Install deps
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build docs
