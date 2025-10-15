@@ -41,6 +41,9 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
+      - name: Build (all)
+        run: pnpm -r run build
+
       - name: Type check (all)
         run: pnpm -r run typecheck
 
@@ -49,9 +52,6 @@ jobs:
 
       - name: Test (all)
         run: pnpm -r run test
-
-      - name: Build (all)
-        run: pnpm -r run build
 
       - name: Check bundle size (all)
         run: pnpm -r run size
