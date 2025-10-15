@@ -18,7 +18,7 @@
     "packages/trackkit": {
       "entry": [
         "src/index.ts",
-        "src/entries/providers/*.ts"
+        "src/providers/*.ts"
       ],
       "project": [
         "src/**/*.ts",

@@ -4,9 +4,10 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
 
-    'providers/umami': 'src/entries/providers/umami.ts',
-    'providers/plausible': 'src/entries/providers/plausible.ts',
-    'providers/ga4': 'src/entries/providers/ga4.ts',
+    'providers/ga4': 'src/providers/ga4/index.ts',
+    'providers/plausible': 'src/providers/plausible/index.ts',
+    'providers/umami': 'src/providers/umami/index.ts',
+    'providers/noop': 'src/providers/noop.ts',
   },
   format: ['esm', 'cjs'],
   dts: false,
