@@ -90,6 +90,9 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "size": "size-limit",
+    "docs:build": "pnpm run defaults:inject && typedoc",
+    "docs:check": "pnpm run docs:build && linkinator ./docs --silent --markdown --recurse",
+    "docs:deploy": "pnpm run docs:build && gh-pages -d docs -b gh-pages -f",
     "prepublishOnly": "pnpm run clean && pnpm run build && pnpm run defaults:inject && pnpm run defaults:assert"
   },
   "engines": {

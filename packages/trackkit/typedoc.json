@@ -1,7 +1,17 @@
 {
-  "$schema": "https://typedoc.org/schema.json",
-  "entryPoints": ["./dist/types/index.d.ts"],
-  "entryPointStrategy": "resolve",
-  "out": "../../docs/api",
-  "excludeExternals": true
+  "entryPointStrategy": "expand",
+  "entryPoints": ["dist/types/**/*.d.ts"],
+  "out": "docs",
+  "exclude": [
+    "**/__tests__/**",
+    "**/*.test.d.ts",
+    "**/node_modules/**"
+  ],
+  "hideGenerator": true,
+  "cleanOutputDir": true,
+  "categorizeByGroup": false,
+  "sort": ["source-order"],
+  "navigationLinks": {
+    "GitHub": "https://github.com/enkosi/trackkit"
+  }
 }
