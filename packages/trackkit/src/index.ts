@@ -16,7 +16,7 @@ export {
   grantConsent, 
   denyConsent, 
   resetConsent, 
-  // onConsentChange,
+  onConsentChange,
 } from './consent/exports';
 
 // Utilities

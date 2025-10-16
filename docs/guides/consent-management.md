@@ -141,8 +141,6 @@ import {
 * **`resetConsent()`** — clears stored consent (if any), sets **pending**.
 * **`onConsentChange()`** — subscribe to changes (useful to lazily load other tools after grant).
 
-> Some guides refer to `setConsent('granted'|'denied'|'pending')`. If present in your build, it’s a thin sugar over the three methods above.
-
 ---
 
 ## Typical Patterns

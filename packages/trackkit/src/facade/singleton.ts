@@ -21,16 +21,16 @@ export function init(opts: InitOptions = {}): AnalyticsFacade {
 }
 
 export function destroy() {
-  try { instance?.destroy(); } catch {}
+  try { instance?.destroy(); } catch { }
   instance = null;
 }
 
 export function getInstance() { return instance; }   // keep if you already expose this
-export function getFacade()   { return instance; }   // nullable on purpose
+export function getFacade() { return instance; }   // nullable on purpose
 
 // -- events --
 export function track(name: string, props?: Props, category: ConsentCategory = DEFAULT_CATEGORY) {
-  if (isServer()) { 
+  if (isServer()) {
     enqueueSSREvent('track', [name, props], category);
   } else {
     ensureInstance().track(name, props, category);
@@ -58,14 +58,17 @@ export function identify(userId: string | null) {
 export function getConsent(): ConsentStatus | 'unknown' {
   return ensureInstance().getConsent() ?? 'unknown';
 }
+export function onConsentChange(callback: (status: ConsentStatus, prev: ConsentStatus) => void): () => void {
+  return ensureInstance().onConsentChange(callback);
+}
 export function grantConsent() { ensureInstance().grantConsent(); }
-export function denyConsent()  { ensureInstance().denyConsent(); }
+export function denyConsent() { ensureInstance().denyConsent(); }
 export function resetConsent() { ensureInstance().resetConsent(); }
 export function setConsent(status: ConsentStatus) {
   switch (status) {
-    case 'granted':  grantConsent(); break;
-    case 'denied':   denyConsent();  break;
-    case 'pending':  resetConsent(); break;
+    case 'granted': grantConsent(); break;
+    case 'denied': denyConsent(); break;
+    case 'pending': resetConsent(); break;
   }
 }
 // -- readiness / queue --
@@ -86,5 +89,5 @@ export function getDiagnostics() { return ensureInstance().getDiagnostics() ?? n
 
 /** @internal test-only: inject provider pre/post init */
 export function injectProviderForTests(provider: StatefulProvider) {
-    ensureInstance().setProvider(provider);
+  ensureInstance().setProvider(provider);
 }

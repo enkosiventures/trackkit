@@ -9,6 +9,7 @@ import {
   grantConsent,
   denyConsent,
   resetConsent,
+  onConsentChange,
   getConsent,
   waitForReady,
   getDiagnostics,
@@ -174,26 +175,26 @@ describe('Consent Flow Integration', () => {
     expect(getConsent()?.status).toBe('pending');
   });
 
-  // it('notifies listeners of consent changes (and unsubscribe works)', () => {
-  //   const listener = vi.fn();
+  it('notifies listeners of consent changes (and unsubscribe works)', () => {
+    const listener = vi.fn();
 
-  //   init({
-  //     provider: 'noop',
-  //     consent: { requireExplicit: true, disablePersistence: true },
-  //   });
+    init({
+      provider: 'noop',
+      consent: { requireExplicit: true, disablePersistence: true },
+    });
 
-  //   const unsubscribe = onConsentChange(listener);
+    const unsubscribe = onConsentChange(listener);
 
-  //   grantConsent();
-  //   expect(listener).toHaveBeenCalledWith('granted', 'pending');
+    grantConsent();
+    expect(listener).toHaveBeenCalledWith('granted', 'pending');
 
-  //   denyConsent();
-  //   expect(listener).toHaveBeenCalledWith('denied', 'granted');
+    denyConsent();
+    expect(listener).toHaveBeenCalledWith('denied', 'granted');
 
-  //   unsubscribe();
-  //   resetConsent(); // should NOT call listener now
-  //   expect(listener).toHaveBeenCalledTimes(2);
-  // });
+    unsubscribe();
+    resetConsent(); // should NOT call listener now
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
 
   it('handles consent operations before init gracefully', () => {
     // Ensure no instance

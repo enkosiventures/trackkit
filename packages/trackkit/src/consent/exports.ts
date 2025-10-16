@@ -7,6 +7,15 @@ export function getConsent(): ConsentStoredState | null {
   return getFacade()?.getSnapshot() || null;
 }
 
+export function onConsentChange(cb: (status: string, prev: string) => void): () => void {
+  const facade = getFacade();
+  if (!facade) {
+    logger.warn('Analytics not initialized - cannot subscribe to consent changes');
+    return () => {};
+  }
+  return facade.onConsentChange(cb);
+}
+
 export function grantConsent(): void {
   const facade = getFacade();
   if (!facade) {
@@ -45,13 +54,3 @@ export function resetConsent(): void {
 
   facade.resetConsent();
 }
-
-// export function onConsentChange(callback: (status: ConsentStatus, prev: ConsentStatus) => void): () => void {
-//   const facade = getFacade();
-//   const consent = facade.getConsentManager();
-//   if (!consent) {
-//     logger.warn('Analytics not initialized - cannot subscribe to consent changes');
-//     return () => {};
-//   }
-//   return consent.onChange(callback);
-// }

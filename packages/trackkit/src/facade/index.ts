@@ -181,6 +181,10 @@ export class AnalyticsFacade {
   denyConsent() { this.consent?.deny(); }
   resetConsent() { this.consent?.reset?.(); }
 
+  onConsentChange(cb: (status: ConsentStatus, prev: ConsentStatus) => void): () => void {
+    return this.consent?.onChange(cb) ?? (() => {});
+  }
+
   // Ready utilities
 
   /**
@@ -548,9 +552,4 @@ export class AnalyticsFacade {
 
   /** @internal test-only */
   preInjectForTests(p: any) { this._preInjectedProvider = p; }
-
-  /** @internal test-only */
-  onConsentChange(cb: (status: ConsentStatus) => void): () => void {
-    return this.consent?.onChange(cb) ?? (() => {});
-  }
 }

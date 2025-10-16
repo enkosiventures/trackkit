@@ -120,22 +120,11 @@ export class ConsentManager {
     this.notify(prev);
   }
 
-  // /** Facade increments when queueing pre‑consent events */
-  // incrementQueued() {
-  //   this.queueCounter++;
-  // }
-  // /** Facade increments when dropping due to denied */
-  // incrementDroppedDenied() {
-  //   this.droppedDeniedCounter++;
-  // }
-
   snapshot(): ConsentStoredState {
     return {
       status: this.status,
       version: this.opts.policyVersion,
       method: this.opts.requireExplicit ? 'explicit' : 'implicit',
-      // queuedEvents: this.queueCounter,
-      // droppedEventsDenied: this.droppedDeniedCounter
     };
   }
 
