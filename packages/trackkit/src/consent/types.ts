@@ -65,14 +65,6 @@ export interface ResolvedConsentOptions extends Required<Omit<ConsentOptions,'po
   policyVersion?: string;
 }
 
-/**
- * Snapshot of current consent state including queued events
- */
-// export interface ConsentSnapshot extends ConsentStoredState {
-//   queuedEvents: number;
-//   droppedEventsDenied: number;
-// }
-
 export type Listener = (status: ConsentStatus, prev: ConsentStatus) => void;
 
 /**
