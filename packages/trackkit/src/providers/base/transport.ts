@@ -1,5 +1,6 @@
 import { logger } from "../../util/logger";
 import { stripEmptyFields } from "../../util";
+import { NetworkDispatcher, NetworkDispatcherOptions } from "../../dispatcher";
 
 /**
  * Shared transport layer used by all providers.
@@ -40,6 +41,32 @@ function appendCacheParam(url: string): string {
     const sep = url.includes('?') ? '&' : '?';
     return `${url}${sep}cache=${Date.now()}`;
   }
+}
+
+/**
+ * Wrap the NetworkDispatcher to send per-item.
+ * We return a synthetic OK Response so adapter `ok/parseError` logic remains intact.
+ */
+export function makeDispatcherSender(opts: NetworkDispatcherOptions): Sender {
+  const dispatcher = new NetworkDispatcher(opts);
+  const RESPONSE_OK = { ok: true, status: 204, statusText: 'OK' } as unknown as Response;
+
+  return async ({ method, url, headers, body }) => {
+    // Respect method nuances only to the extent your dispatcher/resolveTransport supports.
+    // Common case: POST/AUTO. For BEACON, resolveTransport will choose beacon when applicable.
+    const init: RequestInit = {
+      method: method === 'GET' ? 'GET' : 'POST',
+      headers,
+    };
+    await dispatcher.send({ url, body, init });
+    return RESPONSE_OK; // no per-event response in batched path
+  };
+}
+
+export type Sender = (req: TransportRequest) => Promise<Response>;
+
+export function makeDirectSender(): Sender {
+  return (req) => send(req);
 }
 
 export async function send(req: TransportRequest): Promise<Response> {

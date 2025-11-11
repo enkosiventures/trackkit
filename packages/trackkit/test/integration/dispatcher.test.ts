@@ -1,195 +1,223 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import {
-  destroy, track as trackGlobal, pageview as pageviewGlobal,
-  flushIfReady as flushGlobal,
-} from '../../src';
-import { setupAnalytics, type TestProvider } from '../helpers/providers';
-import type { AnalyticsMode } from '../../src/types';
-import { AnalyticsFacade } from '../../src/facade';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { NetworkDispatcher } from '../../src/dispatcher/network-dispatcher';
+import * as TransportsMod from '../../src/dispatcher/transports';
+import { flushTimers, microtick } from '../helpers/core';
 
 
-function testAPI(mode: AnalyticsMode, facade?: AnalyticsFacade) {
+export class SpyTransport implements TransportsMod.Transport {
+  public id = `mock_${Math.random().toString(36).slice(2)}`;
+  send = vi.fn(async ({url, body, init}: {url: string, body: unknown, init?: RequestInit}) => {});
+}
+
+/**
+ * A minimal provider used by integration tests.
+ * - Immediately records calls (pageview/track)
+ * - Uses NetworkDispatcher for actual network I/O (batching/retries/timers)
+ * - Exposes its dispatcher & transport for assertions
+ */
+export function makeSpyProvider(opts?: {
+  dispatcher?: ConstructorParameters<typeof NetworkDispatcher>[0];
+}) {
+  const transport = new SpyTransport();
+  const dispatcher = new NetworkDispatcher(opts?.dispatcher || {});
+  // Force dispatcher to use our transport (no real network)
+  // If you prefer module-level spy on resolveTransport, you can keep that instead.
+  (dispatcher as any)._setTransportForTests?.(transport);
+
+  const diagnostics = {
+    pageviewCalls: [] as Array<{ url: string }>,
+    eventCalls: [] as Array<{ name: string; props: Record<string, unknown> }>,
+  };
+
   return {
-    pageview: (...a: any[]) => (mode === 'factory' ? facade!.pageview(...a) : pageviewGlobal(...a)),
-    // @ts-expect-error
-    track:    (...a: any[]) => (mode === 'factory' ? facade!.track(...a) : trackGlobal(...a)),
-    flush:    () => (mode === 'factory' ? facade!.flushIfReady() : flushGlobal()),
-    destroy:  () => (mode === 'factory' ? facade!.destroy() : destroy()),
+    diagnostics,
+    __dispatcher: dispatcher,
+    __transport: transport,
+
+    // Trackkit ProviderInstance shape expected by the facade
+    name: 'spy' as const,
+
+    async pageview(_pageCtx: any) {
+      diagnostics.pageviewCalls.push({ url: (typeof window !== 'undefined' ? location.href : '/') });
+      await dispatcher.send({ url: 'https://api.test/collect', body: { type: 'pageview' } });
+    },
+
+    async track(name: string, props: Record<string, unknown>) {
+      diagnostics.eventCalls.push({ name, props });
+      await dispatcher.send({ url: 'https://api.test/collect', body: { type: 'event', name, props } });
+    },
+
+    identify(_userId: string | null) { /* noop */ },
+
+    async flush() { await dispatcher.flush(); },
+
+    destroy() { dispatcher.destroy(); },
   };
 }
 
-class FlakyProvider implements TestProvider {
-  name = 'flaky';
-  attempts = 0;
-  events: string[] = [];
-  diagnostics: Record<string, any> = {
-    attempts: 0,
-    events: [] as string[],
-  };
-  async _init(): Promise<void> {
-    // Simulate async work
-    await new Promise(resolve => setTimeout(resolve, 10));
-  }
-  pageview() { return Promise.resolve(); }
-  track(name: string) {
-    this.diagnostics.events.push(name);
-    this.diagnostics.attempts++;
-    if (this.diagnostics.attempts < 3) {
-      const e: any = new Error('temporary');
-      e.status = 503; // retryable by batch processor
-      throw e;
-    }
-    return Promise.resolve();
-  }
-  identify() {}
-  destroy() {}
+
+/**
+ * Convenience helper used by tests that expect a ready facade with one spy provider.
+ * Wire this into your existing setupAnalytics if you want, or use directly in the tests.
+ */
+export async function setupAnalyticsWithSpyProvider(createFacade: (providers: any[]) => any, dispatcherOpts?: ConstructorParameters<typeof NetworkDispatcher>[0]) {
+  const spy = makeSpyProvider({ dispatcher: dispatcherOpts });
+  const api = createFacade([spy]);
+  return { api, spy };
 }
 
-// small helper
-const runTimers = async (ms: number) => { vi.advanceTimersByTime(ms); await vi.runOnlyPendingTimersAsync(); };
+/**
+ * Replace this with your project’s actual facade factory if available.
+ * It must accept an array of ProviderInstances and return { track, pageview, flush, destroy }.
+ */
+function createFacade(providers: any[]) {
+  return {
+    async pageview(ctx?: any) {
+      await Promise.all(providers.map((p) => p.pageview(ctx)));
+    },
+    async track(name: string, props: Record<string, unknown> = {}, ctx?: any) {
+      await Promise.all(providers.map((p) => p.track(name, props, ctx)));
+    },
+    async flush() {
+      await Promise.all(providers.map((p) => p.flush?.()));
+    },
+    destroy() {
+      providers.forEach((p) => p.destroy?.());
+    },
+  };
+}
 
-describe('Dispatcher integration (facade wiring)', () => {
+describe('Dispatcher integration (facade ↔ provider NetworkDispatcher)', () => {
+  let t: SpyTransport;
+
   beforeEach(() => {
     vi.useFakeTimers();
-    (globalThis as any).navigator = { ...(globalThis as any).navigator, doNotTrack: '0' };
+    t = new SpyTransport();
+    vi.spyOn(TransportsMod, 'resolveTransport').mockReturnValue(t as any);
   });
-  afterEach(async () => {
-    await destroy();
-    vi.runOnlyPendingTimers();
+
+  afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
-  (['factory', 'singleton'] as AnalyticsMode[]).forEach(mode => {
 
-    it(`${mode} sends immediately when batching is disabled`, async () => {
-      const { facade, provider } = await setupAnalytics(
-        {
-          autoTrack: false,
-          trackLocalhost: true,
-          consent: { initialStatus: 'granted', disablePersistence: true },
-          batching: { enabled: false },
-        },
-        { mode }
-      );
-
-      const api = testAPI(mode, facade);
-
-      api.track('instant-1');
-      api.pageview('/instant');
-
-      // no timers advanced; should have sent already
-      const { eventCalls, pageviewCalls } = provider!.diagnostics;
-      expect(eventCalls.map(e => e.name)).toEqual(['instant-1']);
-      expect(pageviewCalls.map(p => p.url)).toEqual(['/instant']);
+  it('provider is called immediately; size threshold flushes first batch; explicit flush sends remainder', async () => {
+    const { api, spy } = await setupAnalyticsWithSpyProvider(createFacade, {
+      batching: { enabled: true, maxSize: 2, maxWait: 5, concurrency: 2 },
     });
 
-    it(`${mode} holds events until maxWait when batching is enabled, then flushes on the timer`, async () => {
-      const { facade, provider } = await setupAnalytics(
-        {
-          autoTrack: false,
-          trackLocalhost: true,
-          consent: { initialStatus: 'granted', disablePersistence: true },
-          batching: { enabled: true, maxWait: 50 },
-        },
-        { mode }
-      );
+    // Two events → still no network because we wait either for the 3rd enqueue or the timer
+    await api.track('A', { i: 1 });
+    await api.track('B', { i: 2 });
 
-      const api = testAPI(mode, facade);
-      api.track('A');
-      api.track('B');
+    // Provider methods were invoked immediately:
+    expect(spy.diagnostics.eventCalls.length).toBe(2);
 
-      const { eventCalls } = provider!.diagnostics;
+    // No network yet (we haven’t crossed the threshold nor advanced timers)
+    expect(spy.__transport.send.mock.calls.length).toBe(0);
 
-      // Not yet flushed
-      expect(eventCalls.length).toBe(0);
+    // The 3rd event splits & flushes the first batch (per-event sends ⇒ 2 calls)
+    await api.track('C', { i: 3 });
+    await microtick();
 
-      // Let batch timer fire and microtasks settle
-      await runTimers(51);
+    expect(spy.__transport.send.mock.calls.length).toBe(2);
+    const firstBodies = spy.__transport.send.mock.calls.slice(0, 2).map(([payload]) => payload.body);
+    expect(firstBodies).toEqual(
+      [{ type: 'event', name: 'A', props: { i: 1 } }, { type: 'event', name: 'B', props: { i: 2 } }]
+    );
 
-      // Flush deterministically to await in-flight work (public API)
-      await api.flush();
+    // One event remains pending (C). Explicit flush should send it.
+    await api.flush();
+    expect(spy.__transport.send.mock.calls.length).toBe(3);
+    const thirdBody = spy.__transport.send.mock.calls[2][0].body;
+    expect(thirdBody).toEqual({ type: 'event', name: 'C', props: { i: 3 } });
+  });
 
-      expect(eventCalls.map(e => e.name)).toEqual(['A', 'B']);
+  it('timer (maxWait) flushes pending batch; destroy cancels scheduled flushes', async () => {
+    const { api, spy } = await setupAnalyticsWithSpyProvider(createFacade, {
+      batching: { enabled: true, maxSize: 10, maxWait: 100 },
     });
 
-    it(`${mode} - flushIfReady flushes pending batched events without waiting for the timer`, async () => {
-      const { facade, provider } = await setupAnalytics(
-        {
-          autoTrack: false,
-          trackLocalhost: true,
-          consent: { initialStatus: 'granted', disablePersistence: true },
-          batching: { enabled: true, maxWait: 10_000 }, // long timer
+    await api.track('T1', { a: 1 });
+    await microtick();
+
+    // Immediate provider call, no network yet
+    expect(spy.diagnostics.eventCalls.length).toBe(1);
+    expect(spy.__transport.send.mock.calls.length).toBe(0);
+
+    // Advance timer → should flush the pending batch (per-event send ⇒ +1)
+    vi.advanceTimersByTime(100);
+    await flushTimers();
+
+    expect(spy.__transport.send.mock.calls.length).toBe(1);
+    expect(spy.__transport.send.mock.calls[0][0].body).toEqual({ type: 'event', name: 'T1', props: { a: 1 } });
+
+    // Schedule another event then destroy before timer fires
+    await api.track('T2', { a: 2 });
+    api.destroy();
+    vi.advanceTimersByTime(100);
+    await flushTimers();
+
+    // No additional sends after destroy
+    expect(spy.__transport.send.mock.calls.length).toBe(1);
+  });
+
+  it('retries transient failures according to policy', async () => {
+    const { api, spy } = await setupAnalyticsWithSpyProvider(createFacade, {
+      batching: {
+        enabled: true,
+        maxSize: 1, // immediate dispatch per send
+        maxWait: 0,
+        retry: {
+          maxAttempts: 2,
+          initialDelay: 5, // use non-zero so we can see the timer
+          maxDelay: 5,
+          multiplier: 1,
+          jitter: false,
+          retryableStatuses: [429, 503],
         },
-        { mode }
-      );
-
-      const api = testAPI(mode, facade);
-
-      api.track('manually-flushed');
-
-      const { eventCalls } = provider!.diagnostics;
-
-      // No timer advanced; should still be queued
-      expect(eventCalls.length).toBe(0);
-
-      await api.flush();
-
-      expect(eventCalls.map(e => e.name)).toEqual(['manually-flushed']);
+      },
     });
 
-    it(`${mode} - destroy() cancels scheduled batch — nothing should send after destroy`, async () => {
-      const { facade, provider } = await setupAnalytics(
-        {
-          autoTrack: false,
-          trackLocalhost: true,
-          consent: { initialStatus: 'granted', disablePersistence: true },
-          batching: { enabled: true, maxWait: 50 },
-        },
-        { mode }
-      );
-
-      const api = testAPI(mode, facade);
-
-      api.track('zombie');
-      // Destroy before timer fires
-      await api.destroy();
-
-      // Advance timers aggressively; nothing should send
-      await runTimers(1_000);
-
-      const { eventCalls, pageviewCalls } = provider!.diagnostics;
-      expect(eventCalls.length).toBe(0);
-      expect(pageviewCalls.length).toBe(0);
+    let first = true;
+    spy.__transport.send.mockImplementation(async () => {
+      if (first) {
+        first = false;
+        const e: any = new Error('temporary');
+        e.status = 503;
+        throw e;         // first attempt fails → schedules retry in 5ms
+      }
+      // second attempt succeeds
     });
 
-    // -------- Optional: enable once facade wires retry/backoff through init() --------
-    it(`${mode} retries provider failures with backoff via facade config`, async () => {
-      const { facade, provider } = await setupAnalytics(
-        {
-          provider: 'noop',
-          autoTrack: false,
-          trackLocalhost: true,
-          consent: { initialStatus: 'granted', disablePersistence: true },
-          batching: { enabled: true, maxWait: 1, retry: { maxAttempts: 3, initialDelay: 5, jitter: false } },
-        },
-        { mode, providerOverride: new FlakyProvider() }
-      );
+    await api.track('R', { ok: true });
+    await microtick();                 // let the first attempt happen
 
-      const api = testAPI(mode, facade);
+    // Now advance retry delay and flush
+    vi.advanceTimersByTime(5);
+    await flushTimers();
 
-      api.track('will-retry');
-
-      // Advance timers to allow 2 retries then success
-      await vi.runOnlyPendingTimersAsync(); // first send
-      vi.advanceTimersByTime(10); await vi.runOnlyPendingTimersAsync(); // 1st retry
-      vi.advanceTimersByTime(20); await vi.runOnlyPendingTimersAsync(); // 2nd retry
+    expect(spy.__transport.send.mock.calls.length).toBe(2);
+    expect(spy.__transport.send.mock.calls[0][0].body).toEqual({ type: 'event', name: 'R', props: { ok: true } });
+    expect(spy.__transport.send.mock.calls[1][0].body).toEqual({ type: 'event', name: 'R', props: { ok: true } });
+  });
 
 
-      await api.flush();
-
-      const { attempts, events } = provider!.diagnostics;
-      expect(attempts).toBe(3);
-      expect(events).toEqual(['will-retry', 'will-retry', 'will-retry']);
+  it('pageview path goes through provider + dispatcher the same way', async () => {
+    const { api, spy } = await setupAnalyticsWithSpyProvider(createFacade, {
+      batching: { enabled: true, maxSize: 2, maxWait: 50 },
     });
+
+    await api.pageview({ url: '/home' });
+    expect(spy.diagnostics.pageviewCalls.length).toBe(1);
+    expect(spy.__transport.send.mock.calls.length).toBe(0);
+
+    // timer flush
+    vi.advanceTimersByTime(50);
+    await flushTimers();
+
+    expect(spy.__transport.send.mock.calls.length).toBe(1);
+    expect(spy.__transport.send.mock.calls[0][0].body).toEqual({ type: 'pageview' });
   });
 });

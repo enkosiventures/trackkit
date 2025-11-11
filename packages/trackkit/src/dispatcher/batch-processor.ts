@@ -1,43 +1,13 @@
+import { applyBatchingDefaults } from '../facade/normalize';
 import { RetryManager } from './retry';
-import type { RetryOptions } from './types';
+import { logger } from '../util/logger';
+import type { Batch, BatchConfig, BatchedEvent, DispatchPayload } from './types';
 
-export type BatchedEvent = {
-  id: string;
-  timestamp: number;
-  type: 'track' | 'pageview' | 'identify';
-  payload: any; // provider-agnostic closure or serializable payload
-  size: number;
-  attempts?: number;
-  lastError?: unknown;
-};
 
-export type Batch = {
-  id: string;
-  events: BatchedEvent[];
-  totalSize: number;
-  createdAt: number;
-  attempts: number;
-  status: 'pending' | 'sending' | 'sent' | 'failed';
-};
-
-export type BatchConfig = {
-  maxSize?: number;
-  maxWait?: number;
-  maxBytes?: number;
-  concurrency?: number;
-  deduplication?: boolean;
-  retry?: RetryOptions;
-};
-
-function getPayloadSize(p: any) {
-  try { return new Blob([JSON.stringify(p)]).size; }
-  catch { return JSON.stringify(p).length * 2; }
+function getBodySize(payload: DispatchPayload): number {
+  try { return new Blob([JSON.stringify(payload.body)]).size; }
+  catch { return JSON.stringify(payload.body).length * 2; }
 }
-
-const DEFAULTS: Required<BatchConfig> = {
-  maxSize: 10, maxWait: 1000, maxBytes: 64 * 1024, concurrency: 2, deduplication: true,
-  retry: { maxAttempts: 3, initialDelay: 1000, maxDelay: 30000, multiplier: 2, jitter: true, retryableStatuses: [408,429,500,502,503,504] }
-};
 
 export class EventBatchProcessor {
   private cfg: Required<BatchConfig>;
@@ -50,7 +20,7 @@ export class EventBatchProcessor {
   private retry: RetryManager;
 
   constructor(config: BatchConfig, private sendFn: (batch: Batch) => Promise<void>) {
-    this.cfg = { ...DEFAULTS, ...config, retry: { ...DEFAULTS.retry, ...(config.retry || {}) } };
+    this.cfg = applyBatchingDefaults(config);
     // @ts-expect-error: cfg.retry is now required
     this.retry = new RetryManager(this.cfg.retry);
   }
@@ -58,21 +28,24 @@ export class EventBatchProcessor {
   add(event: BatchedEvent) {
     if (this.cfg.deduplication && this.dedupe.has(event.id)) return;
 
-    const size = event.size || getPayloadSize(event.payload);
+    const size = event.size || getBodySize(event.payload);
     if (!this.current) this.current = this.createBatch();
 
     // Case A: normal split (current already has items and adding would overflow)
     if (this.shouldSplit(this.current, size)) {
+      logger.debug(`Splitting batch: ${this.current.id}`, this.current.events);
       this.sendBatch(this.current);
       this.current = this.createBatch();
     }
 
     // Push the event into current
+    logger.debug(`Adding event to current batch: ${this.current.id}`, event);
     this.current.events.push(event);
     this.current.totalSize += size;
 
     // Case B: single-event bigger than maxBytes — send immediately as its own batch
     if (size > this.cfg.maxBytes && this.current.events.length === 1) {
+      logger.debug(`Single event exceeds maxBytes, sending immediately: ${this.current.id}`, this.current);
       const single = this.current;
       this.current = null;
       this.sendBatch(single);
@@ -101,6 +74,7 @@ export class EventBatchProcessor {
     if (this.sendTimer) { clearTimeout(this.sendTimer); this.sendTimer = null; }
     // kick any pending current batch into flight
     if (this.current && this.current.events.length) {
+      logger.debug('Flushing current batch:', this.current.id);
       const batch = this.current;
       this.current = null;
       // do not await here; inflight tracking will make flush deterministic

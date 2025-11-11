@@ -3,7 +3,8 @@ import {
   CONSENT_DEFAULTS, RETRY_DEFAULTS, BATCHING_DEFAULTS, CONNECTION_DEFAULTS,
   PERFORMANCE_DEFAULTS, RESILIENCE_DEFAULTS, FACADE_BASE_DEFAULTS
 } from '../constants';
-import type { BatchingOptions, ConnectionOptions, PerformanceOptions, ResilienceOptions, RetryOptions } from '../dispatcher/types';
+import { ResilienceOptions } from '../dispatcher/transports';
+import type { BatchingOptions, ConnectionOptions, PerformanceOptions, RetryOptions } from '../dispatcher/types';
 import { getProviderMetadata } from '../providers/metadata';
 import type { NavigationSource } from '../types';
 import { makeWindowNavigationSource } from './navigation';
@@ -43,7 +44,7 @@ export function applyBatchingDefaults(options?: Partial<BatchingOptions>) {
     concurrency: opts.concurrency ?? BATCHING_DEFAULTS.concurrency,
     deduplication: opts.deduplication ?? BATCHING_DEFAULTS.deduplication,
     retry: applyRetryDefaults(opts.retry),
-  } as const;
+  } as Required<BatchingOptions>;
 }
 
 export function applyConnectionDefaults(options?: ConnectionOptions) {

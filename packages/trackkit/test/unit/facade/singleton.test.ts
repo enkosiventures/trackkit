@@ -42,9 +42,7 @@ describe('Singleton behavior', () => {
     init({ autoTrack: false, consent: { disablePersistence: true } });
     grantConsent();
     await waitForReady();
-    console.warn('Getting first facade instance');
     const first = getFacade();
-    console.warn('First facade instance:', first);
     destroy();
     init({ autoTrack: false, consent: { disablePersistence: true } });
     grantConsent();

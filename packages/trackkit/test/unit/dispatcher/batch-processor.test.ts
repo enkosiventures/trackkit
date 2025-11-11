@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { EventBatchProcessor, type Batch } from '../../../src/dispatcher/batch-processor';
-import { nextTick } from '../../helpers/core';
+import { EventBatchProcessor } from '../../../src/dispatcher/batch-processor';
+import { microtick } from '../../helpers/core';
+import { Batch } from '../../../src/dispatcher/types';
 
-// const nextTick = () => new Promise(r => setTimeout(r, 0));
 
 describe('EventBatchProcessor', () => {
   beforeEach(() => vi.useFakeTimers());
@@ -12,15 +12,15 @@ describe('EventBatchProcessor', () => {
     const sent: Batch[] = [];
     const bp = new EventBatchProcessor({ maxSize: 2, maxWait: 10 }, async (b) => { sent.push(b); });
 
-    bp.add({ id: 'a', timestamp: Date.now(), type: 'track', payload: { run() {} }, size: 10 });
-    bp.add({ id: 'b', timestamp: Date.now(), type: 'track', payload: { run() {} }, size: 10 });
+    bp.add({ id: 'a', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: 10 });
+    bp.add({ id: 'b', timestamp: Date.now(), payload: { url: '', body: { b: 2 }}, size: 10 });
     // adding the 3rd forces split
-    bp.add({ id: 'c', timestamp: Date.now(), type: 'track', payload: { run() {} }, size: 10 });
+    bp.add({ id: 'c', timestamp: Date.now(), payload: { url: '', body: { c: 3 }}, size: 10 });
 
     // allow the forced send; then auto-timeout flush for the final batch
-    await nextTick();
+    await microtick();
     vi.advanceTimersByTime(11);
-    await nextTick();
+    await microtick();
 
     await bp.flush();
 
@@ -34,10 +34,10 @@ describe('EventBatchProcessor', () => {
     const bp = new EventBatchProcessor({ maxBytes: 100, maxWait: 10 }, async (b) => { sent.push(b); });
 
     const bigPayload = { data: 'x'.repeat(150) }; // > 100 bytes after JSON
-    bp.add({ id: 'x', timestamp: Date.now(), type: 'track', payload: { run() {} }, size: JSON.stringify(bigPayload).length });
+    bp.add({ id: 'x', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: JSON.stringify(bigPayload).length });
 
     vi.advanceTimersByTime(11);
-    await nextTick();
+    await microtick();
     await bp.flush();
 
     expect(sent.length).toBe(1);
@@ -48,11 +48,11 @@ describe('EventBatchProcessor', () => {
     const sent: Batch[] = [];
     const bp = new EventBatchProcessor({ maxWait: 10, deduplication: true }, async (b) => { sent.push(b); });
 
-    bp.add({ id: 'dup', timestamp: Date.now(), type: 'track', payload: { run() {} }, size: 10 });
-    bp.add({ id: 'dup', timestamp: Date.now(), type: 'track', payload: { run() {} }, size: 10 });
+    bp.add({ id: 'dup', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: 10 });
+    bp.add({ id: 'dup', timestamp: Date.now(), payload: { url: '', body: { b: 2 }}, size: 10 });
 
     vi.advanceTimersByTime(11);
-    await nextTick();
+    await microtick();
     await bp.flush();
 
     expect(sent.length).toBe(1);
@@ -77,7 +77,7 @@ describe('EventBatchProcessor', () => {
       }
     );
 
-    bp.add({ id: 'r1', timestamp: Date.now(), type: 'track', payload: { run() {} }, size: 10 });
+    bp.add({ id: 'r1', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: 10 });
 
     vi.advanceTimersByTime(5);
     await vi.runOnlyPendingTimersAsync(); // processes timers + microtasks in between steps
@@ -103,10 +103,10 @@ describe('EventBatchProcessor', () => {
         throw err;
       });
 
-    bp.add({ id: 'bad', timestamp: Date.now(), type: 'track', payload: { run() {} }, size: 10 });
+    bp.add({ id: 'bad', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: 10 });
 
     vi.advanceTimersByTime(5);
-    await nextTick();
+    await microtick();
     await bp.flush();
 
     expect(attempts).toBe(1);

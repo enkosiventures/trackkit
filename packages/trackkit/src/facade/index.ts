@@ -1,13 +1,12 @@
 import type { EventType, FacadeOptions, InitOptions, Props, ProviderOptions } from '../types';
-import { mergeConfig, validateProviderConfig, getConsentConfig } from './config'; // existing
-import { ConsentManager } from '../consent/ConsentManager';               // existing
+import { mergeConfig, validateProviderConfig, getConsentConfig } from './config';
+import { ConsentManager } from '../consent/ConsentManager';
 import type { ConsentCategory, ConsentStatus, ConsentStoredState } from '../consent/types';
 import { PolicyGate } from './policy-gate';
 import { ContextService } from './context';
 import { ProviderManager } from './provider-manager';
 import { NavigationService } from './navigation';
-import { Dispatcher } from '../dispatcher/dispatcher';
-import { logger, createLogger, setGlobalLogger } from '../util/logger';   // existing
+import { logger, createLogger, setGlobalLogger } from '../util/logger';
 import { DEFAULT_CATEGORY, DEFAULT_PRE_INIT_BUFFER_SIZE, ESSENTIAL_CATEGORY } from '../constants';
 import { AnalyticsError, dispatchError, setUserErrorHandler } from '../errors';
 import { DiagnosticsService } from './diagnostics';
@@ -46,7 +45,7 @@ export class AnalyticsFacade {
   private policy!: PolicyGate;
   private provider!: ProviderManager;
   private nav!: NavigationService;
-  private dispatcher!: Dispatcher;
+  // private dispatcher!: Dispatcher;
 
   private diag!: DiagnosticsService;
 
@@ -81,10 +80,6 @@ export class AnalyticsFacade {
       maxSize: this.cfg!.queueSize,
       debug: !!this.cfg?.debug,
       onOverflow: dropped => this.onOverflow(dropped.length),
-    });
-    this.dispatcher = new Dispatcher({
-      batching: this.cfg?.batching?.enabled ? this.cfg.batching : undefined,
-      performance: this.cfg?.performance,
     });
 
     // optional connection+offline
@@ -305,12 +300,6 @@ export class AnalyticsFacade {
         return 0;
     }
 
-    // If batching is enabled, ensure pending batches are sent now.
-    // This makes flushIfReady deterministic for tests and apps.
-    if (this.dispatcher && typeof this.dispatcher.flush === 'function') {
-      await this.dispatcher.flush();
-    }
-
     return processed;
   }
 
@@ -318,7 +307,6 @@ export class AnalyticsFacade {
 
   destroy() {
     this.nav.stop();
-    this.dispatcher.destroy();
     this.provider.destroy();
     this.queues.clearAll();
     this.context.reset();
@@ -375,9 +363,8 @@ export class AnalyticsFacade {
         this.context.markPlanned(resolvedUrl);
       }
 
-      const run = () => this.provider.call(type, args, ctx);
-      this.dispatcher.enqueue({ id: `d_${Date.now()}_${Math.random()}`, type, run })
-        .then(() => {
+      this.provider.call(type, args, ctx)
+        ?.then(() => {
           if (type === 'pageview') this.context.markSent(resolvedUrl);
         })
         .catch(err => this.signalProviderError(type, err));

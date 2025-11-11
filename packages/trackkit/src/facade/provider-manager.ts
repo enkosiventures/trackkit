@@ -12,7 +12,14 @@ export class ProviderManager {
 
   async load(): Promise<StatefulProvider> {
     if (this.injected && this.provider) return this.provider;
-    const loaded = await loadProvider(this.pCfg, this.fCfg?.bustCache, this.fCfg?.debug, this.fCfg?.onError);
+    const loaded = await loadProvider({
+        providerOptions: this.pCfg,
+        batchingOptions: this.fCfg?.batching,
+        resilienceOptions: this.fCfg?.resilience,
+        bustCache: this.fCfg?.bustCache,
+        debug: this.fCfg?.debug,
+        onError: this.fCfg?.onError,
+    });
     this.provider = loaded;
 
     const current = this.provider;

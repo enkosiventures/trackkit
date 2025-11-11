@@ -1,5 +1,5 @@
 import type { ConsentCategory, ConsentOptions, ResolvedConsentOptions } from "./consent/types";
-import type { BatchingOptions, ConnectionOptions, PerformanceOptions, RetryOptions } from "./dispatcher/types";
+import type { BatchingOptions, ConnectionOptions, PerformanceOptions, ResilienceOptions, RetryOptions } from "./dispatcher/types";
 import type { AnalyticsError } from "./errors";
 import type { FacadeOptions, ProviderOptions, ProviderType } from "./types";
 import { logger } from "./util/logger";
@@ -53,11 +53,11 @@ export const PERFORMANCE_DEFAULTS: PerformanceOptions = {
   logSummaryInterval: undefined as number | undefined,
 } as const;
 
-export const RESILIENCE_DEFAULTS = {
+export const RESILIENCE_DEFAULTS: ResilienceOptions = {
   detectBlockers: false,
   fallbackStrategy: 'proxy' as const, // 'proxy' | 'beacon' | 'none'
   proxy: undefined as
-    | { endpoint: string; token?: string; headers?: Record<string, string> }
+    | { proxyUrl: string; token?: string; headers?: Record<string, string> }
     | undefined,
 } as const;
 

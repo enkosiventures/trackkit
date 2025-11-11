@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import noopProvider from '../../../src/providers/noop';
+import noop from '../../../src/providers/noop';
 import { init, waitForReady, grantConsent, track, PageContext } from '../../../src';
 import { resetTests } from '../../helpers/core';
 
@@ -14,7 +14,7 @@ describe('No-op Provider', () => {
   });
 
   it('implements all required methods', () => {
-    const instance = noopProvider.create({ provider: 'noop' }, false, false);
+    const instance = noop.create({ provider: { provider: 'noop' }});
     expect(instance).toMatchObject({
       track: expect.any(Function),
       pageview: expect.any(Function),
@@ -24,8 +24,7 @@ describe('No-op Provider', () => {
   });
 
   it('accepts full call shape even when debug=false', () => {
-    const p = noopProvider.create({ provider: 'noop' }, false, false);
-
+    const p = noop.create({ provider: { provider: 'noop' }});
     const spyTrack = vi.spyOn(p, 'track');
     const spyPv = vi.spyOn(p, 'pageview');
     const spyId = vi.spyOn(p, 'identify');
@@ -71,7 +70,7 @@ describe('No-op Provider', () => {
   });
 
   it('destroy is idempotent', () => {
-    const p = noopProvider.create({ provider: 'noop' }, false, false);
+    const p = noop.create({ provider: { provider: 'noop' }});
     expect(() => { p.destroy(); p.destroy(); }).not.toThrow();
   });
 
@@ -81,7 +80,7 @@ describe('No-op Provider', () => {
     grantConsent();
 
     // No direct handle to provider here; re-create raw provider to validate shapes
-    const p = noopProvider.create({ provider: 'noop' }, false, false);
+    const p = noop.create({ provider: { provider: 'noop' }});
 
     const spyPv = vi.spyOn(p, 'pageview');
     const spyId = vi.spyOn(p, 'identify');

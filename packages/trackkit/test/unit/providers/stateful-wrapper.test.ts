@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { StatefulProvider } from '../../../src/providers/stateful-wrapper';
 import { AnalyticsError } from '../../../src/errors';
-import { nextTick } from '../../helpers/core';
+import { microtick } from '../../helpers/core';
 
 
 function mkProvider(name = 'p') {
@@ -20,7 +20,7 @@ describe('stateful-wrapper', () => {
     await sp.init(); // becomes ready
     const cb = vi.fn();
     const off = sp.onReady(cb);
-    await nextTick();
+    await microtick();
     expect(cb).toHaveBeenCalledTimes(1);
     off(); // no throw
   });
@@ -31,7 +31,7 @@ describe('stateful-wrapper', () => {
     const off = sp.onReady(cb);
     off();               // unsubscribe before ready
     await sp.init();     // ready now
-    await nextTick();
+    await microtick();
     expect(cb).not.toHaveBeenCalled();
   });
 

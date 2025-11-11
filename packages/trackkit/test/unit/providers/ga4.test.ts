@@ -3,6 +3,9 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vite
 import type { PageContext } from '../../../src/types';
 import { resetTests } from '../../helpers/core';
 
+
+const mockSender = vi.fn(() => Promise.resolve(new Response(null, { status: 204 })));
+
 // ───────────────────────────────────────────────────────────────────────────────
 // Shared helpers
 // ───────────────────────────────────────────────────────────────────────────────
@@ -59,11 +62,11 @@ describe('GA4 client (mapping & endpoints)', () => {
   it('requires measurementId', () => {
     // @ts-expect-error intentionally missing
     expect(() => createGA4Client({})).toThrow(/measurementId/i);
-    expect(() => createGA4Client({ measurementId: 'G-TEST123' } as any)).not.toThrow();
+    expect(() => createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123' }})).not.toThrow();
   });
 
   it('builds default endpoint with measurementId', async () => {
-    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123' }});
     await c.track('evt', {}, makeCtx());
     const { url, method, body } = getFirstReq();
     expect(url).toContain('https://www.google-analytics.com/mp/collect');
@@ -74,28 +77,28 @@ describe('GA4 client (mapping & endpoints)', () => {
   });
 
   it('uses debug endpoint when debugEndpoint=true', async () => {
-    const c = createGA4Client({ measurementId: 'G-TEST123', debugEndpoint: true } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123', debugEndpoint: true }});
     await c.pageview(makeCtx({ url: '/x' }));
     const { url } = getFirstReq();
     expect(url).toContain('/debug/mp/collect');
   });
 
   it('includes apiSecret when provided', async () => {
-    const c = createGA4Client({ measurementId: 'G-TEST123', apiSecret: 'shh' } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123', apiSecret: 'shh' }});
     await c.track('evt', {}, makeCtx());
     const { url } = getFirstReq();
     expect(url).toContain('api_secret=shh');
   });
 
   it('honors host override', async () => {
-    const c = createGA4Client({ measurementId: 'G-TEST123', host: 'https://ga-proxy.example.com/' } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123', host: 'https://ga-proxy.example.com/' }});
     await c.track('evt', {}, makeCtx());
     const { url } = getFirstReq();
     expect(url.startsWith('https://ga-proxy.example.com/mp/collect?')).toBe(true);
   });
 
   it('maps pageview params from PageContext', async () => {
-    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123' }});
     await c.pageview(makeCtx({ url: '/a?x=1', referrer: '/prev', title: 'Title A', language: 'pl', screenSize: { width: 800, height: 600 } }));
     const { body } = getFirstReq();
     const payload = body as any;
@@ -118,7 +121,7 @@ describe('GA4 client (mapping & endpoints)', () => {
   });
 
   it('maps custom event with props + context', async () => {
-    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123' }});
     await c.track('signup', { plan: 'pro', value: 42 }, makeCtx({ url: '/signup' }));
 
     const { body } = getFirstReq();
@@ -133,14 +136,14 @@ describe('GA4 client (mapping & endpoints)', () => {
   });
 
   it('sets engagement_time_msec when missing', async () => {
-    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123' }});
     await c.track('evt', {}, makeCtx());
     const { body } = getFirstReq();
     expect((body as any).events[0].params.engagement_time_msec).toBe(100);
   });
 
   it('keeps same session_id across calls in a run', async () => {
-    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123' }});
     await c.track('evt1', {}, makeCtx({ url: '/1' }));
     await c.track('evt2', {}, makeCtx({ url: '/2' }));
 
@@ -151,7 +154,7 @@ describe('GA4 client (mapping & endpoints)', () => {
   });
 
   it('identify() and destroy() are safe no-ops', () => {
-    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123' }});
     const ctx: PageContext = {
       url: '/a',
       title: 'T',
@@ -169,7 +172,7 @@ describe('GA4 client (mapping & endpoints)', () => {
 
   it('throws on non-OK responses', async () => {
     hoisted.sendMock.mockResolvedValueOnce(new Response('bad', { status: 400, statusText: 'Bad' }));
-    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123' }});
     await expect(c.track('oops', {}, makeCtx())).rejects.toThrow(/\[ga4] request failed: 400/i);
   });
 });
@@ -202,7 +205,7 @@ describe('GA4 client (transport behavior)', () => {
   it('uses fetch when navigator.sendBeacon is unavailable', async () => {
     Object.defineProperty(navigator, 'sendBeacon', { value: undefined, configurable: true });
 
-    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123' }});
     await c.pageview(makeCtx({ url: '/fallback' }));
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -215,7 +218,7 @@ describe('GA4 client (transport behavior)', () => {
     const beaconSpy = vi.fn().mockReturnValue(true);
     Object.defineProperty(navigator, 'sendBeacon', { value: beaconSpy, configurable: true });
 
-    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123' }});
     await c.track('evt', { a: 1 }, makeCtx());
 
     expect(beaconSpy).toHaveBeenCalledTimes(1);
@@ -236,7 +239,7 @@ describe('GA4 client (transport behavior)', () => {
     const beaconSpy = vi.fn().mockReturnValue(false);
     Object.defineProperty(navigator, 'sendBeacon', { value: beaconSpy, configurable: true });
 
-    const c = createGA4Client({ measurementId: 'G-TEST123' } as any);
+    const c = createGA4Client({ provider: { provider: 'ga4', measurementId: 'G-TEST123' }});
     await c.pageview(makeCtx({ url: '/beacon-fallback' }));
 
     expect(beaconSpy).toHaveBeenCalledTimes(1);

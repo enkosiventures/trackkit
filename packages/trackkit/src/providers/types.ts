@@ -1,5 +1,12 @@
 import type { ConsentCategory } from '../consent/types';
 import type { ProviderInstance, ProviderOptions, ProviderType } from '../types';
+import { Sender } from './base/transport';
+
+export type FactoryOptions = {
+  bustCache?: boolean;
+  debug?: boolean;
+  sender?: Sender;
+};
 
 /**
  * Provider lifecycle states
@@ -13,7 +20,7 @@ export interface ProviderFactory {
   /**
    * Create a new analytics instance
    */
-  create(options: ProviderOptions, cache?: boolean, debug?: boolean): ProviderInstance;
+  create(options: { provider: ProviderOptions; factory?: FactoryOptions }): ProviderInstance;
 
   /**
    * Provider metadata

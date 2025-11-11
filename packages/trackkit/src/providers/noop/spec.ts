@@ -1,7 +1,7 @@
-import type { PageContext, Props, ProviderInstance, ProviderOptions } from '../types';
-import { logger } from '../util/logger';
-import { stripEmptyFields } from '../util';
-import type { ProviderFactory } from './types';
+import type { PageContext, Props, ProviderInstance, ProviderOptions } from '../../types';
+import { logger } from '../../util/logger';
+import { stripEmptyFields } from '../../util';
+import type { FactoryOptions, ProviderFactory } from '../types';
 
 
 /**
@@ -9,9 +9,10 @@ import type { ProviderFactory } from './types';
  * Used as default provider and fallback for errors
  */
 function create(
-  options: ProviderOptions,
-  bustCache?: boolean,
-  debug?: boolean,
+  options: {
+    provider: ProviderOptions;
+    factory?: FactoryOptions;
+  },
 ): ProviderInstance {
   logger.debug('Creating no-op provider instance', options);
 
@@ -19,28 +20,28 @@ function create(
    * Log method call in debug mode
    */
   const log = (method: string, ...args: unknown[]) => {
-    if (debug) {
+    if (options.factory?.debug) {
       logger.debug(`[no-op] ${method}`, ...args);
     }
   };
-  
+
   return {
     name: 'noop',
-    
+
     track(name: string, props: Props, pageContext: PageContext): Promise<void> {
       log('track', { name, props, pageContext: stripEmptyFields(pageContext) });
       return Promise.resolve();
     },
-    
+
     pageview(pageContext: PageContext): Promise<void> {
       log('pageview', { pageContext: stripEmptyFields(pageContext) });
       return Promise.resolve();
     },
-    
+
     identify(userId: string | null): void {
       log('identify', { userId });
     },
-    
+
     destroy(): void {
       log('destroy');
     },

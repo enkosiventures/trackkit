@@ -1,5 +1,6 @@
 import type { ConsentCategory, ConsentOptions } from './consent/types';
-import type { BatchingOptions, ConnectionOptions, PerformanceOptions, ResilienceOptions } from './dispatcher/types';
+import { ResilienceOptions } from './dispatcher/transports';
+import type { BatchingOptions, ConnectionOptions, PerformanceOptions } from './dispatcher/types';
 import type { AnalyticsError } from './errors';
 import type { GA4Options } from './providers/ga4/types';
 import type { PlausibleOptions } from './providers/plausible/types';

@@ -95,8 +95,6 @@ export function isDoNotTrackEnabled(): boolean {
     navigator.doNotTrack || 
     (navigator as any).msDoNotTrack;
 
-  console.warn('DNT value:', dnt);
-    
   return dnt === '1' || dnt === 'yes' || dnt === true;
 }
 

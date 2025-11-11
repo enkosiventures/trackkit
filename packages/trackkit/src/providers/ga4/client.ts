@@ -51,8 +51,8 @@ function getOrCreateSessionId(): number {
   }
 }
 
-export function createGA4Client(options: ProviderOptions): ProviderInstance {
-  const ga4Options = options as GA4Options;
+export function createGA4Client(options: { provider: ProviderOptions }): ProviderInstance {
+  const ga4Options = options.provider as GA4Options;
   const measurementId = ga4Options.measurementId?.trim();
   if (!measurementId) throw new Error('[ga4] "measurementId" is required');
 

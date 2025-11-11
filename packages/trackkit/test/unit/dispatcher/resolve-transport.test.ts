@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { resolveTransport } from '../../../src/dispatcher/resolve-transport';
+import { resolveTransport, BeaconTransport, FetchTransport } from '../../../src/dispatcher/transports';
 import * as detector from '../../../src/dispatcher/adblocker';
-import { BeaconTransport, FetchTransport } from '../../../src/dispatcher/transport';
+
 
 describe('resolveTransport', () => {
   it('returns Fetch when not blocked', async () => {
@@ -17,9 +17,9 @@ describe('resolveTransport', () => {
     expect(t).toBeInstanceOf(BeaconTransport);
   });
 
-  it('falls back to Fetch when strategy is none', async () => {
+  it('falls back to Beacon when strategy is none', async () => {
     vi.spyOn(detector, 'detectBlockers').mockResolvedValue({ blocked: true, method: 'script', confidence: 0.9 });
     const t = await resolveTransport({ detectBlockers: true, fallbackStrategy: 'none' });
-    expect(t).toBeInstanceOf(FetchTransport);
+    expect(t).toBeInstanceOf(BeaconTransport);
   });
 });

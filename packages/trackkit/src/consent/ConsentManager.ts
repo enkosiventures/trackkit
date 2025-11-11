@@ -11,7 +11,6 @@ export class ConsentManager {
   private storageAvailable = false;
 
   constructor(options: ConsentOptions = {}) {
-    console.warn('ConsentManager options:', options);
     this.opts = applyConsentDefaults(options);
     this.status = this.opts.initialStatus;
     this.initFromStorage();

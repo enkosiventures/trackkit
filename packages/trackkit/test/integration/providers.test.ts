@@ -164,9 +164,6 @@ describe('Provider Integration', () => {
       // Wait for async requests
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      console.warn('Captured requests:', requests[0].events);
-      console.warn('Captured requests:', requests[1].events);
-      
       expect(requests).toHaveLength(2);
       expect(requests[0]).toMatchObject(payloads[name][0]);
       expect(requests[1]).toMatchObject(payloads[name][1]);
@@ -219,8 +216,6 @@ describe('Provider Integration', () => {
         .filter(r => r.payload?.name)
         .map(r => r.payload.name);  
 
-      console.warn('Captured requests:', requests);
-      console.warn('Captured event names:', eventNames);
       expect(eventNames).toContain('quick_event');
       expect(eventNames).toContain('next_event');
       expect(eventNames).toContain('final_event');
@@ -230,7 +225,6 @@ describe('Provider Integration', () => {
       let requests = 0;
       server.use(
         http.post(data.url, () => {
-          console.warn('Posting to Mock API');
           requests++;
           return new HttpResponse(null, { status: 204 });
         })
@@ -264,7 +258,6 @@ describe('Provider Integration', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Only real provider event should be sent
-      console.warn('Captured requests:', requests);
       expect(requests).toBe(1);
     });
   });

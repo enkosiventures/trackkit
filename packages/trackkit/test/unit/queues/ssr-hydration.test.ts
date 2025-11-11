@@ -38,9 +38,7 @@ describe('SSR hydration from facade', () => {
     assert(facade);
 
     await facade.waitForReady?.({ timeoutMs: 200, mode: 'provider' });
-    console.warn('After init, SSR queue length:', getSSRQueueLength());
 
-    console.warn('Provider name:', facade.getProvider()?.name)
     expect(provider!.diagnostics.eventCalls.length).toBe(1);
     expect(getSSRQueueLength()).toBe(0); // hydrate clears the queue
   });

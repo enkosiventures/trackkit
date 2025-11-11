@@ -1,5 +1,6 @@
 import type { PageContext, ProviderInstance, ProviderType } from '../../types';
-import { send, type TransportMethod } from './transport';
+import { FactoryOptions } from '../types';
+import { makeDirectSender, Sender, type TransportMethod } from './transport';
 
 
 /**
@@ -52,17 +53,18 @@ async function defaultParseError(res: Response): Promise<Error> {
 export function createConfigProvider<ProviderOptions>(spec: ProviderSpec<ProviderOptions>) {
   return {
     /** Factory to keep parity with your existing “provider factories” */
-    create(options: ProviderOptions, bustCache?: boolean): ProviderInstance {
-      const providerOptions = spec.defaults(options);
+    create(options: { provider: ProviderOptions; factory?: FactoryOptions }): ProviderInstance {
+      const providerOptions = spec.defaults(options.provider);
       const headers = spec.headers?.(providerOptions);
       const ok = spec.ok ?? defaultOk;
       const parseError = spec.parseError ?? defaultParseError;
+      const resolvedSender: Sender = options.factory?.sender ?? makeDirectSender();
 
       const sendAndCheck = async (method: TransportMethod, url: string, body: unknown) => {
-        const res = await send({
+        const res = await resolvedSender({
           method, url, headers, body,
           maxBeaconBytes: spec.limits?.maxBeaconBytes,
-          bustCache,
+          bustCache: options.factory?.bustCache,
         });
         if (!ok(res)) throw await parseError(res);
       };
@@ -76,11 +78,7 @@ export function createConfigProvider<ProviderOptions>(spec: ProviderSpec<Provide
           return sendAndCheck(method, endpoint, body);
         },
 
-        track(
-          name: string,
-          props: Record<string, unknown>,
-          pageContext?: PageContext
-        ) {
+        track(name: string, props: Record<string, unknown>, pageContext?: PageContext) {
           // Use pageContext.url if provided; otherwise derive minimal current URL.
           const pageContextSafe: PageContext = pageContext ?? {
             url:

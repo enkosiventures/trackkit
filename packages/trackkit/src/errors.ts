@@ -94,10 +94,8 @@ export function dispatchError(e: unknown, code: ErrorCode = 'UNKNOWN', provider?
 
   // call user handler safely
   try {
-    console.warn('userHandler', userHandler);
     userHandler?.(err);
   } catch (handlerErr) {
-    console.warn('handlerErr', handlerErr);
     // User’s handler exploded – log both
     logger.error(
       'Error in error handler',

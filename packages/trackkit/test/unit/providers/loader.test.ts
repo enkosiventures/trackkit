@@ -41,7 +41,7 @@ describe('provider loader', () => {
       warn: vi.fn(),
       info: vi.fn(),
       debug: vi.fn(),
-    } as any);
+    });
     resetTests(vi);
   });
 
@@ -59,7 +59,7 @@ describe('provider loader', () => {
     });
 
     it('loads provider via SYNC factory and returns StatefulProvider', async () => {
-      const sp = await loadProvider({ provider: 'noop' } as any);
+      const sp = await loadProvider({ providerOptions: { provider: 'noop' }});
       expect(sp).toBeInstanceOf(StatefulProvider);
 
       const infoCalls = logger.mock.results?.[0]?.value?.info?.mock?.calls ?? [];
@@ -67,7 +67,7 @@ describe('provider loader', () => {
     });
 
     it('loads provider via ASYNC factory (promise)', async () => {
-      const sp = await loadProvider(null);
+      const sp = await loadProvider({ providerOptions: null });
       expect(sp).toBeInstanceOf(StatefulProvider);
       const infoCalls = logger.mock.results?.[0]?.value?.info?.mock?.calls ?? [];
       expect(infoCalls).toEqual([['Provider loaded:', 'noop', { version: '1.2.3' }]]);
@@ -75,12 +75,12 @@ describe('provider loader', () => {
   });
 
   it('throws on unknown provider name', async () => {
-    await expect(loadProvider({ provider: 'unknown' } as any)).rejects.toThrow(/Unknown analytics provider/i);
+    await expect(loadProvider({ providerOptions: { provider: 'unknown' } as any })).rejects.toThrow(/Unknown analytics provider/i);
   });
 
   it('throws on invalid factory (missing create)', async () => {
     currentNoopFactory = {}; // no create
-    await expect(loadProvider({ provider: 'noop' } as any)).rejects.toThrow(/Invalid provider factory/i);
+    await expect(loadProvider({ providerOptions: { provider: 'noop' } })).rejects.toThrow(/Invalid provider factory/i);
   });
 
   it('init failure is caught and forwarded to onError (no unhandled rejections)', async () => {
@@ -90,7 +90,12 @@ describe('provider loader', () => {
     const spyInit = vi.spyOn(StatefulProvider.prototype, 'init').mockRejectedValue(new Error('boom'));
     const onError = vi.fn();
 
-    await loadProvider({ provider: 'noop' } as any, false, false, onError);
+    await loadProvider({
+      providerOptions: { provider: 'noop' },
+      bustCache: false,
+      debug: false,
+      onError,
+    });
     expect(spyInit).toHaveBeenCalled();
     expect(onError).toHaveBeenCalled();
   });
