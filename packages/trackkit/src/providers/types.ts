@@ -1,6 +1,6 @@
 import type { ConsentCategory } from '../consent/types';
 import type { ProviderInstance, ProviderOptions, ProviderType } from '../types';
-import { Sender } from './base/transport';
+import type { Sender } from './base/transport';
 
 export type FactoryOptions = {
   bustCache?: boolean;

@@ -1,4 +1,4 @@
-import { DispatchPayload, Transport } from "../types";
+import type { DispatchPayload, Transport } from "../types";
 
 
 export class BeaconTransport implements Transport {

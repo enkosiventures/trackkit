@@ -84,7 +84,7 @@ export interface PerformanceOptions {
   logSummaryInterval?: number;
 };
 
-export type ResilienceOptions = {
+export interface ResilienceOptions {
   detectBlockers?: boolean;
   proxy?: ProxyTransportOptions;
   fallbackStrategy?: 'proxy'|'beacon'|'none';

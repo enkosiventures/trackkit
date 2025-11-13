@@ -4,8 +4,6 @@ import type { PageContext } from '../../../src/types';
 import { resetTests } from '../../helpers/core';
 
 
-const mockSender = vi.fn(() => Promise.resolve(new Response(null, { status: 204 })));
-
 // ───────────────────────────────────────────────────────────────────────────────
 // Shared helpers
 // ───────────────────────────────────────────────────────────────────────────────

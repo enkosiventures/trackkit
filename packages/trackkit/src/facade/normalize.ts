@@ -3,7 +3,7 @@ import {
   CONSENT_DEFAULTS, RETRY_DEFAULTS, BATCHING_DEFAULTS, CONNECTION_DEFAULTS,
   PERFORMANCE_DEFAULTS, RESILIENCE_DEFAULTS, FACADE_BASE_DEFAULTS
 } from '../constants';
-import { ResilienceOptions } from '../dispatcher/transports';
+import type { ResilienceOptions } from '../dispatcher/transports';
 import type { BatchingOptions, ConnectionOptions, PerformanceOptions, RetryOptions } from '../dispatcher/types';
 import { getProviderMetadata } from '../providers/metadata';
 import type { NavigationSource } from '../types';

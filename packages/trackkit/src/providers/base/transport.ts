@@ -1,6 +1,7 @@
 import { logger } from "../../util/logger";
 import { stripEmptyFields } from "../../util";
-import { NetworkDispatcher, NetworkDispatcherOptions } from "../../dispatcher";
+import type { NetworkDispatcherOptions } from "../../dispatcher";
+import { NetworkDispatcher } from "../../dispatcher";
 
 /**
  * Shared transport layer used by all providers.

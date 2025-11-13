@@ -2,7 +2,7 @@ import { applyBatchingDefaults, applyResilienceDefaults } from '../facade/normal
 import { EventBatchProcessor } from './batch-processor';
 import type { Transport } from './transports';
 import { resolveTransport } from './transports';
-import { DispatchPayload, NetworkDispatcherOptions } from './types';
+import type { DispatchPayload, NetworkDispatcherOptions } from './types';
 
 
 function mergeHeaders(

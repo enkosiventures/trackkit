@@ -16,6 +16,9 @@
     "lint": "eslint . --ext .ts,.tsx --cache",
     "size": "pnpm -r run size",
     "clean": "pnpm -r run clean",
+    "check": "scripts/check.sh",
+    "check:quick": "scripts/check.sh --quick",
+    "check:docs": "scripts/check.sh --docs",
     "release": "pnpm -r run clean && pnpm -r run build && pnpm run defaults:inject && pnpm run defaults:assert",
     "release:docs": "pnpm run release && pnpm --filter trackkit run typedoc"
   },

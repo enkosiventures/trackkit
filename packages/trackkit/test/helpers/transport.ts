@@ -1,6 +1,7 @@
-import { NetworkDispatcher, Transport } from "../../src/dispatcher";
-import { DispatchPayload, NetworkDispatcherOptions } from "../../src/dispatcher/types";
-import { Sender } from "../../src/providers/base/transport";
+import type { Transport } from "../../src/dispatcher";
+import { NetworkDispatcher } from "../../src/dispatcher";
+import type { DispatchPayload, NetworkDispatcherOptions } from "../../src/dispatcher/types";
+import type { Sender } from "../../src/providers/base/transport";
 
 export type SendRecord = { url: string; body: any; init?: RequestInit };
 

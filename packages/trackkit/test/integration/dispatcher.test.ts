@@ -6,7 +6,7 @@ import { flushTimers, microtick } from '../helpers/core';
 
 export class SpyTransport implements TransportsMod.Transport {
   public id = `mock_${Math.random().toString(36).slice(2)}`;
-  send = vi.fn(async ({url, body, init}: {url: string, body: unknown, init?: RequestInit}) => {});
+  send = vi.fn(async (_: {url: string, body: unknown, init?: RequestInit}) => {});
 }
 
 /**

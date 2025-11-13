@@ -1,6 +1,7 @@
 import type { PageContext, ProviderInstance, ProviderType } from '../../types';
-import { FactoryOptions } from '../types';
-import { makeDirectSender, Sender, type TransportMethod } from './transport';
+import type { FactoryOptions } from '../types';
+import type { Sender} from './transport';
+import { makeDirectSender, type TransportMethod } from './transport';
 
 
 /**

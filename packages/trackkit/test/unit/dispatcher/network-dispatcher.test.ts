@@ -7,7 +7,7 @@ const sleep = (ms = 0) => new Promise(res => setTimeout(res, ms));
 class SpyTransport implements TransportsMod.Transport {
   // shape compatible with Transport
   public id = `mock_${Math.random().toString(36).slice(2)}`;
-  send = vi.fn(async ({url, body, init}: {url: string, body: unknown, init?: RequestInit}) => {});
+  send = vi.fn(async (_: {url: string, body: unknown, init?: RequestInit}) => {});
 }
 
 describe('NetworkDispatcher (provider-side, per-event sends)', () => {
@@ -97,11 +97,6 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
     const nd = new NetworkDispatcher({
       batching: { enabled: true, maxSize: 2, maxWait: 1, concurrency: 2 },
     });
-
-    // mock send that yields after a tick to let interleaving be observable
-    const original = t.send.mockImplementation(async () => { await Promise.resolve(); });
-
-    // await nd._setTransportForTests(t);
 
     // Enqueue 5 → batches: [1,2], [3,4], then remainder [5] flushed later
     await nd.send({ url: 'u', body: { i: 1 } });

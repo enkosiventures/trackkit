@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import plausible from '../../../src/providers/plausible';
 import type { PageContext } from '../../../src/types';
 import { resetTests, getMockCall } from '../../helpers/core';

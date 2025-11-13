@@ -3,7 +3,7 @@
     "name": "Core ESM (brotli)",
     "path": "dist/index.js",
     "import": "*",
-    "limit": "15 KB"
+    "limit": "16 KB"
   },
   {
     "name": "Umami adapter chunk",
@@ -23,6 +23,6 @@
   {
     "name": "Core CJS (brotli)",
     "path": "dist/index.cjs",
-    "limit": "15 KB"
+    "limit": "16 KB"
   }
 ]

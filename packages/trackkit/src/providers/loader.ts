@@ -5,8 +5,8 @@ import { logger } from '../util/logger';
 import type { AnalyticsError } from '../errors';
 import { DEFAULT_ERROR_HANDLER, DEFAULT_PROVIDER, DEFAULT_PROVIDER_OPTIONS } from '../constants';
 import { makeDispatcherSender } from './base/transport';
-import { NetworkDispatcherOptions, ResilienceOptions } from '../dispatcher';
-import { BatchingOptions } from '../dispatcher/types';
+import type { NetworkDispatcherOptions, ResilienceOptions } from '../dispatcher';
+import type { BatchingOptions } from '../dispatcher/types';
 import { applyBatchingDefaults, applyResilienceDefaults } from '../facade/normalize';
 
 

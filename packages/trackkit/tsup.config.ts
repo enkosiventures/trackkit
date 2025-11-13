@@ -7,7 +7,7 @@ export default defineConfig({
     'providers/ga4': 'src/providers/ga4/index.ts',
     'providers/plausible': 'src/providers/plausible/index.ts',
     'providers/umami': 'src/providers/umami/index.ts',
-    'providers/noop': 'src/providers/noop.ts',
+    'providers/noop': 'src/providers/noop/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: false,
