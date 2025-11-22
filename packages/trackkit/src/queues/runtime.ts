@@ -54,7 +54,8 @@ export class EventQueue implements IQueue {
       queueLength: this.queue.length,
     });
     if (this.queue.length >= this.config.maxSize) {
-      logger.debug('[OVERFLOW] Queue overflow detected');
+      // On overflow we drop the oldest events to preserve the most recent;
+      // see QUEUE_OVERFLOW error code for details.
       const dropped = this.queue.splice(0, this.queue.length - this.config.maxSize + 1);
       
       logger.warn(`Queue overflow, dropping ${dropped.length} oldest events`);

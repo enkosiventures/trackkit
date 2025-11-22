@@ -211,7 +211,7 @@ export type InitOptions = {
 
   // Umami-specific options
   /**
-   * Umami website ID
+   * Umami website ID (alternative to `site` alias)
    * @example '9e1e6d6e-7c0e-4b0e-8f0a-5c5b5b5b5b5b'
    */
   website?: string;
@@ -224,7 +224,7 @@ export type InitOptions = {
   defaultProps?: Record<string, string>;
 
   /**
-   * Plausible domain to track
+   * Plausible domain to track (alternative to `site` alias)
    * @example 'example.com'
    */
   domain?: string;
@@ -269,7 +269,7 @@ export type InitOptions = {
   debugMode?: boolean;
 
   /**
-   * Google Analytics 4 measurement ID
+   * Google Analytics 4 measurement ID (alternative to `site` alias)
    * @example 'G-XXXXXXXXXX'
    */
   measurementId?: string;

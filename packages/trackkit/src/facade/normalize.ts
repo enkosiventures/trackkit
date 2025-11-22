@@ -63,7 +63,7 @@ export function applyPerformanceDefaults(options?: PerformanceOptions) {
   return {
     enabled: opts.enabled ?? PERFORMANCE_DEFAULTS.enabled,
     sampleRate: opts.sampleRate ?? PERFORMANCE_DEFAULTS.sampleRate,
-    logSummaryInterval: opts.logSummaryInterval ?? PERFORMANCE_DEFAULTS.logSummaryInterval,
+    windowSize: opts.windowSize ?? PERFORMANCE_DEFAULTS.windowSize,
   } as const;
 }
 

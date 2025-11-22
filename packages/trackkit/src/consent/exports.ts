@@ -1,4 +1,4 @@
-import type { ConsentStoredState } from './types';
+import type { ConsentStatus, ConsentStoredState } from './types';
 import { logger } from '../util/logger';
 import { getFacade } from '../facade/singleton';
 
@@ -7,7 +7,7 @@ export function getConsent(): ConsentStoredState | null {
   return getFacade()?.getSnapshot() || null;
 }
 
-export function onConsentChange(cb: (status: string, prev: string) => void): () => void {
+export function onConsentChange(cb: (status: ConsentStatus, prev: ConsentStatus) => void): () => void {
   const facade = getFacade();
   if (!facade) {
     logger.warn('Analytics not initialized - cannot subscribe to consent changes');

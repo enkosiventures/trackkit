@@ -1,5 +1,7 @@
 // ---------------------- Transport Interface ----------------------
 
+import { PerformanceTracker } from "../performance/tracker";
+
 export interface Transport {
   id: string;
   send(payload: DispatchPayload): Promise<Response | void>;
@@ -80,8 +82,10 @@ export interface ConnectionOptions {
 
 export interface PerformanceOptions {
   enabled?: boolean;
+  /** Sample rate 0–1; 1 = track every event. */
   sampleRate?: number;
-  logSummaryInterval?: number;
+  /** How many recent events to keep for averages. */
+  windowSize?: number;
 };
 
 export interface ResilienceOptions {
@@ -148,6 +152,7 @@ export type NetworkBatching = BatchConfig & { enabled: boolean };
 
 export type NetworkDispatcherOptions = {
   batching?: NetworkBatching;
-  resilience?: ResilienceOptions;                // plumbed into resolveTransport
-  defaultHeaders?: Record<string, string>;       // headers applied to every send
+  resilience?: ResilienceOptions;                 // plumbed into resolveTransport
+  performanceTracker?: PerformanceTracker | null; // wraps sends for perf tracking
+  defaultHeaders?: Record<string, string>;        // headers applied to every send
 };

@@ -17,14 +17,33 @@ export interface OfflineStorage {
 
 export class LocalStorageStorage implements OfflineStorage {
   private key = 'trackkit_offline_events';
+
+  private hasStorage(): boolean {
+    return typeof window !== 'undefined' && !!window.localStorage;
+  }
+
   async save(events: OfflineEvent[]) {
+    if (!this.hasStorage()) return;
     const cur = await this.load();
     const merged = [...cur, ...events].slice(-1000);
-    localStorage.setItem(this.key, JSON.stringify(merged));
+    window.localStorage.setItem(this.key, JSON.stringify(merged));
   }
-  async load() { try { return JSON.parse(localStorage.getItem(this.key) || '[]'); } catch { return []; } }
-  async clear() { localStorage.removeItem(this.key); }
+
+  async load(): Promise<OfflineEvent[]> {
+    if (!this.hasStorage()) return [];
+    try {
+      return JSON.parse(window.localStorage.getItem(this.key) || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  async clear() {
+    if (!this.hasStorage()) return;
+    window.localStorage.removeItem(this.key);
+  }
 }
+
 
 export class OfflineStore {
   constructor(private storage: OfflineStorage = new LocalStorageStorage()) {}

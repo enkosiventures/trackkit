@@ -5,6 +5,7 @@ import type { ProviderManager } from './provider-manager';
 import type { ConsentStatus, ConsentStoredState } from '../consent/types';
 import type { ProviderState } from '../providers/types';
 import type { ProviderStateHistory } from '../util/state';
+import { PerformanceTracker } from '../performance/tracker';
 
 export interface ProviderStateSnapshot {
   provider: string | null;
@@ -30,6 +31,13 @@ export interface DiagnosticsSnapshot {
     version?: string;
     method?: string;
   };
+  performance?: {
+    initTime: number;
+    avgProcessingTime: number;
+    avgNetworkLatency: number;
+    totalEvents: number;
+    failedEvents: number;
+  };
   provider: {
     key: string | null;
     state: ProviderState;  // provider.getState() payload passthrough
@@ -47,6 +55,18 @@ export interface DiagnosticsSnapshot {
   };
 }
 
+/**
+ * DiagnosticsService produces a point-in-time snapshot of the facade state.
+ *
+ * It is intentionally read-only and side-effect free:
+ * - config: selected runtime options relevant to behaviour and debugging
+ * - consent: stored consent status + metadata (if any)
+ * - provider: current provider key + provider-reported state/history
+ * - queue: combined SSR + runtime buffer size and capacity
+ * - urls: last planned and last sent URLs from the context service
+ *
+ * Used by `getDiagnostics()` on the facade to support debugging and health checks.
+ */
 export class DiagnosticsService {
   constructor(
     private id: string,
@@ -58,13 +78,17 @@ export class DiagnosticsService {
     private ctx: ContextService,
     private provider: ProviderManager,
     private providerKey: string | null,
+    private performanceTracker: PerformanceTracker | null,
   ) {}
 
   getSnapshot(): DiagnosticsSnapshot {
     const capacity = this.cfg?.queueSize ?? 50;
 
     const p = this.provider.get();
-    const providerSnapshot = typeof p?.getSnapshot === 'function' ? p!.getSnapshot() : { state: 'unknown' as ProviderState, history: [] as ProviderStateHistory };
+    const providerSnapshot =
+      p && typeof (p as any).getSnapshot === 'function'
+        ? (p as any).getSnapshot()
+        : { state: 'unknown' as ProviderState, history: [] as ProviderStateHistory };
 
     return {
       timestamp: Date.now(),
@@ -82,12 +106,21 @@ export class DiagnosticsService {
       consent: {
         ...this.consent?.snapshot(),
       },
+      performance: this.performanceTracker
+        ? {
+            initTime: this.performanceTracker.metrics.initTime,
+            avgProcessingTime: this.performanceTracker.metrics.avgProcessingTime,
+            avgNetworkLatency: this.performanceTracker.metrics.avgNetworkLatency,
+            totalEvents: this.performanceTracker.metrics.totalEvents,
+            failedEvents: this.performanceTracker.metrics.failedEvents,
+          }
+        : undefined,
       provider: {
         key: this.providerKey,
         ...providerSnapshot,
       },
       queue: {
-        totalBuffered: this.queues.size(),
+        totalBuffered: this.queues.size() + getSSRQueueLength(),
         ssrQueueBuffered: getSSRQueueLength(),
         facadeQueueBuffered: this.queues.size() - getSSRQueueLength(),
         capacity,

@@ -8,7 +8,6 @@ export const STORAGE_KEY = '__trackkit_consent__';
 
 export const DEFAULT_PROVIDER: ProviderType = 'noop';
 export const DEFAULT_PROVIDER_OPTIONS: ProviderOptions = { provider: DEFAULT_PROVIDER }
-export const DEFAULT_PRE_INIT_BUFFER_SIZE = 50;
 export const DEFAULT_ERROR_HANDLER = (error: AnalyticsError) => {
     logger.error('Analytics error:', error);
   }
@@ -49,8 +48,8 @@ export const CONNECTION_DEFAULTS: ConnectionOptions = {
 
 export const PERFORMANCE_DEFAULTS: PerformanceOptions = {
   enabled: false,
-  sampleRate: undefined as number | undefined,
-  logSummaryInterval: undefined as number | undefined,
+  sampleRate: 1,
+  windowSize: 100,
 } as const;
 
 export const RESILIENCE_DEFAULTS: ResilienceOptions = {

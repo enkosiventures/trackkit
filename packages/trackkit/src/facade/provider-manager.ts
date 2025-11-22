@@ -1,6 +1,7 @@
 import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { loadProvider } from '../providers/loader';
 import type { FacadeOptions, ProviderOptions, EventType, PageContext } from '../types';
+import { PerformanceTracker } from '../performance/tracker';
 
 
 export class ProviderManager {
@@ -10,7 +11,7 @@ export class ProviderManager {
 
   constructor(private pCfg: ProviderOptions | null, private fCfg: FacadeOptions | null) {}
 
-  async load(): Promise<StatefulProvider> {
+  async load(performanceTracker?: PerformanceTracker | null): Promise<StatefulProvider> {
     if (this.injected && this.provider) return this.provider;
     const loaded = await loadProvider({
         providerOptions: this.pCfg,
@@ -18,6 +19,7 @@ export class ProviderManager {
         resilienceOptions: this.fCfg?.resilience,
         bustCache: this.fCfg?.bustCache,
         debug: this.fCfg?.debug,
+        performanceTracker,
         onError: this.fCfg?.onError,
     });
     this.provider = loaded;

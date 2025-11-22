@@ -7,7 +7,7 @@ import { ContextService } from './context';
 import { ProviderManager } from './provider-manager';
 import { NavigationService } from './navigation';
 import { logger, createLogger, setGlobalLogger } from '../util/logger';
-import { DEFAULT_CATEGORY, DEFAULT_PRE_INIT_BUFFER_SIZE, ESSENTIAL_CATEGORY } from '../constants';
+import { DEFAULT_CATEGORY, ESSENTIAL_CATEGORY, FACADE_BASE_DEFAULTS } from '../constants';
 import { AnalyticsError, dispatchError, setUserErrorHandler } from '../errors';
 import { DiagnosticsService } from './diagnostics';
 import type { StatefulProvider } from '../providers/stateful-wrapper';
@@ -15,6 +15,7 @@ import { QueueService, EventQueue, type QueuedEventUnion } from '../queues';
 import { isServer } from '../util/env';
 import { ConnectionMonitor } from '../connection/monitor';
 import { OfflineStore } from '../connection/offline-store';
+import { PerformanceTracker } from '../performance/tracker';
 
 /**
  * Wraps a promise and rejects on timeout.
@@ -38,6 +39,7 @@ export class AnalyticsFacade {
   private pCfg: ProviderOptions | null = null;
   private consent: ConsentManager | null = null;
   private monitor: ConnectionMonitor | null = null;
+  private performanceTracker: PerformanceTracker | null = null;
   private offline: OfflineStore | null = null;
 
   private context!: ContextService;
@@ -60,7 +62,7 @@ export class AnalyticsFacade {
   private _preInjectedProvider: any | null = null;
 
   // Collect calls made before init() (when context/queues don’t exist yet)
-  private preInitBuffer: EventQueue = new EventQueue({ maxSize: DEFAULT_PRE_INIT_BUFFER_SIZE });
+  private preInitBuffer: EventQueue = new EventQueue({ maxSize: FACADE_BASE_DEFAULTS.queueSize });
 
   init(opts: InitOptions = {}): this {
     if (this.initPromise) return this;
@@ -86,8 +88,12 @@ export class AnalyticsFacade {
     this.monitor = this.cfg?.connection?.monitor ? new ConnectionMonitor({
       slowThreshold: this.cfg.connection?.slowThreshold, checkInterval: this.cfg.connection?.checkInterval
     }) : null;
-
     this.offline = this.cfg?.connection?.offlineStorage ? new OfflineStore() : null;
+
+    if (this.cfg.performance?.enabled) {
+      this.performanceTracker = new PerformanceTracker();
+      this.performanceTracker.markInitStart();
+    }
 
     try {
       validateProviderConfig(resolved);
@@ -125,13 +131,16 @@ export class AnalyticsFacade {
 
     this.drainPreInitBuffer();
 
+    if (this.performanceTracker) {
+      this.performanceTracker.markInitComplete();
+    }
     return this;
   }
 
   private async initialize(): Promise<void> {
     try {
       this.attachProviderReadyHandlers();
-      await this.provider.load();
+      await this.provider.load(this.performanceTracker);
     } catch (e) {
       // Try to recover by falling back to noop
       try {
@@ -313,7 +322,7 @@ export class AnalyticsFacade {
     setUserErrorHandler(null);
     this.providerIsReady = false;
     this._preInjectedProvider = null;
-    this.preInitBuffer = new EventQueue({ maxSize: DEFAULT_PRE_INIT_BUFFER_SIZE });
+    this.preInitBuffer = new EventQueue({ maxSize: FACADE_BASE_DEFAULTS.queueSize });
   }
 
   // === Internals ===
@@ -440,7 +449,9 @@ export class AnalyticsFacade {
     this.policy     = new PolicyGate(this.cfg!, this.consent, this.pCfg?.provider || 'noop');
     this.provider   = new ProviderManager(this.pCfg!, this.cfg!);
     this.diag       = new DiagnosticsService(
-      this.id, this.cfg!, this.consent as any, this.queues, this.context, this.provider, this.pCfg?.provider ?? null
+      this.id, this.cfg!, this.consent as any,
+      this.queues, this.context, this.provider,
+      this.pCfg?.provider ?? null, this.performanceTracker,
     );
   }
 
@@ -511,7 +522,7 @@ export class AnalyticsFacade {
   private async fallbackToNoop(error: unknown) {
     logger.warn('Invalid provider config – falling back to noop', { error });
     this.setupFallbackNoopProvider();
-    await this.provider.load();
+    await this.provider.load(this.performanceTracker);
     this.attachProviderReadyHandlers();
   }
 

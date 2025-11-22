@@ -16,7 +16,10 @@ export class PolicyGate {
     let consentStatus;
     if (!this.consent?.isAllowed(category)) consentStatus = this.consent?.getStatus();
 
-    // Consent denial takes precedence for refusal - never queue if consent denied
+    // Consent denial is an absolute stop: if a category is not allowed, we never
+    // send or even queue the event, regardless of browser state. This ensures
+    // that changing consent to "denied" has an immediate effect and cannot be
+    // bypassed by local storage / SSR / retry logic.
     if (consentStatus === 'denied') return { ok: false, reason: 'consent-denied' };
 
     if (!isBrowserMainThread()) return { ok: false, reason: 'not-browser' };

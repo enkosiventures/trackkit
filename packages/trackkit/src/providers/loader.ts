@@ -8,6 +8,7 @@ import { makeDispatcherSender } from './base/transport';
 import type { NetworkDispatcherOptions, ResilienceOptions } from '../dispatcher';
 import type { BatchingOptions } from '../dispatcher/types';
 import { applyBatchingDefaults, applyResilienceDefaults } from '../facade/normalize';
+import { PerformanceTracker } from '../performance/tracker';
 
 
 /**
@@ -24,6 +25,7 @@ type ProviderLoaderOptions = {
   resilienceOptions?: ResilienceOptions;
   bustCache?: boolean;
   debug?: boolean;
+  performanceTracker?: PerformanceTracker | null;
   onError?: (error: AnalyticsError) => void;
 };
 
@@ -36,6 +38,7 @@ export async function loadProvider(
     resilienceOptions,
     bustCache,
     debug,
+    performanceTracker,
     onError = DEFAULT_ERROR_HANDLER,
   } = loaderOptions || {};
   const options = providerOptions || DEFAULT_PROVIDER_OPTIONS;
@@ -67,6 +70,7 @@ export async function loadProvider(
     const sender = makeDispatcherSender({
       batching,
       resilience,
+      performanceTracker,
     } satisfies NetworkDispatcherOptions);
 
     const provider = factory.create({provider: options, factory: { bustCache, debug, sender }});

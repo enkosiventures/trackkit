@@ -1,4 +1,5 @@
 import { applyBatchingDefaults, applyResilienceDefaults } from '../facade/normalize';
+import { PerformanceTracker } from '../performance/tracker';
 import { EventBatchProcessor } from './batch-processor';
 import type { Transport } from './transports';
 import { resolveTransport } from './transports';
@@ -35,6 +36,7 @@ function estimateSize(payload: unknown): number {
 export class NetworkDispatcher {
   private transportP: Promise<Transport> | null = null;
   private batcher: EventBatchProcessor | null = null;
+  private performanceTracker: PerformanceTracker | null = null;
   private readonly batchingEnabled: boolean;
 
   constructor(private readonly opts: NetworkDispatcherOptions) {
@@ -43,6 +45,7 @@ export class NetworkDispatcher {
       resilience: applyResilienceDefaults(opts.resilience || {}),
       defaultHeaders: opts.defaultHeaders || {},
     }
+    this.performanceTracker = opts.performanceTracker || null;
     this.batchingEnabled = !!opts.batching?.enabled;
     if (this.batchingEnabled) {
       // Construct the batcher *now* so providers can enqueue immediately.
@@ -83,7 +86,16 @@ export class NetworkDispatcher {
       // immediate send path
       const t = await this.getTransport();
       const headers = mergeHeaders(this.opts.defaultHeaders, payload.init?.headers);
-      await t.send({ ...payload, init: { ...(payload.init || {}), headers } });
+      const finalPayload = { ...payload, init: { ...(payload.init || {}), headers } };
+
+      const sendFn = () => t.send(finalPayload);
+
+      if (this.performanceTracker) {
+        await this.performanceTracker.trackNetworkRequest('network-send', sendFn);
+      } else {
+        await sendFn();
+      }
+
       return;
     }
 
@@ -119,7 +131,14 @@ export class NetworkDispatcher {
     // Send sequentially to preserve order within the batch; the batcher controls overall concurrency.
     for (const e of events) {
       const headers = mergeHeaders(this.opts.defaultHeaders, e.payload.init?.headers);
-      await t.send({ ...e.payload, init: { ...(e.payload.init || {}), headers } });
+      const finalPayload = { ...e.payload, init: { ...(e.payload.init || {}), headers } };
+      const sendFn = () => t.send(finalPayload);
+
+      if (this.performanceTracker) {
+        await this.performanceTracker.trackNetworkRequest('network-batch-send', sendFn);
+      } else {
+        await sendFn();
+      }
     }
   }
 }

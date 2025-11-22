@@ -3,6 +3,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
+    ssr: 'src/ssr.ts',
 
     'providers/ga4': 'src/providers/ga4/index.ts',
     'providers/plausible': 'src/providers/plausible/index.ts',
