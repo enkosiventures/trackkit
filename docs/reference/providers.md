@@ -14,7 +14,7 @@ Configuration keys expected by each provider.
 **Events**
 - `track(name, props?)`
 - `pageview()`
-- `identify(userId)`
+- `identify(userId)` (no-op; included only for API compatibility)
 
 ## Plausible
 
@@ -28,7 +28,7 @@ Configuration keys expected by each provider.
 **Events**
 - `track(name, props?)`
 - `pageview()`
-- `identify(userId)` (no-op for some providers)
+- `identify(userId)` (no-op for Plausible; included for API compatibility)
 
 ## GA4
 

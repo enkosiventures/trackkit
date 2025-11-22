@@ -1,4 +1,4 @@
-# CSP & Security
+# Content Security Policy (CSP)
 
 CSP rules depend on the provider.
 
@@ -7,9 +7,7 @@ CSP rules depend on the provider.
 Allow network calls to your analytics endpoint:
 
 ```
-
 connect-src 'self' [https://analytics.example.com](https://analytics.example.com);
-
 ```
 
 If you inject runtime config via `window.__TRACKKIT_ENV__`, ensure your HTML templating avoids XSS risks.
@@ -17,10 +15,8 @@ If you inject runtime config via `window.__TRACKKIT_ENV__`, ensure your HTML tem
 ## Google Analytics 4 (loads gtag.js)
 
 ```
-
 script-src [https://www.googletagmanager.com](https://www.googletagmanager.com);
 connect-src [https://www.google-analytics.com](https://www.google-analytics.com) [https://region1.google-analytics.com](https://region1.google-analytics.com);
-
 ```
 
 Exact domains may vary; consult Google’s docs.

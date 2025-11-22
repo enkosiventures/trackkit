@@ -19,6 +19,9 @@
     "check": "scripts/check.sh",
     "check:quick": "scripts/check.sh --quick",
     "check:docs": "scripts/check.sh --docs",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "release": "pnpm -r run clean && pnpm -r run build && pnpm run defaults:inject && pnpm run defaults:assert",
     "release:docs": "pnpm run release && pnpm --filter trackkit run typedoc"
   },
@@ -40,6 +43,7 @@
     "tsx": "^4.20.6",
     "typedoc": "^0.28.13",
     "typescript": "^5.5.4",
+    "vitepress": "^1.6.4",
     "vitest": "^3.2.4"
   }
 }

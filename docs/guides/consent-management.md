@@ -8,18 +8,17 @@ Trackkit ships with a lightweight consent layer designed to gate analytics relia
 
 If you haven’t seen it yet, skim **Configuration → Consent** for env-based config. This page focuses on behavior and usage.
 
----
 
 ## TL;DR Quick Start
 
 ```ts
 import { init, grantConsent, denyConsent, onConsentChange, getConsent } from 'trackkit';
 
-init({
+const analytics = createAnalytics({
   provider: 'umami',
   site: 'your-site-id',
   consent: {
-    initial: 'pending',          // 'pending' | 'granted' | 'denied'
+    initialStatus: 'pending',          // 'pending' | 'granted' | 'denied'
     requireExplicit: true,       // if true, we never auto-promote to granted
     allowEssentialOnDenied: false,
     policyVersion: '2024-01-15',
@@ -27,21 +26,22 @@ init({
 });
 
 // Show UI if pending
-if (getConsent()?.status === 'pending') showBanner();
+if (analytics.getConsent()?.status === 'pending') showBanner();
 
 // Button handlers
-acceptBtn.onclick = () => grantConsent();
-rejectBtn.onclick = () => denyConsent();
+acceptBtn.onclick = () => analytics.grantConsent();
+rejectBtn.onclick = () => analytics.denyConsent();
 
 // React to changes
-const off = onConsentChange((status, prev) => {
+const off = analytics.onConsentChange((status, prev) => {
   if (status === 'granted') hideBanner();
 });
 ```
 
+> Using the singleton API? Replace `analytics.grantConsent()` with `grantConsent()` and skip `createAnalytics`.
+
 > Using a CMP? Just wire your CMP callbacks to `grantConsent()` / `denyConsent()`.
 
----
 
 ## Consent Model
 
@@ -67,21 +67,20 @@ Trackkit internally tags some calls as **essential** (e.g. `identify`) and every
 * When `allowEssentialOnDenied = true`, essential events can still be sent after denial (useful for strictly-necessary product telemetry).
 * Otherwise, **all** events are blocked on denial.
 
----
 
 ## Configuration
 
 Keep this minimal at first, then adjust as your policy demands:
 
 ```ts
-init({
+const analytics = createAnalytics({
   consent: {
     /**
      * Initial status at startup. If stored consent exists (and matches policyVersion),
      * the stored value overrides this.
      * @default 'pending'
      */
-    initial: 'pending', // 'pending' | 'granted' | 'denied'
+    initialStatus: 'pending', // 'pending' | 'granted' | 'denied'
 
     /**
      * If true, Trackkit will NOT auto-promote from pending to granted on first user action.
@@ -117,11 +116,10 @@ init({
 ```
 
 **Implicit consent (opt-out models):**
-If you set `requireExplicit: false` and keep `initial: 'pending'`, the first **analytics** event during a genuine user interaction can auto-promote to **granted**. (This promotion never happens if you keep `requireExplicit: true`.)
+If you set `requireExplicit: false` and keep `initialStatus: 'pending'`, the first **analytics** event during a genuine user interaction can auto-promote to **granted**. (This promotion never happens if you keep `requireExplicit: true`.)
 
 > For environment-based config of consent (e.g., `VITE_TRACKKIT_CONSENT`), see **API → Configuration**.
 
----
 
 ## Runtime API
 
@@ -141,14 +139,13 @@ import {
 * **`resetConsent()`** — clears stored consent (if any), sets **pending**.
 * **`onConsentChange()`** — subscribe to changes (useful to lazily load other tools after grant).
 
----
 
 ## Typical Patterns
 
-### 1) Explicit banner (GDPR-style)
+### 1. Explicit banner (GDPR-style)
 
 ```ts
-init({ consent: { initial: 'pending', requireExplicit: true } });
+const analytics = ({ consent: { initial: 'pending', requireExplicit: true } });
 
 if (getConsent()?.status === 'pending') showBanner();
 
@@ -156,29 +153,29 @@ accept.onclick = () => grantConsent();
 reject.onclick = () => denyConsent();
 ```
 
-### 2) Implicit grant on first interaction (opt-out)
+### 2. Implicit grant on first interaction (opt-out)
 
 ```ts
-init({
+const analytics = ({
   consent: { initial: 'pending', requireExplicit: false },
 });
 // First analytics event after user interacts can auto-promote to 'granted'.
 // (Never auto-promotes if requireExplicit is true.)
 ```
 
-### 3) Policy version bumps (force re-consent)
+### 3. Policy version bumps (force re-consent)
 
 ```ts
-init({
+const analytics = ({
   consent: { policyVersion: '2024-10-01', initial: 'pending' },
 });
 // If stored policyVersion differs, consent resets to 'pending'.
 ```
 
-### 4) Load third-party tools only after grant
+### 4. Load third-party tools only after grant
 
 ```ts
-onConsentChange((status) => {
+analytics.onConsentChange((status) => {
   if (status === 'granted') {
     import('./pixels/facebook').then(m => m.init());
     import('./hotjar').then(m => m.init());
@@ -186,25 +183,23 @@ onConsentChange((status) => {
 });
 ```
 
-### 5) SSR
+### 5. SSR
 
 * On the server, consent is effectively **pending**; events go into the SSR queue.
 * On the client, Trackkit hydrates SSR events and **gates them through consent** before sending.
 * If consent remains pending or denied on the client, SSR events won’t leak.
 
----
 
 ## How Consent Interacts with Other Policies
 
-* **Do Not Track (DNT):** If `doNotTrack` is enabled (default), DNT can block sends even if consent is granted. You can disable DNT enforcement via `init({ doNotTrack: false })` if your policy allows.
+* **Do Not Track (DNT):** If `doNotTrack` is enabled (default), DNT can block sends even if consent is granted. You can disable DNT enforcement via `createAnalytics({ doNotTrack: false })` if your policy allows.
 * **Domain/URL Filters:** `domains` and `exclude` still apply after consent is granted.
 * **Localhost:** If `trackLocalhost` is `false`, nothing sends on localhost even when consent is granted (unless you override).
 
----
 
 ## Diagnostics & Debugging
 
-* **Enable debug logs:** `init({ debug: true })` to trace consent decisions and queue behavior.
+* **Enable debug logs:** `createAnalytics({ debug: true })` to trace consent decisions and queue behavior.
 * **At runtime:**
 
   ```ts
@@ -218,21 +213,29 @@ Common symptoms & checks:
 * **“My identify still sends after denial”** → Set `allowEssentialOnDenied: false`.
 * **“Users weren’t re-asked after policy update”** → Ensure `policyVersion` changed and persistence is enabled.
 
----
 
 ## Minimal CMP Integration
 
-Hook your CMP’s callbacks straight into Trackkit:
+Hook your CMP’s callbacks straight into your analytics instance:
 
 ```ts
-cmp.on('consent:granted', () => grantConsent());
-cmp.on('consent:denied',  () => denyConsent());
-cmp.on('consent:reset',   () => resetConsent());
+import { createAnalytics } from 'trackkit';
+
+const analytics = createAnalytics({
+  provider: 'ga4',
+  site: 'G-XXXXXXXXXX',
+  consent: { initialStatus: 'pending', requireExplicit: true },
+});
+
+cmp.on('consent:granted', () => analytics.grantConsent());
+cmp.on('consent:denied',  () => analytics.denyConsent());
+cmp.on('consent:reset',   () => analytics.resetConsent());
 ```
 
-If your CMP provides granular categories, gate calls accordingly and keep Trackkit’s consent **strict** (e.g., `requireExplicit: true`, `initial: 'pending'`). Trackkit’s own categories are minimal (essential vs analytics); you can still decide at your UI layer which calls to make.
+> Using the singleton helpers instead? Import `grantConsent` / `denyConsent` / `resetConsent` from `'trackkit'` and call them directly.
 
----
+If your CMP provides granular categories, gate calls accordingly and keep Trackkit’s consent **strict** (e.g., `requireExplicit: true`, `initialStatus: 'pending'`). Trackkit’s own categories are minimal (essential vs analytics); you can still decide at your UI layer which calls to make.
+
 
 ## Testing Consent Behavior
 
@@ -243,7 +246,6 @@ If your CMP provides granular categories, gate calls accordingly and keep Trackk
   * `policyVersion` bump → stored consent invalidated → back to `pending`
 * Use small `await Promise.resolve()` (or a short `setTimeout(0)`) to let async flushes complete.
 
----
 
 ## Best Practices
 
@@ -253,7 +255,6 @@ If your CMP provides granular categories, gate calls accordingly and keep Trackk
 4. **Load extras after grant** (pixels, replayers) via `onConsentChange`.
 5. **Keep the UI obvious** and accessible; make “reject” as easy as “accept”.
 
----
 
 ### Where to go next
 

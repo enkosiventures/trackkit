@@ -1,43 +1,42 @@
 # Plausible Provider
 
-The Plausible provider sends analytics to Plausible (cloud or self-host) without loading external scripts.
+The Plausible provider sends analytics to Plausible Cloud or self-hosted servers.  
+No external script is loaded—Trackkit dispatches events directly to the Plausible API.
 
-## Features (Stage 6)
 
-- ✅ Cookieless, privacy-friendly
-- ✅ Automatic SPA pageviews (`autoTrack: true`)
-- ✅ Custom events via `track()`
-- ✅ Domain allowlist & path exclude
-- ✅ Consent-aware queueing and flush
-- ✅ Optional revenue props passthrough (see below)
-- ✅ DNT respected by default
+## Features
 
-> **No user identification:** `identify()` is a no-op in this adapter.
+- Cookieless, privacy-friendly
+- Automatic SPA pageviews (`autoTrack: true` default)
+- Custom events (`analytics.track()`)
+- Consent-aware buffering and replay
+- Domain allowlist & path exclusion
+- DNT respected by default
 
----
+`identify()` is a no-op in this adapter (Plausible does not support user identification).
+
 
 ## Configuration
 
 ### Minimal
 
 ```ts
-import { init } from 'trackkit';
+import { createAnalytics } from 'trackkit';
 
-init({
+const analytics = createAnalytics({
   provider: 'plausible',
   site: 'yourdomain.com',
-  // host: 'https://plausible.io'          // cloud
-  // host: 'https://analytics.example.com' // self-host
 });
 ```
 
 ### Common options
 
 ```ts
-init({
+const analytics = createAnalytics({
   provider: 'plausible',
   site: 'yourdomain.com',
-  host: 'https://plausible.io',
+  // domain: 'yourdomain.com',           // Provider-specific alternative to 'site'
+  host: 'https://plausible.io',          // or self-host  
   autoTrack: true,                       // History API + popstate
   doNotTrack: true,                      // default respected unless set to false
   includeHash: false,                    // ignore #fragment by default
@@ -49,90 +48,75 @@ init({
 });
 ```
 
-**Environment variables (Vite example)**
+> **Identifier:**
+> You may provide either the Plausible-specific `domain` field or the generic `site` field.
 
-```env
-VITE_TRACKKIT_PROVIDER=plausible
-VITE_TRACKKIT_SITE=yourdomain.com
-VITE_TRACKKIT_HOST=https://plausible.io
-VITE_TRACKKIT_DEBUG=false
+### Environment Variables
+
+```sh
+TRACKKIT_PROVIDER=plausible
+TRACKKIT_SITE=yourdomain.com
+TRACKKIT_HOST=https://plausible.io
 ```
 
-You can also inject `window.__TRACKKIT_ENV__` at runtime.
+Or Vite-style equivalents.
 
----
 
-## API usage
+## API Usage
+
+> Examples below use **singleton helpers** (`track`, `pageview`).
+> With an instance, call `analytics.track()` etc.
 
 ### Pageviews
 
-* **Automatic:** `autoTrack: true`.
-* **Manual:** call `pageview()` *after* you change the URL.
-
 ```ts
-import { pageview } from 'trackkit';
-
 history.pushState({}, '', '/thank-you');
-pageview(); // uses current URL
+pageview();
 ```
 
 ### Custom events
 
 ```ts
-import { track } from 'trackkit';
-
-track('Signup');
-
-track('Purchase', {
-  value: 29.99,
-  currency: 'USD',
-  order_id: 'ORD-123',
-});
+track('Signup', { plan: 'Pro' });
+track('Purchase', { value: 49.99, currency: 'USD' });
 ```
 
-> Plausible expects simple key/value props. Trackkit flattens basic primitives; nested objects are ignored.
+Plausible expects flat key/value pairs; Trackkit stringifies non-primitives.
 
 ### Consent
 
 ```ts
-import { grantConsent, denyConsent } from 'trackkit';
-
-denyConsent();  // optional explicit start
-grantConsent(); // flushes any queued events
+denyConsent();       // or pending by default
+grantConsent();      // replays queued events
 ```
 
----
 
-## Notes & limitations
+## Notes & Limitations
 
-* **No user identification:** `identify()` is a no-op.
-* **Exact-match domains:** wildcards/regex not supported at Stage 6.
-* **Revenue:** Trackkit passes `value`/`currency` props through; configure revenue goals in Plausible UI.
+* No user identification (adapter no-op).
+* Domain allowlist uses exact string matching.
+* Nested objects in props are ignored by Plausible.
 
----
 
 ## Debugging
 
 ```ts
-init({
+createAnalytics({
   provider: 'plausible',
   site: 'yourdomain.com',
   debug: true,
 });
 ```
 
-You’ll see:
 
-* Provider readiness & consent decisions
-* Queueing vs sending
-* Pageview de-duplication on fast SPA hops
+## Best Practices
 
----
+* Prefer self-hosting for better resilience against blockers.
+* Flatten event payloads.
+* Respect DNT unless you have strong legal clearance.
 
-## Best practices
 
-1. Prefer env vars for deploy-time config.
-2. Use `domains` to restrict reporting to your properties.
-3. Keep props flat & minimal.
-4. Respect DNT unless justified.
-5. Consider self-hosting to reduce blockers.
+## Related Docs
+
+- [Global configuration keys](/api/configuration)
+- [Plausible CSP guidance](/guides/csp#umami-plausible-no-external-scripts)
