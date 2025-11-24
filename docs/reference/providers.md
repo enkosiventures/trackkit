@@ -1,6 +1,8 @@
 # Provider Reference
 
-Configuration keys expected by each provider.
+Configuration keys expected by each provider. This is a quick reference only.
+
+For full behaviour (consent, queueing, SSR, transports, policy), see the individual provider guides.
 
 ## Umami
 

@@ -125,6 +125,9 @@ createAnalytics({
 });
 ```
 
+**Trackkit integrates GA4 via Measurement Protocol (no script tag)**
+If you rely on script-based features (e.g., diagnostics, tag manager), you may choose to load gtag.js manually.
+
 > GA4 usually sets cookies unless you restrict storage via Consent Mode. Ensure you implement consent correctly for your region.
 
 

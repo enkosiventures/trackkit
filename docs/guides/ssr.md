@@ -98,6 +98,7 @@ analytics.pageview(); // client-side navigation
   * Provider is ready, **and**
   * Consent allows analytics events.
 * After hydration, the SSR queue is considered empty and never replayed again.
+* SSR events preserve their category ([`essential` or `analytics`](/reference/glossary#essential-vs-analytics-events)) and are subject to the same consent and PolicyGate rules as runtime events. Hydration does not bypass consent.
 
 For details on how events are buffered and drained across SSR + runtime queues, see:
 

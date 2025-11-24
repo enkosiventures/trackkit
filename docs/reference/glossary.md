@@ -57,7 +57,11 @@ A conceptual distinction used by the consent system:
 * **Essential events** – events you consider strictly necessary (e.g. security, billing, core service telemetry).
 * **Analytics events** – everything else (funnel analysis, marketing attribution, etc.).
 
-Trackkit does not hard-code which events are essential. Your configuration and application code decide what to treat as essential, and how to behave when consent is denied (see `allowEssentialOnDenied`).
+Your configuration and application code decide what to treat as essential and thus necessary for correct operation. Trackkit itself tags only a few events as essential (e.g., `identify`, internal provider bootstrap signals). Essential events bypass the analytics‐consent gate only if `allowEssentialOnDenied === true`, but still respect:
+• provider readiness
+• DNT (if enabled)
+• localhost rules
+• domain/exclude filters
 
 
 ## Runtime queue

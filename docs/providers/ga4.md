@@ -4,6 +4,7 @@ The GA4 adapter in Trackkit provides a lightweight client for GA4 without requir
 
 Trackkit **does not** load GA4’s external script unless explicitly configured through the provider’s advanced options.
 
+Trackkit’s GA4 adapter is Measurement-Protocol–only. No GA script is loaded unless you explicitly load it yourself.
 
 ## Features
 
@@ -127,7 +128,7 @@ No script tag required unless using an advanced GA4 configuration.
 ## Notes & Limitations
 
 * `identify()` sets only the GA4 `user_id`; it does not touch GA cookies.
-* GA4 may still set cookies if your property is configured to do so.
+* GA4 may still set cookies if your property is configured to do so. These cookies are set by GA4 server infrastructure based on property settings, not by Trackkit.
 * Domain/exclusion filters are string-based (no wildcards).
 * For server-side Measurement Protocol, set `apiSecret` in provider options.
 

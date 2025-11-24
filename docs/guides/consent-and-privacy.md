@@ -20,7 +20,7 @@ Essential categories (like `identify`) may still be allowed if configured; non-e
 
 Trackkit uses two built-in categories:
 
-- **`essential`** – events that are strictly necessary for the basic operation of your site or service (e.g. critical error reporting, security-related events).
+- **`essential`** – events that your configuration marks as necessary for correct operation of your site or service (e.g. critical error reporting, security-related events).
 - **`analytics`** – non-essential measurement and product analytics (pageviews, feature usage, funnels, etc).
 
 By default, generic tracking calls (e.g. `analytics.track('signup_completed')`) are treated as `analytics`.  
@@ -47,7 +47,7 @@ analytics.denyConsent(); // drops queued analytics events
 
 > If using singleton helpers, the init, event, and consent functions can be imported and called directly.
 
-> Trackkit also respects **Do Not Track** by default. Set `doNotTrack: false` to ignore (not recommended).
+> Trackkit also respects **Do Not Track** by default (which blocks sending even when consent is granted). Set `doNotTrack: false` to ignore (not recommended).
 
 
 ## Starting state

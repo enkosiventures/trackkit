@@ -35,7 +35,9 @@ export default {
       provider: 'local'
     },
 
-    cleanUrls: true
+    cleanUrls: true,
+
+    lastUpdated: true,
 
   }
 };

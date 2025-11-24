@@ -34,6 +34,26 @@ The value of Trackkit shows up when:
 If you’re hard-wired to a single provider forever, Trackkit might be overkill. If you want flexibility and consistency, it’s the point.
 
 
+## Does Trackkit guarantee event delivery?
+
+No analytics tool can guarantee delivery in all network environments.
+Trackkit’s resilience features (queueing, offline store, proxy transport, beacon API) improve reliability, but events may still be dropped if:
+
+- policy blocks them (DNT, domain filters),
+- consent prohibits sending,
+- storage limits overflow,
+- the browser rejects transmission (e.g., strict cross-site blocking).
+
+
+## Can Trackkit send events through my own domain?
+
+Yes.
+
+Trackkit supports [first-party proxying](/guides/resilience-and-transports#proxy-transport) via the **transport** layer.
+
+This improves CSP compatibility, avoids adblocker heuristics, and allows consistent analytics hostname usage.
+
+
 ## Does Trackkit send any data to its own servers?
 
 No.
@@ -45,6 +65,15 @@ Trackkit:
 - does **not** introduce a new backend or “call home” endpoint.
 
 All network traffic goes to your chosen analytics hosts (Umami, Plausible, GA, or a proxy you control).
+
+
+## Does Trackkit load any remote scripts?
+
+No.
+
+Trackkit does not load any remote analytics scripts (`gtag.js`, Plausible script, Umami tracker, etc.). It sends events via **direct HTTP requests** (or your proxy).
+
+If you want to load a provider’s script—for Tag Manager, heatmaps, advanced GA features—you must do that manually. Trackkit won’t load it for you.
 
 
 ## Is Trackkit safe to use for GDPR / CCPA?
@@ -85,7 +114,11 @@ You typically:
    - flushes pending analytics events, or
    - drops them and only lets essential events through.
 
-See the Consent & Privacy guide for configuration details.
+All consent decisions feed into the gating pipeline:
+
+**PolicyGate → Consent → Provider Readiness → Queue/Offline → Transport**
+
+See the **[Consent & Privacy](/guides/consent-and-privacy)** guide for configuration details.
 
 
 ## What’s the difference between “essential” and “analytics” events?
@@ -105,6 +138,16 @@ Trackkit doesn’t enforce your policy for you, but it:
 - treats categories differently when consent is `denied`,
 - and exposes configuration options to control how strict that separation is.
 
+Trackkit internally only marks identify and minimal provider-setup signals as essential. All other events are analytics by default.
+
+## Does Trackkit batch events?
+
+Yes.
+
+You can configure batch size and batch timeout per provider.
+
+Batching is applied after consent and policy rules allow sending, and before transport selection.
+
 
 ## How does the queue behave on overflow?
 
@@ -118,7 +161,7 @@ Key points:
 
 This is intentional: in practice, “what just happened” is more valuable than “every event from three minutes ago”.
 
-See the Queue Management guide for details.
+See the **[Queue Management](/guides/queue-management)** guide for details.
 
 
 ## Does Trackkit work with SSR frameworks like Next.js?
@@ -137,7 +180,9 @@ The key semantic points:
 - The SSR queue is global per page render (e.g. exposed as `window.__TRACKKIT_SSR_QUEUE__`).
 - On the client, the facade hydrates that queue once and then treats it as drained.
 
-The Next.js example in the repo demonstrates a complete setup.
+Hydrated SSR events preserve their category (essential/analytics) and must pass through the same consent and policy gates as runtime events.
+
+The [Next.js example](/examples/next-ssr-ga4) demonstrates a complete setup.
 
 
 ## Should I use the factory API or the singleton API?
@@ -168,6 +213,8 @@ Right now, you use Trackkit directly from your app code:
 * call `track` / `pageview` / `identify` where needed.
 
 A React/Vue wrapper (hooks, providers, etc.) is a likely future addition, but not required to use Trackkit today.
+
+Using the factory API and React/Vue context is currently the recommended pattern.
 
 
 ## How heavy is the Trackkit bundle?
@@ -201,10 +248,22 @@ Once it reaches `1.0.0`, semantic versioning applies: breaking changes will only
 
 Yes, to a point.
 
+Trackkit does not detect adblockers directly, but it does detect blocked requests and falls back to more resilient transports (e.g. beacon or proxy).
+
 Trackkit doesn’t bypass user choice, but it does include:
 
-* **adblocker detection** to choose a more resilient transport (e.g. `beacon` or proxy),
 * support for a **first-party proxy** so your analytics calls hit your own domain,
 * guidelines for **CSP rules** for each provider.
 
 If a user or network environment aggressively blocks analytics, Trackkit will respect that and surface the failure in diagnostics rather than silently failing in undefined ways.
+
+The GA4 integration uses the Measurement Protocol only, so no GA scripts require CSP permissions unless you choose to load gtag.js yourself.
+
+
+## Why do I still see GA4 cookies even if Trackkit uses MP-only?
+
+Trackkit never loads `gtag.js` and never sets GA cookies.
+
+However, GA4’s server infrastructure may still set cookies depending on your property’s configuration (e.g., first-party measurement, enhanced attribution).
+
+These cookies are set server-side by Google, not by Trackkit.

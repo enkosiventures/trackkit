@@ -31,6 +31,8 @@ Useful fields:
 - `performance.initTime`, `performance.avgProcessingTime`, `performance.avgNetworkLatency` – coarse-grained performance metrics for initialisation, event processing, and network dispatch.
 - `performance.totalEvents`, `performance.failedEvents` – how many events have been observed by the tracker and how many failed processing.
 
+> The diagnostics snapshot includes policy information only indirectly; a blocked send due to DNT or domain filters will appear as no change in lastSentUrl while lastPlannedUrl advances.
+
 
 ## Common Pitfalls
 

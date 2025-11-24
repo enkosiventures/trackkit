@@ -62,10 +62,9 @@ const off = analytics.onConsentChange((status, prev) => {
 
 ### Essential vs analytics categories
 
-Trackkit internally tags some calls as **essential** (e.g. `identify`) and everything else as **analytics**.
+Trackkit splits events into [`essential` and `analytics` categories](/reference/glossary#essential-vs-analytics-events). Internally, only `identify` and minimal provider bootstrap signals are essential. All track / pageview events are analytics unless marked otherwise by your own wrapper.
 
-* When `allowEssentialOnDenied = true`, essential events can still be sent after denial (useful for strictly-necessary product telemetry).
-* Otherwise, **all** events are blocked on denial.
+When `allowEssentialOnDenied = true`, essential events can still be sent after denial (useful for strictly-necessary product telemetry). Otherwise, **all** events are blocked on denial.
 
 
 ## Configuration

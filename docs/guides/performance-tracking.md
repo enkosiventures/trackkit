@@ -24,6 +24,8 @@ The tracker uses `performance.now()` where available and falls back to no-op on 
 
 It does **not** do detailed phase breakdown (DNS/TCP/TLS/etc.); it’s coarse-grained by design.
 
+Performance metrics reflect only synchronous processing and dispatch timing; they do not override or bypass consent, PolicyGate rules, or provider readiness. They observe what the facade does — they do not change behaviour.
+
 
 ## Enabling performance tracking
 
@@ -47,6 +49,7 @@ Defaults (from `PERFORMANCE_DEFAULTS`) are safe to use for most apps.
 
 > **Note:** Performance tracking is primarily a **debug / tuning** tool. It should not be treated as production-grade APM.
 
+> Averages reflect sampled events only. If sampleRate < 1, averages are based on a subset of events.
 
 ## What gets tracked
 
@@ -62,6 +65,8 @@ How the tracker is used in the facade/dispatcher:
 * Optionally, synchronous processing steps (e.g. queue processing, provider adaptation) can be wrapped with `trackEvent(() => { … })` to update `avgProcessingTime`, `totalEvents` and `failedEvents`.
 
 Because `trackEvent` is **synchronous**, only wrap synchronous work in it.
+
+SSR events and hydration replays do not contribute to performance metrics; server-side methods are always no-ops for the tracker.
 
 
 ## Accessing performance metrics

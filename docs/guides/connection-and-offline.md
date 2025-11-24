@@ -145,6 +145,8 @@ Usage pattern (simplified):
 
 The maximum retained history is **1000 events** by default.
 
+> Drained offline events re-enter the normal queue and pass through the same consent and policy gates as any other event. If consent is denied at drain time, analytics events are dropped and essential events follow `allowEssentialOnDenied`.
+
 
 ## Runtime queues and SSR
 

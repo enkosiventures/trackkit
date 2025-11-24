@@ -1,6 +1,6 @@
 # Trackkit Core SDK
 
-> Tiny, privacy-first analytics with built-in adapters (Umami, Plausible, GA4), consent-aware queuing, SSR hydration, and zero remote scripts.
+> Tiny, privacy-first analytics with built-in bundled adapters (Umami, Plausible, GA4), consent-aware queuing, SSR hydration, and zero remote scripts.
 
 
 ## Install
@@ -79,6 +79,8 @@ interface TrackkitOptions {
 }
 ```
 
+For detailed event gating behaviour, see the **Event Interaction Table** in the **[Queue Management](https://enkosiventures.github.io/trackkit/guides/queue-management#event-interaction-model)** guide.
+
 **Environment configuration** (read at build time):
 
 | Env var               | Notes                  |
@@ -116,7 +118,7 @@ Bundlers: `VITE_*` / `REACT_APP_*` prefixes are supported directly. For other en
 | `hasQueuedEvents()` | ✔️ | ✔️ | Indicates buffer state. |
 | `getDiagnostics()` | ✔️ | ✔️ | Internal state snapshot (provider, queue, consent, URLs). |
 
-For SSR, see `trackkit/ssr`:
+All SSR functions are imported from `trackkit/ssr`:
 
 | Function | Purpose |
 |----------|---------|
@@ -135,7 +137,9 @@ For SSR, see `trackkit/ssr`:
 * **Plausible**: cookieless; goals & revenue support; 5-minute dashboard delay typical.
 * **GA4**: consent-sensitive; supports identify via `user_id`; optional `apiSecret` for Measurement Protocol.
 
-See the **[Provider Guides](https://enkosiventures.github.io/trackkit/providers/umami)** for more details.
+All providers follow Trackkit’s gating rules (**PolicyGate → Consent → Provider** readiness). Provider-specific behaviour applies after that.
+
+See the **[Provider Guides](https://enkosiventures.github.io/trackkit/providers/umami)** for complete details.
 
 
 ## TypeScript niceties

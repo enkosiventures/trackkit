@@ -7,6 +7,39 @@ Trackkit buffers events when it’s *not safe* to send yet, then replays them in
 > Run the [Consent & Queue Playground](/examples/consent-queue-playground) and see event queueing in action.
 
 
+## Event Interaction Model
+
+Trackkit processes every event through a fixed sequence of gates:
+
+**1. PolicyGate → 2. Consent → 3. Provider readiness → 4. Queue / Offline → 5. Transport**
+
+An event must pass *all* gates to be sent.
+
+| Phase / Condition | Analytics | Essential | Notes |
+|------------------|---------------|---------------|-------|
+| **PolicyGate: DNT active** | **Dropped** | **Dropped** | DNT blocks both unless `doNotTrack=false`. |
+| **PolicyGate: domain/exclude filter fails** | **Dropped** | **Dropped** | Always dropped before consent. |
+| **PolicyGate: localhost restricted** | **Dropped** | **Dropped** | Localhost policy applies first. |
+| **Consent = pending** | **Queued** | **Queued** | Both categories queue. |
+| **Consent = granted** | **✓** | **✓** | Both send (provider must be ready). |
+| **Consent = denied & allowEssentialOnDenied = false** | **Dropped** | **Dropped** | Both dropped. |
+| **Consent = denied & allowEssentialOnDenied = true** | **Dropped** | **✓** | Analytics dropped; essential allowed. |
+| **Provider not ready** | **Queued** | **Queued** | Both queue until ready. |
+| **Network offline** | **Queued → Persisted** | **Queued → Persisted** | Offline store captures both (if enabled). |
+| **SSR (server)** | **Queued (SSR)** | **Queued (SSR)** | No network; categories preserved. |
+| **SSR hydration (client)** | **Queued** | **Queued** | Hydrated events behave like runtime events. |
+| **Queue overflow (runtime)** | **oldest dropped** | **oldest dropped** | Overflow always drops oldest events. |
+| **Offline drain (reconnect)** | **Queued → gating** | **Queued → gating** | Drained events re-queue, then obey all gates. |
+| **Transport/resilience** | **✓** | **✓** | Transport only matters *after* all gates. |
+
+**Notes:**
+
+* Essential events bypass denied-consent **only** when `allowEssentialOnDenied=true`.  
+* Essential events still respect DNT, domain filters, and provider readiness.  
+* Auto-promotion applies only to **analytics** events.  
+* SSR events keep their category and must pass the same gates after hydration.
+
+
 ## Event Categories
 
 Trackkit distinguishes between two categories:
@@ -14,7 +47,7 @@ Trackkit distinguishes between two categories:
 - **`essential`** — lifecycle-critical calls such as `identify`, provider setup pings, or framework-level events.
 - **`analytics`** — regular events (`track`, `pageview`) subject to consent and policy gating.
 
-When consent = **denied**, only essential events remain eligible for sending; analytics events are dropped or queued depending on your policy settings.
+When consent = **denied**, only essential events remain eligible for sending; analytics events are dropped or queued depending on your policy settings. Essential events are only sent under denial when `allowEssentialOnDenied` is true; otherwise they are dropped.
 
 > [Consent & Privacy](/guides/consent-and-privacy) explains how categories (`essential` vs `analytics`) map to your policy.
 
@@ -139,6 +172,8 @@ head += serializeSSRQueue();
 ```
 
 On the **client**, Trackkit automatically hydrates and replays SSR events *after* the provider is ready and consent allows it. If consent is pending, SSR events are held until consent is granted.
+
+> SSR events preserve their category ([`essential` or `analytics`](/reference/glossary#essential-vs-analytics-events)) and are subject to the same consent and PolicyGate rules as runtime events. Hydration does not bypass consent.
 
 > The SSR queue is global per page via `window.__TRACKKIT_SSR_QUEUE__`. Any facade you create on the client (instance or singleton) will see that queue and gate replay through the same consent and policy rules as normal events.
 

@@ -1,11 +1,19 @@
-# TrackKit
+# Trackkit
 
-```txt
-TrackKit — tiny, privacy-first web analytics
-────────────────────────────────────────────
-Core SDK • Built-in Umami/Plausible/GA4 • SSR-aware
-MV3-safe • No remote scripts • <6 kB browser core
-```
+[![npm](https://img.shields.io/npm/v/trackkit.svg)](https://www.npmjs.com/package/trackkit)
+[![CI](https://github.com/enkosiventures/trackkit/actions/workflows/ci.yml/badge.svg)](https://github.com/enkosiventures/trackkit/actions/workflows/ci.yml)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/trackkit)](https://bundlephobia.com/package/trackkit)
+![types](https://img.shields.io/npm/types/trackkit)
+
+**Tiny, privacy-first analytics SDK  
+with built-in Umami, Plausible, and GA4 adapters.**  
+**SSR-aware • MV3-safe • No remote scripts • <6 kB core**
+
+- **Zero remote scripts** — CSP-friendly and safe for MV3 and strict environments.  
+- **Consent-aware** — EU-style consent flows with event gating + queueing.  
+- **SSR hydration** — collect server events and replay once on the client.  
+- **Multi-provider** — Umami/Plausible baseline with optional GA4 layer.  
+- **Typed DX** — clean facade API, strong TypeScript types, great developer tooling.  
 
 ## Why Trackkit?
 
@@ -18,8 +26,12 @@ MV3-safe • No remote scripts • <6 kB browser core
 
 ## Documentation
 
-- **Quickstart:** [`docs/overview/quickstart.md`](docs/overview/quickstart.md)
-- **Full docs (local):** run `pnpm docs:dev` and open [`http://localhost:5173`](http://localhost:5173).
+Visit Trackkit's **[full documentation site](https://enkosiventures.github.io/trackkit/)** for:
+- [Quick start instructions](https://enkosiventures.github.io/trackkit/overview/quickstart)
+- [Comprehensive guides](https://enkosiventures.github.io/trackkit/guides/choosing-provider)
+- [Multiple complete example applications](https://enkosiventures.github.io/trackkit/examples/overview)
+
+To run the documentation site locally, run `pnpm docs:dev` and open [`http://localhost:5173`](http://localhost:5173).
 
 ## Packages in this monorepo
 
@@ -31,7 +43,7 @@ MV3-safe • No remote scripts • <6 kB browser core
 | Plugin API                | `packages/trackkit-plugin-api`       | planned     | Adapter interface & dev helpers                               |
 | Example plugin            | `packages/trackkit-plugin-amplitude` | planned     | Amplitude adapter (opt-in)                                    |
 
-## Quick start (Core SDK)
+## Core SDK
 
 ```bash
 npm i trackkit     # or: pnpm add trackkit  /  yarn add trackkit
@@ -78,6 +90,14 @@ track('signup_submitted', { plan: 'starter' });
 
 Internally, both forms hit the same core sdk.
 
+### Gating & Flow
+
+Trackkit sends events only after passing:
+
+**PolicyGate → Consent → Provider readiness → Queue/Offline → Transport**
+
+Every mechanism (SSR, offline, resilience, performance) is downstream of these gates.
+
 ### Consent (EU-friendly defaults)
 
 ```ts
@@ -97,8 +117,9 @@ const analytics = createAnalytics({
 analytics.grantConsent(); // or denyConsent();
 ```
 
-> **Trackkit is consent-aware:** events are queued until consent and provider readiness allow them to be sent, and non-essential analytics follow your configured policy.
-> For full behaviour, see the **[Consent & Privacy](https://enkosiventures.github.io/trackkit/guides/consent-and-privacy)** guide.
+**Trackkit is consent-aware:** events are queued until consent and provider readiness allow them to be sent, and non-essential analytics follow your configured policy. [All built-in providers](/guides/choosing-provider) allow for consent management.
+
+For full behaviour, see the **[Consent & Privacy](https://enkosiventures.github.io/trackkit/guides/consent-and-privacy)** guide.
 
 ### Environment variables
 
@@ -112,6 +133,8 @@ Trackkit reads build-time/public env vars (with common bundler prefixes):
 | `TRACKKIT_QUEUE_SIZE` | max buffered events (default: 50)                            |
 | `TRACKKIT_DEBUG`      | `true`/`false`                                               |
 
+For runtime injection and SSR-safe config, see the **[Configuration](https://enkosiventures.github.io/trackkit/reference/configuration)** reference.
+
 **Bundlers:**
 
 * Vite → `VITE_TRACKKIT_*`
@@ -123,11 +146,13 @@ For Next.js, prefer runtime injection or a small custom loader that passes value
 ### Multiple Providers
 
 Trackkit supports multiple providers.
-See the **[Choosing a Provider](https://enkosiventures.github.io/trackkit/guides/ssr#running-multiple-providers)** guide for more information.
+
+See the **[Choosing a Provider](https://enkosiventures.github.io/trackkit/guides/choosing-provider#running-multiple-providers)** guide for more information.
 
 ### SSR
 
-Trackkit queues events during server rendering and hydrates them on the client.
+Trackkit queues events during server rendering and hydrates them on the client. Server-side calls must use the SSR API (trackkit/ssr); client code hydrates automatically.
+
 See the **[Server-Side Rendering](https://enkosiventures.github.io/trackkit/guides/ssr)** guide for full semantics.
 
 ### CSP / MV3

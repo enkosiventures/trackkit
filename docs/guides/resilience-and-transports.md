@@ -234,7 +234,7 @@ Rough order of operations:
    * retry strategy
    * behaviour under adblockers
 
-If consent is denied, no transport or retry setting will send anything.
+If consent is denied or policy gates block, no transport or retry setting will send anything.
 If a queue is full, no transport choice can save the events you’ve chosen to drop.
 
 Use resilience to handle **network and environment issues**, not to bypass policy.

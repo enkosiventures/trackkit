@@ -11,6 +11,8 @@ createAnalytics({
 });
 ```
 
+> Autotracked pageviews pass through the same consent, queue, and PolicyGate rules as manually triggered events.
+
 ## URL Policy
 
 * `includeHash: false` strips `#fragment`
