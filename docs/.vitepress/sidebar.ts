@@ -9,6 +9,7 @@ export const sidebar: DefaultTheme.Sidebar = {
         { text: 'What is Trackkit?', link: '/overview/what-is-trackkit' },
         { text: 'Quickstart', link: '/overview/quickstart' },
         { text: 'Playground', link: '/overview/playground' },
+        { text: 'Architecture', link: '/overview/architecture' },
         { text: 'FAQ', link: '/overview/faq' }
       ]
     }
@@ -85,6 +86,7 @@ export const sidebar: DefaultTheme.Sidebar = {
         { text: 'What is Trackkit?', link: '/overview/what-is-trackkit' },
         { text: 'Quickstart', link: '/overview/quickstart' },
         { text: 'Playground', link: '/overview/playground' },
+        { text: 'Architecture', link: '/overview/architecture' },
         { text: 'FAQ', link: '/overview/faq' }
       ]
     }

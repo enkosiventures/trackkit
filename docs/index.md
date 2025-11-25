@@ -21,4 +21,3 @@ features:
   - title: Privacy and resilience built-in
     details: Consent manager, DNT and domain rules, CSP-friendly transports, adblocker detection, and optional proxy fallback.
 ---
-
