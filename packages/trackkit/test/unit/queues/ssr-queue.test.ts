@@ -3,7 +3,8 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { track, pageview, destroy } from '../../../src';
-import { clearSSRQueue, enqueueSSREvent, flushSSRAll, flushSSREssential, getSSRQueue, getSSRQueueLength, hydrateSSRQueue, serializeSSRQueue } from '../../../src/queues/ssr';
+import { enqueueSSREvent, getSSRQueue, getSSRQueueLength, serializeSSRQueue } from '../../../src/ssr';
+import { clearSSRQueue, flushSSRAll, flushSSREssential, hydrateSSRQueue } from '../../../src/queues/ssr';
 import { DEFAULT_CATEGORY } from '../../../src/constants';
 
 describe('SSR Support', () => {

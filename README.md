@@ -5,9 +5,10 @@
 [![bundle size](https://img.shields.io/bundlephobia/minzip/trackkit)](https://bundlephobia.com/package/trackkit)
 ![types](https://img.shields.io/npm/types/trackkit)
 
-**Tiny, privacy-first analytics SDK  
-with built-in Umami, Plausible, and GA4 adapters.**  
-**SSR-aware • MV3-safe • No remote scripts • <6 kB core**
+Trackkit is a lightweight, provider-agnostic analytics SDK with a single facade for Umami, Plausible, GA4 (Measurement Protocol only), and custom adapters.  
+This repository hosts the full SDK source, development tooling, documentation, tests, and release pipeline.
+
+**SSR-aware • MV3-safe • No remote scripts • <20 kB core (brotli)**
 
 - **Zero remote scripts** — CSP-friendly and safe for MV3 and strict environments.  
 - **Consent-aware** — EU-style consent flows with event gating + queueing.  
@@ -42,6 +43,8 @@ To run the documentation site locally, run `pnpm docs:dev` and open [`http://loc
 | Vue wrapper               | `packages/trackkit-vue`              | planned     | Plugin + composables                                          |
 | Plugin API                | `packages/trackkit-plugin-api`       | planned     | Adapter interface & dev helpers                               |
 | Example plugin            | `packages/trackkit-plugin-amplitude` | planned     | Amplitude adapter (opt-in)                                    |
+
+This repo uses **pnpm workspaces**. All commands below are run from the repository root.
 
 ## Core SDK
 
@@ -168,22 +171,90 @@ Add the providers you use to `connect-src`. Example:
 ]
 ```
 
-### Repo scripts
+## Development
 
-| Command      | What it does                   |
-| ------------ | ------------------------------ |
-| `pnpm build` | Build all packages             |
-| `pnpm test`  | Vitest unit/integration suites |
-| `pnpm lint`  | ESLint + Prettier              |
-| `pnpm size`  | Gzip size budget report        |
+### Install dependencies
+
+```bash
+pnpm install
+```
+
+### Run tests
+
+```bash
+pnpm test
+pnpm test:coverage    # with coverage
+```
+
+### Type checking
+
+```bash
+pnpm typecheck
+```
+
+### Linting
+
+```bash
+pnpm lint
+```
+
+### Build all packages
+
+```bash
+pnpm build
+```
+
+### Dead code / bundle hygiene
+
+```bash
+pnpm deadcode       # full analysis
+pnpm deadcode:ci    # ci-mode
+pnpm size           # bundle size reports
+```
+
+### Documentation (VitePress)
+
+```bash
+pnpm docs:dev       # run the docs site locally
+pnpm docs:build     # generate static build (docs/.vitepress/dist)
+pnpm docs:preview   # preview the production build
+```
+
+The documentation site is deployed via GitHub Actions using
+`upload-pages-artifact` → `deploy-pages`.
+
+## Release workflow
+
+Publishing a release consists of:
+
+```bash
+pnpm release
+```
+
+This runs:
+
+* clean
+* build
+* defaults:inject
+* defaults:assert
+
+To build docs API:
+
+```bash
+pnpm release:docs
+```
+
+NPM publication is handled through the `prepublishOnly` script in the package.
 
 ## Contributing
 
-1. `pnpm i`
-2. `pnpm build` (or `pnpm -r run build:watch` for watch mode)
-3. Keep bundle budgets green (`pnpm size`).
-4. Conventional Commits, please.
-5. New provider? See **Provider Adapter API** in docs.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for:
+
+* repository structure
+* development environment
+* tests and release rules
+* provider guidelines
+* PR expectations
 
 ## License
 

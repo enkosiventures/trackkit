@@ -2,7 +2,8 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, assert, afterEach } from 'vitest';
-import { getSSRQueueLength, hydrateSSRQueue, serializeSSRQueue } from '../../../src/queues/ssr';
+import { getSSRQueueLength, serializeSSRQueue } from '../../../src/ssr';
+import { hydrateSSRQueue } from '../../../src/queues/ssr';
 import { resetTests, tick } from '../../helpers/core';
 import { setupAnalytics } from '../../helpers/providers';
 import { grantConsent } from '../../../src';

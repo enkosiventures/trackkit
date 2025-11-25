@@ -2,43 +2,35 @@
 
 This page documents the public API surface of the Trackkit JavaScript SDK.
 
-The main entrypoint is:
+Core functions are imported from `trackkit`, the main entrypoint:
 
-```ts
-import {
-  createAnalytics,
-  init,
-  destroy,
-  track,
-  pageview,
-  identify,
-  getConsent,
-  grantConsent,
-  denyConsent,
-  resetConsent,
-  onConsentChange,
-  setConsent,
-  waitForReady,
-  getFacade,
-  flushIfReady,
-  hasQueuedEvents,
-  getDiagnostics,
-} from 'trackkit';
-```
+| Function | Instance? | Singleton? | Description |
+|---------|-----------|-------------|-------------|
+| `createAnalytics(opts)` | ✔️ | — | Creates an isolated facade instance. Preferred for modern apps. |
+| `init(opts)` | — | ✔️ | Initializes the global singleton façade. |
+| `destroy()` | ✔️ | ✔️ | Tears down listeners, clears queues. |
+| `track(name, props?, url?)` | ✔️ | ✔️ | Sends a custom analytics event. |
+| `pageview(url?)` | ✔️ | ✔️ | Sends a pageview (or inferred URL). |
+| `identify(userId?)` | ✔️ | ✔️ | Identifies a user; provider-specific behaviour applies. |
+| `grantConsent()` | ✔️ | ✔️ | Set consent → `granted`, flush queue. |
+| `denyConsent()` | ✔️ | ✔️ | Set consent → `denied`, drop analytics items. |
+| `resetConsent()` | ✔️ | ✔️ | Return consent to `pending`. |
+| `setConsent(status)` | ✔️ | ✔️ | Directly set status. |
+| `getConsent()` | ✔️ | ✔️ | Return current consent snapshot. |
+| `waitForReady()` | ✔️ | ✔️ | Promise that resolves when provider is ready. |
+| `flushIfReady()` | ✔️ | ✔️ | Flush queue if provider + consent allow. |
+| `hasQueuedEvents()` | ✔️ | ✔️ | Indicates buffer state. |
+| `getDiagnostics()` | ✔️ | ✔️ | Internal state snapshot (provider, queue, consent, URLs). |
 
-For server-side rendering (SSR), use:
+For server-side rendering (SSR), import from `trackkit/ssr`:
 
-```ts
-import {
-  ssrTrack,
-  ssrPageview,
-  ssrIdentify,
-  serializeSSRQueue,
-  getSSRQueue,
-  getSSRQueueLength,
-  enqueueSSREvent,
-} from 'trackkit/ssr';
-```
+| Function | Purpose |
+|----------|---------|
+| `serializeSSRQueue()` | Emit `<script>` hydration payload. |
+| `getSSRQueue()` | Retrieve queue array (server only). |
+| `enqueueSSREvent()` | Low-level queue write. |
+| `getSSRQueueLength()` | Convenience helper |
+| `ssrTrack()` / `ssrPageview()` / `ssrIdentify()` | Server-side variants that queues instead of dispatching. |
 
 TypeScript types are also exported from the main module:
 

@@ -15,9 +15,9 @@ import {
   getDiagnostics,
   flushIfReady,
   hasQueuedEvents,
-} from '../../src';
-import { getFacade } from '../../src/facade/singleton';
-import { createStatefulMock } from '../helpers/providers';
+} from '../../../src';
+import { getFacade } from '../../../src/facade/singleton';
+import { createStatefulMock } from '../../helpers/providers';
 
 // @vitest-environment jsdom
 

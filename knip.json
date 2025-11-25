@@ -17,6 +17,7 @@
 
     "packages/trackkit": {
       "entry": [
+        "src/ssr.ts",
         "src/index.ts",
         "src/providers/*.ts"
       ],

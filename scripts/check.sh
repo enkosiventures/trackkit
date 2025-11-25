@@ -62,19 +62,24 @@ pnpm run lint
 ok "Lint ok"
 
 say "Test (all${FILTER:+, filter=$FILTER})"
-CI=1 pnpmr run test
-ok "Tests ok"
+CI=1 pnpmr run test:coverage
+ok "Tests ok, coverage emitted"
 
+# Checks Trackkit core package only.
 if [[ ${QUICK} -eq 0 ]]; then
-  say "Inject @defaultValue into .d.ts (trackkit)"
+  say "Inject @default into .d.ts (uses sync-doc-defaults)"
   pnpm --filter trackkit run defaults:inject
   ok "Defaults injected"
 
-  say "Assert JSDoc @link defaults in source (trackkit)"
+  say "Assert '.d.ts' reflect real runtime values (uses sync-doc-defaults)"
   pnpm --filter trackkit run defaults:assert
   ok "Defaults assertion ok"
 
-  say "Dead code gate (trackkit)"
+  say "Test coverage check"
+  pnpm --filter trackkit run coverage:check
+  ok "Coverage ok"
+
+  say "Dead code gate (coverage + Knip)"
   pnpm --filter trackkit run deadcode:gate
   ok "Dead code gate ok"
 
@@ -83,7 +88,7 @@ if [[ ${QUICK} -eq 0 ]]; then
   ok "Bundle size ok"
 
   if [[ ${WITH_DOCS} -eq 1 ]]; then
-    say "Build docs (trackkit)"
+    say "Build docs"
     pnpm --filter trackkit run docs:build
     ok "Docs built → packages/trackkit/docs"
   fi

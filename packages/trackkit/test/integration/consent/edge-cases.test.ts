@@ -5,7 +5,7 @@ import {
   destroy,
   grantConsent,
   getConsent,
-} from '../../src';
+} from '../../../src';
 
 describe('Consent Edge Cases', () => {
   beforeEach(() => {

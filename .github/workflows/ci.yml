@@ -50,9 +50,6 @@ jobs:
       - name: Lint (all)
         run: pnpm run lint
 
-      - name: Test (all)
-        run: pnpm -r run test
-
       - name: Check bundle size (all)
         run: pnpm -r run size
 
@@ -83,15 +80,19 @@ jobs:
       - name: Build (all)
         run: pnpm -r run build
 
-      # ---- Defaults sync against .d.ts (uses sync-doc-defaults)
-      - name: Inject @defaultValue literals into .d.ts (trackkit)
+      - name: Inject @default literals into .d.ts (uses sync-doc-defaults)
         run: pnpm --filter trackkit run defaults:inject
 
-      - name: Assert source JSDoc defaults use @link (no literals)
+      - name: Assert `.d.ts` reflect real runtime values
         run: pnpm --filter trackkit run defaults:assert
 
-      # ---- Dead code: coverage + Knip merge with hard gate
-      - name: Dead code gate (trackkit)
+      - name: Run tests and emit coverage
+        run: pnpm --filter trackkit run test:coverage
+
+      - name: Check test coverage
+        run: pnpm --filter trackkit run coverage:check
+
+      - name: Dead code gate (coverage + Knip)
         run: pnpm --filter trackkit run deadcode:gate
 
       - name: Upload deadcode report

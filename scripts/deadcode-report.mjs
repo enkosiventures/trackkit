@@ -96,7 +96,7 @@ Tip: check "pnpm knip --reporter json --help" and/or pin Knip to a consistent ve
 }
 
 function loadCoverageJSON() {
-  const covPath = path.join(pkgDir, 'coverage', 'coverage-final.json');
+  const covPath = path.join(pkgDir, 'coverage', 'coverage-summary.json');
   if (!fs.existsSync(covPath)) return null;
   try {
     return JSON.parse(fs.readFileSync(covPath, 'utf8'));
