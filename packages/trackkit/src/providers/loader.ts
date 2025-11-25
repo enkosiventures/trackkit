@@ -8,7 +8,7 @@ import { makeDispatcherSender } from './base/transport';
 import type { NetworkDispatcherOptions, ResilienceOptions } from '../dispatcher';
 import type { BatchingOptions } from '../dispatcher/types';
 import { applyBatchingDefaults, applyResilienceDefaults } from '../facade/normalize';
-import { PerformanceTracker } from '../performance/tracker';
+import type { PerformanceTracker } from '../performance/tracker';
 
 
 /**

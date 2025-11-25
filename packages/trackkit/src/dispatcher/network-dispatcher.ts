@@ -1,5 +1,5 @@
 import { applyBatchingDefaults, applyResilienceDefaults } from '../facade/normalize';
-import { PerformanceTracker } from '../performance/tracker';
+import type { PerformanceTracker } from '../performance/tracker';
 import { EventBatchProcessor } from './batch-processor';
 import type { Transport } from './transports';
 import { resolveTransport } from './transports';

@@ -5,7 +5,7 @@ import type { ProviderManager } from './provider-manager';
 import type { ConsentStatus, ConsentStoredState } from '../consent/types';
 import type { ProviderState } from '../providers/types';
 import type { ProviderStateHistory } from '../util/state';
-import { PerformanceTracker } from '../performance/tracker';
+import type { PerformanceTracker } from '../performance/tracker';
 
 export interface ProviderStateSnapshot {
   provider: string | null;

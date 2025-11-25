@@ -1,7 +1,7 @@
 import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { loadProvider } from '../providers/loader';
 import type { FacadeOptions, ProviderOptions, EventType, PageContext } from '../types';
-import { PerformanceTracker } from '../performance/tracker';
+import type { PerformanceTracker } from '../performance/tracker';
 
 
 export class ProviderManager {

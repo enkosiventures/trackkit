@@ -8,6 +8,7 @@ export default [
   /* -------- Global ignore globs ---------------------------------- */
   {
     ignores: [
+      '**/cache/**',
       '**/dist/**',
       '**/*.d.ts',
       '**/coverage/**',

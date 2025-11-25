@@ -1,6 +1,6 @@
 // ---------------------- Transport Interface ----------------------
 
-import { PerformanceTracker } from "../performance/tracker";
+import type { PerformanceTracker } from "../performance/tracker";
 
 export interface Transport {
   id: string;
