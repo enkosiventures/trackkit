@@ -21,14 +21,14 @@ export default {
     socialLinks: [
       { icon: 'github', link: 'https://github.com/enkosiventures/trackkit' },
       { icon: 'twitter', link: 'https://twitter.com/EnkosiVentures' },
-      {
-        icon: {
-          svg: '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><title>Enkosi Ventures Logo</title><path d="M150 5 L75 200 L225 200 Z" stroke="green" fill="green" /></svg>'
+      // {
+      //   icon: {
+      //     svg: '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><title>Enkosi Ventures Logo</title><path d="M150 5 L75 200 L225 200 Z" stroke="green" fill="green" /></svg>'
           
-        },
-        link: 'https://enkosiventures.com',
-        ariaLabel: 'Enkosi Ventures'
-      }
+      //   },
+      //   link: 'https://enkosiventures.com',
+      //   ariaLabel: 'Enkosi Ventures'
+      // }
     ],
 
     search: {
