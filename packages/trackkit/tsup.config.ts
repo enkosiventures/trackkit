@@ -3,13 +3,15 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
+    ssr: 'src/ssr.ts',
 
-    'providers/umami': 'src/entries/providers/umami.ts',
-    'providers/plausible': 'src/entries/providers/plausible.ts',
-    'providers/ga4': 'src/entries/providers/ga4.ts',
+    'providers/ga4': 'src/providers/ga4/index.ts',
+    'providers/plausible': 'src/providers/plausible/index.ts',
+    'providers/umami': 'src/providers/umami/index.ts',
+    'providers/noop': 'src/providers/noop/index.ts',
   },
   format: ['esm', 'cjs'],
-  dts: true,
+  dts: false,
   splitting: true,
   treeshake: true,
   minify: true,

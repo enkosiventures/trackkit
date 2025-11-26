@@ -1,36 +1,33 @@
 /// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { init, track, destroy, waitForReady, grantConsent } from '../../src';
+import { init, track, waitForReady, grantConsent } from '../../src';
+import { resetTests } from '../helpers/core';
 
 // @vitest-environment jsdom
 
 describe('Debug mode', () => {
   let consoleLog: any;
-  let consoleInfo: any;
   
   beforeEach(() => {
     consoleLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    destroy();
+    resetTests();
   });
   
   afterEach(() => {
-    destroy();
+    resetTests();
     consoleLog.mockRestore();
-    consoleInfo.mockRestore();
   });
   
   it('logs initialization in debug mode', async () => {
     init({ debug: true });
     await waitForReady();
 
-    expect(consoleInfo).toHaveBeenCalledWith(
+    expect(consoleLog).toHaveBeenCalledWith(
       expect.stringContaining('[trackkit]'),
       expect.anything(),
       'Initializing analytics',
       expect.objectContaining({
         provider: 'noop',
-        debug: true,
       })
     );
   });

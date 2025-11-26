@@ -1,37 +1,23 @@
-import { STORAGE_KEY } from '../constants';
-import { isBrowser } from '../util/env';
+import { applyConsentDefaults } from '../facade/normalize';
+import { hasWebStorage } from '../util/env';
 import { logger } from '../util/logger';
-import type { ConsentCategory, ConsentOptions, ConsentSnapshot, ConsentStatus, ConsentStoredState, Listener } from './types';
+import type { ConsentCategory, ConsentOptions, ConsentStatus, ConsentStoredState, Listener, ResolvedConsentOptions } from './types';
 
 
 export class ConsentManager {
   private status: ConsentStatus = 'pending';
-  private opts: Required<Omit<ConsentOptions,'policyVersion'|'requireExplicit'>> & {
-    policyVersion?: string; requireExplicit?: boolean;
-  };
+  private opts: ResolvedConsentOptions;
   private listeners = new Set<Listener>();
   private storageAvailable = false;
-  private queueCounter = 0;
-  private droppedDeniedCounter = 0;
 
   constructor(options: ConsentOptions = {}) {
-    this.opts = {
-      initialStatus: options.initialStatus || 'pending',
-      storageKey: options.storageKey || STORAGE_KEY,
-      disablePersistence: !!options.disablePersistence,
-      policyVersion: options.policyVersion,
-      requireExplicit: options.requireExplicit ?? true,
-      allowEssentialOnDenied: options.allowEssentialOnDenied ?? false,
-    };
-
+    this.opts = applyConsentDefaults(options);
     this.status = this.opts.initialStatus;
-
-    logger.debug('ConsentManager Options:', this.opts);
     this.initFromStorage();
   }
 
   private initFromStorage() {
-    if (!isBrowser() || this.opts.disablePersistence) return;
+    if (!hasWebStorage() || this.opts.disablePersistence) return;
     try {
       const raw = window.localStorage.getItem(this.opts.storageKey);
       this.storageAvailable = true;
@@ -56,7 +42,6 @@ export class ConsentManager {
     try {
       const state: ConsentStoredState = {
         status: this.status,
-        timestamp: Date.now(),
         version: this.opts.policyVersion,
         method: 'explicit',
       };
@@ -90,6 +75,15 @@ export class ConsentManager {
     return this.status === 'granted';
   }
 
+  whenAllowed(category: ConsentCategory): Promise<void> {
+    if (this.isAllowed(category)) return Promise.resolve();
+    return new Promise<void>(resolve => {
+      const unsub = this.onChange(() => {
+        if (this.isAllowed(category)) { unsub?.(); resolve(); }
+      });
+    });
+  }
+
   /** Called by facade when first *emittable* event arrives and implicit allowed. */
   promoteImplicitIfAllowed() {
     if (this.status === 'pending' && !this.opts.requireExplicit) {
@@ -100,7 +94,6 @@ export class ConsentManager {
         try {
           const state: ConsentStoredState = {
             status: this.status,
-            timestamp: Date.now(),
             version: this.opts.policyVersion,
             method: 'implicit'
           };
@@ -126,23 +119,11 @@ export class ConsentManager {
     this.notify(prev);
   }
 
-  /** Facade increments when queueing pre‑consent events */
-  incrementQueued() {
-    this.queueCounter++;
-  }
-  /** Facade increments when dropping due to denied */
-  incrementDroppedDenied() {
-    this.droppedDeniedCounter++;
-  }
-
-  snapshot(): ConsentSnapshot {
+  snapshot(): ConsentStoredState {
     return {
       status: this.status,
-      timestamp: Date.now(),
       version: this.opts.policyVersion,
       method: this.opts.requireExplicit ? 'explicit' : 'implicit',
-      queuedEvents: this.queueCounter,
-      droppedEventsDenied: this.droppedDeniedCounter
     };
   }
 

@@ -17,7 +17,7 @@ describe('Tree-shaking', () => {
           load(id) {
             if (id === 'entry') {
               return `
-                import track from './src/methods/track.js';
+                import { track } from './src';
                 track('test');
               `;
             }

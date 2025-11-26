@@ -1,30 +1,43 @@
-import { describe, it, expect } from 'vitest';
-import { createFacade, createStatefulMock } from '../../helpers/providers';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { createMockFacade, createStatefulMock } from '../../helpers/providers';
 import { grantConsent } from '../../../src';
 import { navigate } from '../../helpers/navigation';
+import { resetTests } from '../../helpers/core';
 
 describe('Facade routes to active provider only', () => {
+  beforeEach(() => {
+    resetTests();
+  });
+
+  afterEach(() => {
+    resetTests();
+  });
+
   it('swaps providers without double-sending', async () => {
-    const { facade, provider } = await createFacade();
+    const { facade, provider } = await createMockFacade();
     grantConsent();
 
+    const { pageviewCalls } = provider.diagnostics;
+
     // Ignore initial autotracked '/'
-    provider.pageviewCalls.length = 0;
+    pageviewCalls.length = 0;
 
     await navigate('/a');
-    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/a']);
+    expect(pageviewCalls.map(c => c?.url)).toEqual(['/a']);
 
     // Create a fresh provider and attach
     const b = await createStatefulMock();
-    expect(b.provider.pageviewCalls.length).toBe(0);
+    const { pageviewCalls: bPageviewCalls } = b.provider.diagnostics;
+
+    expect(bPageviewCalls.length).toBe(0);
 
     facade.setProvider(b.stateful);
-    b.provider.pageviewCalls.length = 0; // ignore new provider’s initial '/'
+    bPageviewCalls.length = 0; // ignore new provider’s initial '/'
 
     await navigate('/b');
 
     // New provider got the new pageview, old one stayed as-is
-    expect(b.provider.pageviewCalls.map(c => c?.url)).toEqual(['/b']);
-    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/a']);
+    expect(bPageviewCalls.map(c => c?.url)).toEqual(['/b']);
+    expect(pageviewCalls.map(c => c?.url)).toEqual(['/a']);
   });
 });

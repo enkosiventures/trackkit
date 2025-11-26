@@ -1,5 +1,7 @@
 import { logger } from "../../util/logger";
-import { stripEmptyFields } from "../shared/utils";
+import { stripEmptyFields } from "../../util";
+import type { NetworkDispatcherOptions } from "../../dispatcher";
+import { NetworkDispatcher } from "../../dispatcher";
 
 /**
  * Shared transport layer used by all providers.
@@ -8,10 +10,10 @@ import { stripEmptyFields } from "../shared/utils";
  * - Centralizes headers/body serialization
  *
  * Cache behavior:
- *   cache === true  -> enable cache-busting
+ *   bustCache === true  -> enable cache-busting
  *     - GET / BEACON (or AUTO→beacon): add ?cache=timestamp to URL
  *     - POST/fetch fallback: add no-store request headers
- *   cache !== true  -> no cache-busting (default)
+ *   bustCache !== true  -> no cache-busting (default)
  */
 export type TransportMethod = 'GET' | 'POST' | 'BEACON' | 'AUTO';
 
@@ -26,7 +28,7 @@ export type TransportRequest = {
   /** Optional controller for aborts in the future. */
   signal?: AbortSignal | null;
   /** When true, perform cache-busting (query param for GET/beacon; no-store headers for POST). */
-  cache?: boolean;
+  bustCache?: boolean;
 };
 
 function appendCacheParam(url: string): string {
@@ -42,6 +44,32 @@ function appendCacheParam(url: string): string {
   }
 }
 
+/**
+ * Wrap the NetworkDispatcher to send per-item.
+ * We return a synthetic OK Response so adapter `ok/parseError` logic remains intact.
+ */
+export function makeDispatcherSender(opts: NetworkDispatcherOptions): Sender {
+  const dispatcher = new NetworkDispatcher(opts);
+  const RESPONSE_OK = { ok: true, status: 204, statusText: 'OK' } as unknown as Response;
+
+  return async ({ method, url, headers, body }) => {
+    // Respect method nuances only to the extent your dispatcher/resolveTransport supports.
+    // Common case: POST/AUTO. For BEACON, resolveTransport will choose beacon when applicable.
+    const init: RequestInit = {
+      method: method === 'GET' ? 'GET' : 'POST',
+      headers,
+    };
+    await dispatcher.send({ url, body, init });
+    return RESPONSE_OK; // no per-event response in batched path
+  };
+}
+
+export type Sender = (req: TransportRequest) => Promise<Response>;
+
+export function makeDirectSender(): Sender {
+  return (req) => send(req);
+}
+
 export async function send(req: TransportRequest): Promise<Response> {
   const { method, url, body, maxBeaconBytes, signal } = req;
 
@@ -51,12 +79,11 @@ export async function send(req: TransportRequest): Promise<Response> {
   // Will we *attempt* beacon? (AUTO prefers beacon if available)
   const wantBeacon = method === 'BEACON' || (method === 'AUTO' && canBeacon);
 
-  // Enable cache-busting when req.cache === true
-  const bustCache = req.cache === true;
+  // Enable cache-busting when req.bustCache === true
+  const bustCache = req.bustCache === true;
 
   // Decide final URL: add ?cache=... for GET or when we intend to use beacon.
   // Note: if we later fall back from beacon→fetch due to size, the query param is harmless.
-  console.warn('Want beacon:', wantBeacon, 'bustCache:', bustCache, 'method:', method);
   const finalUrl =
     bustCache && (method === 'GET' || wantBeacon) ? appendCacheParam(url) : url;
 
@@ -77,7 +104,7 @@ export async function send(req: TransportRequest): Promise<Response> {
     headers,
     maxBeaconBytes,
     signal: req.signal ? 'exists' : 'none',
-    cacheBust: bustCache,
+    bustCache,
     wantBeacon,
   });
   logger.debug('Transport.body', strippedBody);

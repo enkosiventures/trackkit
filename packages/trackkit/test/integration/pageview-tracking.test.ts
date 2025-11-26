@@ -1,82 +1,82 @@
 /// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { denyConsent, grantConsent, init, waitForReady, destroy } from '../../src';
-import { createFacade } from '../helpers/providers';
-import { navigate } from '../helpers/navigation';
-import { tick } from '../helpers/core';
+import { grantConsent } from '../../src';
+import { setupAnalytics } from '../helpers/providers';
+import { navigate, navigateWithTick } from '../helpers/navigation';
+import { resetTests } from '../helpers/core';
 
 // @vitest-environment jsdom
 
-// take function and run tick after it
-const runWithTick = async (fn: () => void) => {
-  fn();
-  await tick();
-};
-
-const navigateWithTick = async (url: string) => {
-  await navigate(url);
-  await tick();
-};
 
 describe('Facade autotrack with real history', () => {
 
- beforeEach(() => {
-   destroy();
- });
+  beforeEach(() => {
+    resetTests();
+  });
 
   afterEach(async () => {
-    destroy();
-    
-    // Wait for any pending async operations
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
-    vi.clearAllMocks();
+    resetTests(vi);
   });
+
   it('sends initial pageview once', async () => {
-    const { provider } = await createFacade();
+    const { provider } = await setupAnalytics({
+      autoTrack: true,
+      includeHash: true,
+      trackLocalhost: true,
+    }, {
+      mode: 'singleton',
+      setConsent: 'granted',
+    })
 
-    await runWithTick(grantConsent);
-
-    expect(provider.pageviewCalls.length).toBe(1);
-    expect(provider.pageviewCalls[0]?.url).toBe('/');
+    const { pageviewCalls } = provider!.diagnostics;
+    expect(pageviewCalls.length).toBe(1);
+    expect(pageviewCalls[0]?.url).toBe('/');
   });
 
   it('sends SPA navigations and dedupes repeats', async () => {
-    const { provider } = await createFacade({ includeHash: true });
-
-    await runWithTick(grantConsent);
-    provider.pageviewCalls.length = 0;
+    const { provider } = await setupAnalytics({
+      autoTrack: true,
+      includeHash: true,
+      trackLocalhost: true,
+    }, {
+      mode: 'singleton',
+      setConsent: 'granted',
+    })
 
     await navigateWithTick('/a');
     await navigateWithTick('/a'); // duplicate
     await navigateWithTick('/b?x=1#h');
 
-    console.warn('Pageview calls:', provider.pageviewCalls);
-
-    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/a', '/b?x=1#h']);
-    expect(provider.pageviewCalls[0]?.referrer ?? '').toBe('/');  // A referrer
-    expect(provider.pageviewCalls[1]?.referrer ?? '').toBe('/a'); // B referrer
+    const { pageviewCalls } = provider!.diagnostics;
+    expect(pageviewCalls.map(c => c?.url)).toEqual(['/', '/a', '/b?x=1#h']);
+    expect(pageviewCalls[1]?.referrer ?? '').toBe('/');  // A referrer
+    expect(pageviewCalls[2]?.referrer ?? '').toBe('/a'); // B referrer
   });
 
   it('applies exclusions', async () => {
-    const { provider } = await createFacade({ exclude: ['/secret/alpha'] });
-
-    await runWithTick(grantConsent);
-
-    provider.pageviewCalls.length = 0;
+    const { provider } = await setupAnalytics({
+      autoTrack: true,
+      trackLocalhost: true,
+      exclude: ['/secret/alpha'],
+    }, {
+      mode: 'singleton',
+      setConsent: 'granted',
+    })
 
     await navigateWithTick('/secret/alpha'); // excluded
     await navigateWithTick('/public');
 
-    expect(provider.pageviewCalls.map(c => c?.url)).toEqual(['/public']);
+    expect(provider!.diagnostics.pageviewCalls.map(c => c?.url)).toEqual(['/', '/public']);
   });
 
   it('gates by consent per policy', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    init({ autoTrack: true, debug: true, trackLocalhost: true, consent: { requireExplicit: true }});
-    await waitForReady();
-    await new Promise(resolve => setTimeout(resolve, 50));
-    denyConsent();
+    const { provider } = await setupAnalytics({
+      autoTrack: true,
+      trackLocalhost: true,
+    }, {
+      mode: 'singleton',
+      setConsent: 'denied',
+    })
 
     await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -91,24 +91,18 @@ describe('Facade autotrack with real history', () => {
 
     await new Promise(resolve => setTimeout(resolve, 50));
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[trackkit]'),
-      expect.any(String),
-      '[no-op] pageview',
-      expect.objectContaining({
-        pageContext: {
-          hostname: "localhost",
-          language: "en-US",
-          referrer: "/pre-consent",
-          timestamp: expect.any(Number),
-          url: "/after-consent",
-          viewportSize: {
-            height: 768,
-            width: 1024,
-          },
-        },
-      }),
-    );
-    consoleSpy.mockRestore();
+    const { pageviewCalls } = provider!.diagnostics;
+    expect(pageviewCalls.length).toBe(1);
+    expect(pageviewCalls[0]).toEqual(expect.objectContaining({
+      url: '/after-consent',
+      title: '',
+      referrer: '',
+      viewportSize: { width: 1024, height: 768 },
+      screenSize: undefined,
+      language: 'en-US',
+      hostname: 'localhost',
+      timestamp: expect.any(Number),
+      userId: undefined
+    }));
   });
 });

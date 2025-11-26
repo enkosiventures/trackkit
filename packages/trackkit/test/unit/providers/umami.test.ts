@@ -1,15 +1,24 @@
 /// <reference types="vitest" />
-import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, afterEach, beforeEach } from 'vitest';
 import { server } from '../../setup/msw';
 import { http, HttpResponse } from 'msw';
 import type { PageContext } from '../../../src';
-import { TEST_SITE_ID } from '../../setup/providers';
+import { TEST_SITE_ID } from '../../helpers/providers';
+import { resetTests } from '../../helpers/core';
 
 // @vitest-environment jsdom
 
 beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
+
+  beforeEach(() => {
+    resetTests(vi);
+  });
+
+  afterEach(() => {
+    resetTests(vi);
+    server.resetHandlers()
+  });
 
 describe('Umami provider / client', () => {
   it('pageview maps ctx → payload (no window reads)', async () => {
@@ -18,7 +27,7 @@ describe('Umami provider / client', () => {
     );
 
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
+    const instance = umami.create({ provider: { provider: 'umami', website: TEST_SITE_ID.umami }});
     const ctx: PageContext = {
       url: '/a',
       title: 'T',
@@ -62,7 +71,7 @@ describe('Umami provider / client', () => {
     );
 
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
+    const instance = umami.create({ provider: { provider: 'umami', website: TEST_SITE_ID.umami } });
 
     // Provide ctx with an explicit url + viewport to avoid 0x0 defaults
     const ctx: PageContext = {
@@ -95,9 +104,11 @@ describe('Umami provider / client', () => {
 
     const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({
-      provider: 'umami',
-      website: TEST_SITE_ID.umami,
-      host: 'https://analytics.example.com',
+      provider: { 
+        provider: 'umami',
+        website: TEST_SITE_ID.umami,
+        host: 'https://analytics.example.com',
+      }
     });
 
     await instance.track('test', {}, { url: '/', viewportSize: { width: 1, height: 1 } });
@@ -111,7 +122,7 @@ describe('Umami provider / client', () => {
     );
 
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
+    const instance = umami.create({ provider: { provider: 'umami', website: TEST_SITE_ID.umami } });
 
     await expect(
       instance.track('oops', {}, { url: '/', viewportSize: { width: 1, height: 1 } })
@@ -126,7 +137,10 @@ describe('Umami provider / client', () => {
     );
 
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami }, /* cache */ true);
+    const instance = umami.create({
+      provider: { provider: 'umami', website: TEST_SITE_ID.umami },
+      factory: { bustCache: true },
+    });
 
     const sendBeaconSpy = vi.fn(() => true);
     Object.defineProperty(global.navigator, 'sendBeacon', {
@@ -152,7 +166,10 @@ describe('Umami provider / client', () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
 
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami }, /* cache */ true);
+    const instance = umami.create({
+      provider: { provider: 'umami', website: TEST_SITE_ID.umami },
+      factory: { bustCache: true },
+    });
     await instance.track('test', { value: 42 }, { url: '/', viewportSize: { width: 1, height: 1 } });
 
     const [, init] = fetchSpy.mock.calls[0];
@@ -163,7 +180,7 @@ describe('Umami provider / client', () => {
 
   it('identify is a safe no-op', async () => {
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
+    const instance = umami.create({ provider: { provider: 'umami', website: TEST_SITE_ID.umami }});
     const ctx: PageContext = {
         url: '/a',
         title: 'T',
@@ -178,7 +195,7 @@ describe('Umami provider / client', () => {
 
   it('destroy() is idempotent', async () => {
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: 'umami', website: TEST_SITE_ID.umami });
+    const instance = umami.create({ provider: { provider: 'umami', website: TEST_SITE_ID.umami }});
     expect(() => instance.destroy()).not.toThrow();
     expect(() => instance.destroy()).not.toThrow();
   });

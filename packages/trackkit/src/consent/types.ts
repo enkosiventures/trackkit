@@ -15,11 +15,6 @@ export interface ConsentStoredState {
   status: ConsentStatus;
   
   /**
-   * When consent was last updated
-   */
-  timestamp: number;
-  
-  /**
    * Optional consent version for policy updates
    */
   version?: string;
@@ -31,25 +26,22 @@ export interface ConsentStoredState {
 }
 
 /**
- * Consent options for configuring consent manager behavior
+ * Consent options for configuring consent manager behavior.
  */
 export interface ConsentOptions {
-  /**
-   * Initial consent status; defaults to 'pending'
-   * @default 'pending'
+  /** 
+   * Initial consent status.
    */
   initialStatus?: ConsentStatus;
 
   /**
    * If true we start as 'pending' and *require* an explicit call to grant.
    * If false we auto‑grant on first track (implicit consent).
-   * @default true
    */
   requireExplicit?: boolean;
 
   /**
    * Determine if we allow essential events when consent is denied
-   * @default false
    */
   allowEssentialOnDenied?: boolean;
   
@@ -60,23 +52,17 @@ export interface ConsentOptions {
 
   /**
    * Disable all persistence (always start fresh).
-   * @default false
    */
   disablePersistence?: boolean;
 
   /**
    * Custom storage key for consent state
-   * @default '__trackkit_consent__'
    */
   storageKey?: string;
 }
 
-/**
- * Snapshot of current consent state including queued events
- */
-export interface ConsentSnapshot extends ConsentStoredState {
-  queuedEvents: number;
-  droppedEventsDenied: number;
+export interface ResolvedConsentOptions extends Required<Omit<ConsentOptions,'policyVersion'>> {
+  policyVersion?: string;
 }
 
 export type Listener = (status: ConsentStatus, prev: ConsentStatus) => void;

@@ -1,76 +1,88 @@
 # Google Analytics 4 (GA4) Provider
 
-The GA4 provider integrates with Google Analytics 4. **At Stage 6 it lazy-loads the official `gtag.js` script** (async), and manages queuing, consent, and SPA pageviews for you.
+The GA4 adapter in Trackkit provides a lightweight client for GA4 without requiring the `gtag.js` snippet. It handles queueing, consent gating, SPA navigation, and stable event dispatch.
 
-## Features (Stage 6)
+Trackkit **does not** load GA4’s external script unless explicitly configured through the provider’s advanced options.
 
-- ✅ Automatic SPA pageviews (`autoTrack: true`)
-- ✅ Custom events via `track()`
-- ✅ Optional `identify(userId)` → sets `user_id`
-- ✅ Consent-aware queueing and flush
-- ✅ Domain allowlist & path exclude
-- ⚠️ Loads `https://www.googletagmanager.com/gtag/js?id=...`
-- ⚠️ GA4 may set cookies (consent required in many regions)
+Trackkit’s GA4 adapter is Measurement-Protocol–only. No GA script is loaded unless you explicitly load it yourself.
 
----
+## Features
+
+- Automatic SPA pageviews (`autoTrack: true` by default)
+- Custom events via `analytics.track()`
+- Optional identification (`analytics.identify()`)
+- Consent-aware queueing and replay
+- Domain allowlist (`domains`) and path exclusion (`exclude`)
+- Debug logging for lifecycle and send decisions
+
 
 ## Configuration
 
 ### Minimal
 
 ```ts
-import { init } from 'trackkit';
+import { createAnalytics } from 'trackkit';
 
-init({
-  provider: 'ga',
-  site: 'G-XXXXXXXXXX', // Measurement ID
+const analytics = createAnalytics({
+  provider: 'ga4',
+  site: 'G-XXXXXXXXXX', 
 });
 ```
 
 ### Common options
 
 ```ts
-init({
-  provider: 'ga',
+const analytics = createAnalytics({
+  provider: 'ga4',
   site: 'G-XXXXXXXXXX',
-  autoTrack: true,                       // History API + popstate
-  doNotTrack: true,                      // default respected unless set to false
-  includeHash: false,                    // ignore #fragment by default
-  domains: ['example.com'],              // exact matches (no wildcards)
-  exclude: ['/admin', '/preview'],       // substring/path checks (strings only)
-  trackLocalhost: true,                  // enable for local dev if desired
-  defaultProps: { appVersion: '2.3.1' }, // merged into event params
+  // measurementId: 'G-XXXXXXXXXX',      // Provider-specific alternative to 'site'
+  autoTrack: true,                       // SPA pageviews
+  doNotTrack: true,                      // respect DNT
+  includeHash: false,                    // omit #fragment
+  domains: ['example.com'],              // optional allowlist
+  exclude: ['/admin', '/preview'],       // skip certain paths
+  trackLocalhost: true,                  // enabled by default
+  defaultProps: { appVersion: '2.3.1' }, // merged into GA4 params
   debug: false,
 });
 ```
 
-**Environment variables (Vite example)**
+> **Identifier:**
+> You may provide either the GA4-specific `measurementId` field or the generic `site` field.
 
-```env
-VITE_TRACKKIT_PROVIDER=ga
-VITE_TRACKKIT_SITE=G-XXXXXXXXXX
-VITE_TRACKKIT_DEBUG=false
+### Environment Variables
+
+```sh
+TRACKKIT_PROVIDER=ga4
+TRACKKIT_SITE=G-XXXXXXXXXX
+TRACKKIT_DEBUG=false
 ```
 
-> If you plan to use Measurement Protocol (server-side) later, Trackkit will add options in Stage 7+. At Stage 6, GA4 uses `gtag.js`.
+Or via Vite-style:
 
----
+```sh
+VITE_TRACKKIT_PROVIDER=ga4
+VITE_TRACKKIT_SITE=G-XXXXXXXXXX
+```
 
-## API usage
+
+## API Usage
+
+> Examples below use the **singleton helpers** (`track`, `pageview`, `identify`,…) for compactness.
+> To use instances instead, call the same methods on your `analytics` object.
 
 ### Pageviews
-
-* **Automatic:** `autoTrack: true`.
-* **Manual:** call `pageview()` *after* you change the URL.
 
 ```ts
 import { pageview } from 'trackkit';
 
 history.pushState({}, '', '/thank-you');
-pageview(); // uses current URL
+pageview(); // current URL
 ```
 
-### Custom events
+Automatic when `autoTrack: true`.
+
+### Custom Events
 
 ```ts
 import { track } from 'trackkit';
@@ -78,18 +90,18 @@ import { track } from 'trackkit';
 track('purchase', {
   value: 29.99,
   currency: 'USD',
-  items: [{ item_id: 'SKU-123', item_name: 'T-Shirt', price: 29.99, quantity: 1 }],
+  items: [
+    { item_id: 'SKU123', item_name: 'T-Shirt', price: 29.99, quantity: 1 }
+  ]
 });
 ```
 
-> Trackkit forwards props as GA4 event parameters where possible.
-
-### Identify (optional)
+### Identify
 
 ```ts
 import { identify } from 'trackkit';
 
-identify('user-123'); // sets GA4 user_id for subsequent hits
+identify('user-123'); // sets GA4 user_id
 ```
 
 ### Consent
@@ -97,40 +109,35 @@ identify('user-123'); // sets GA4 user_id for subsequent hits
 ```ts
 import { grantConsent, denyConsent } from 'trackkit';
 
-denyConsent();  // optional explicit start
-grantConsent(); // flushes queued events
+denyConsent();  // optional initial state
+grantConsent(); // queued events flush
 ```
 
-> In the EU you typically must collect consent **before** GA4 sends data.
 
----
+## CSP
 
-## CSP & network
-
-Since GA4 loads `gtag.js`, you need CSP allowances:
+Because Trackkit sends GA4 hits directly (Measurement Protocol), you typically need only:
 
 ```
-script-src https://www.googletagmanager.com;
 connect-src https://www.google-analytics.com https://region1.google-analytics.com;
 ```
 
-(Exact domains vary; consult Google’s latest guidance.)
+No script tag required unless using an advanced GA4 configuration.
 
----
 
-## Notes & limitations
+## Notes & Limitations
 
-* **External script:** GA4 requires `gtag.js` (Trackkit injects it async).
-* **Cookies:** GA4 may set cookies; ensure compliant consent flows.
-* **Exact-match domains & string-only `exclude`** per Stage 6.
+* `identify()` sets only the GA4 `user_id`; it does not touch GA cookies.
+* GA4 may still set cookies if your property is configured to do so. These cookies are set by GA4 server infrastructure based on property settings, not by Trackkit.
+* Domain/exclusion filters are string-based (no wildcards).
+* For server-side Measurement Protocol, set `apiSecret` in provider options.
 
----
 
 ## Debugging
 
 ```ts
-init({
-  provider: 'ga',
+const analytics = createAnalytics({
+  provider: 'ga4',
   site: 'G-XXXXXXXXXX',
   debug: true,
 });
@@ -138,15 +145,21 @@ init({
 
 You’ll see:
 
-* Provider readiness & `gtag` load state
-* Queueing vs sending
-* Pageview de-duplication
+* Provider readiness
+* Queue adds/replays
+* Navigation triggers
+* URL normalization decisions
 
----
 
-## Best practices
+## Best Practices
 
-1. Ensure a compliant consent flow (queue until granted).
-2. Use `identify()` only if you truly need user-level analysis.
-3. Keep props consistent with GA4 recommended parameters.
-4. Consider a server-side proxy/MP in Stage 7+ if you need stricter CSP.
+1. Ensure a compliant consent flow.
+2. Use `defaultProps` for application metadata.
+3. Keep GA4 event names aligned with recommended GA4 semantics.
+4. Consider using a proxy if you want full first-party deployment.
+
+
+## Related Docs
+
+- [Global configuration keys](/api/configuration)
+- [GA4 CSP guidance](/guides/csp#google-analytics-4-loads-gtag-js)

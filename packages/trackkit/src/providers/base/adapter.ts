@@ -1,5 +1,7 @@
 import type { PageContext, ProviderInstance, ProviderType } from '../../types';
-import { send, type TransportMethod } from './transport';
+import type { FactoryOptions } from '../types';
+import type { Sender} from './transport';
+import { makeDirectSender, type TransportMethod } from './transport';
 
 
 /**
@@ -28,8 +30,8 @@ export type ProviderSpec<ProviderOptions> = {
 
   /** Map from our PageContext to provider’s payload for pageview/event. */
   payload: {
-    pageview: (pageContext: PageContext, options: ProviderOptions) => Record<string, unknown>;
-    event:    (name: string, props: Record<string, unknown>, pageContext: PageContext, options: ProviderOptions) => Record<string, unknown>;
+    pageview: (pageContext: PageContext, options: ProviderOptions) => unknown;
+    event:    (name: string, props: Record<string, unknown>, pageContext: PageContext, options: ProviderOptions) => unknown;
   };
 
   /** Optional success predicate; default is Response.ok */
@@ -52,17 +54,18 @@ async function defaultParseError(res: Response): Promise<Error> {
 export function createConfigProvider<ProviderOptions>(spec: ProviderSpec<ProviderOptions>) {
   return {
     /** Factory to keep parity with your existing “provider factories” */
-    create(options: ProviderOptions, cache?: boolean): ProviderInstance {
-      const providerOptions = spec.defaults(options);
+    create(options: { provider: ProviderOptions; factory?: FactoryOptions }): ProviderInstance {
+      const providerOptions = spec.defaults(options.provider);
       const headers = spec.headers?.(providerOptions);
       const ok = spec.ok ?? defaultOk;
       const parseError = spec.parseError ?? defaultParseError;
+      const resolvedSender: Sender = options.factory?.sender ?? makeDirectSender();
 
       const sendAndCheck = async (method: TransportMethod, url: string, body: unknown) => {
-        const res = await send({
+        const res = await resolvedSender({
           method, url, headers, body,
           maxBeaconBytes: spec.limits?.maxBeaconBytes,
-          cache,
+          bustCache: options.factory?.bustCache,
         });
         if (!ok(res)) throw await parseError(res);
       };
@@ -76,11 +79,7 @@ export function createConfigProvider<ProviderOptions>(spec: ProviderSpec<Provide
           return sendAndCheck(method, endpoint, body);
         },
 
-        track(
-          name: string,
-          props: Record<string, unknown>,
-          pageContext?: PageContext
-        ) {
+        track(name: string, props: Record<string, unknown>, pageContext?: PageContext) {
           // Use pageContext.url if provided; otherwise derive minimal current URL.
           const pageContextSafe: PageContext = pageContext ?? {
             url:

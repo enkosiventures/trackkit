@@ -10,6 +10,8 @@ export type ErrorCode =
   | 'INVALID_ENVIRONMENT'
   | 'CONSENT_REQUIRED'
   | 'POLICY_BLOCKED'
+  | 'READY_TIMEOUT'
+  | 'TIMEOUT'
   | 'UNKNOWN';
 
 export class AnalyticsError extends Error {

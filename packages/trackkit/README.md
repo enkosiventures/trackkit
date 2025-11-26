@@ -1,172 +1,53 @@
 # Trackkit Core SDK
 
-> Tiny, privacy-first analytics with built-in adapters (Umami, Plausible, GA4), consent-aware queuing, SSR hydration, and zero remote scripts.
+> Privacy-first analytics facade for modern web apps.
 
-## Install
+Trackkit provides a single, typed API for sending analytics events to:
+- **Umami**
+- **Plausible**
+- **GA4 (Measurement Protocol only — no gtag.js)**
+- **Custom providers**
 
-```bash
-npm i trackkit
-# or: pnpm add trackkit  /  yarn add trackkit
-```
+It requires **no remote scripts**, supports **SSR hydration**, **consent gating**, **queue-first delivery**, and **CSP-friendly transports**.
+
+**[View the full documentation site here.](https://enkosiventures.github.io/trackkit/)**
 
 ## At a glance
 
-* **Adapters built-in**: `umami`, `plausible`, `ga` (GA4), plus `noop`.
+* **Adapters built-in**: `umami`, `plausible`, `ga4`, plus `noop`.
 * **No script tags**: everything ships inside your bundle; CSP/MV3 friendly.
 * **Consent-aware**: queue or block events until you say go.
 * **Queue + overflow**: in-memory buffer with overflow signaling.
 * **SSR**: collect on the server, hydrate & replay on the client.
 * **Typed DX**: optional event typing and provider types.
 
-## Quick start
+## Install
+
+```bash
+npm install trackkit
+# or
+pnpm add trackkit
+# or
+yarn add trackkit
+```
+
+## Usage
+
+Trackkit exposes a small facade API with both instance and singleton usage styles.
 
 ```ts
-import { init, pageview, track } from 'trackkit';
+import { createAnalytics } from 'trackkit';
 
-init({
-  provider: 'umami',                      // 'umami' | 'plausible' | 'ga' | 'noop'
-  site: '94db1cb1-74f4-4a40-ad6c-962362670409',
-  host: 'https://analytics.example.com',  // required if self-hosting/custom domain
-  debug: true,
+const analytics = createAnalytics({
+  provider: 'umami',
+  site: 'your-site-id',
 });
 
-pageview(); // infer URL
-track('signup_submitted', { plan: 'starter' });
+analytics.pageview();
+analytics.track('signup_submitted', { plan: 'starter' });
 ```
 
-## Configuration (API)
-
-```ts
-type ConsentStatus = 'pending' | 'granted' | 'denied';
-
-interface TrackkitOptions {
-  /** Analytics provider (default: 'noop') */
-  provider?: 'umami' | 'plausible' | 'ga' | 'noop';
-  /** Provider-specific site / measurement ID */
-  site?: string;
-  /** Provider host (self-host / custom domain) */
-  host?: string;
-
-  // Runtime behavior
-  debug?: boolean;           // log events & state transitions (default: false)
-  queueSize?: number;        // max buffered events (default: 50)
-  autoTrack?: boolean;       // automatic pageview tracking (default: false)
-  doNotTrack?: boolean;      // respect DNT header (default: false)
-  trackLocalhost?: boolean;  // include localhost events (default: true)
-  includeHash?: boolean;     // SPA hash-based routing (default: false)
-  allowWhenHidden?: boolean; // allow send on hidden tabs (default: false)
-  transport?: 'auto' | 'beacon' | 'fetch' | 'xhr';
-
-  // Domain policy
-  domains?: string[];        // whitelist of allowed hostnames
-
-  // Consent
-  consent?: {
-    initialStatus?: ConsentStatus;    // default: 'pending'
-    requireExplicit?: boolean;        // default: true
-    disablePersistence?: boolean;     // default: false
-    policyVersion?: string;           // re-prompt if version changes
-    allowEssentialOnDenied?: boolean; // default: false
-  };
-
-  // Errors
-  onError?: (err: unknown) => void;
-}
-```
-
-**Environment configuration** (read at build time):
-
-| Env var               | Notes                  |
-| --------------------- | ---------------------- |
-| `TRACKKIT_PROVIDER`   | default provider       |
-| `TRACKKIT_SITE`       | site / measurement ID  |
-| `TRACKKIT_HOST`       | analytics host         |
-| `TRACKKIT_QUEUE_SIZE` | queue max (default 50) |
-| `TRACKKIT_DEBUG`      | `true`/`false`         |
-
-Bundlers: `VITE_*` / `REACT_APP_*` / `NEXT_PUBLIC_*` prefixes supported.
-
-## Public API
-
-```ts
-import {
-  init, destroy,
-  track, pageview, identify,
-  setConsent, grantConsent, denyConsent, resetConsent,
-  waitForReady, hasQueuedEvents, flushIfReady,
-  getConsent, getDiagnostics,
-} from 'trackkit';
-```
-
-* **`init(opts)`** → creates/returns a facade instance; lazy-loads provider; sets up queues & consent.
-* **`track(name, props?, url?)`** → custom event.
-* **`pageview(url?)`** → page view; inferred URL if omitted.
-* **`identify(userId | null)`** → identify a user (no-op for providers that don’t support it).
-* **Consent**: `setConsent('granted'|'denied')`, or helpers `grantConsent()` / `denyConsent()` / `resetConsent()`.
-* **Lifecycle**: `destroy()` tears down listeners and clears the in-memory queue.
-* **Queue**: `hasQueuedEvents()`, `flushIfReady()` (flushes when provider ready & consent allows).
-* **Diagnostics**: `getConsent()`, `getDiagnostics()` (queue size, provider state, etc.).
-* **Ready**: `waitForReady()` resolves when the provider is ready.
-
-## Consent behaviors
-
-* **pending**: events (non-essential) are queued.
-* **granted**: queue flushes; new events send immediately.
-* **denied**: non-essential events are dropped; if `allowEssentialOnDenied` is true, `identify` and similar essential calls may still pass (depends on provider policy).
-
-```ts
-init({
-  provider: 'ga',
-  consent: { initialStatus: 'denied', allowEssentialOnDenied: false },
-});
-```
-
-## SSR usage
-
-**Server** (collect during render):
-
-```ts
-import { track } from 'trackkit';
-track('server_render', { path: req.path });
-```
-
-**Template injection**:
-
-```ts
-import { serializeSSRQueue } from 'trackkit/ssr';
-head += serializeSSRQueue(); // adds <script>window.__TRACKKIT_SSR_QUEUE__=...</script>
-```
-
-**Client**:
-
-```ts
-import { init } from 'trackkit';
-init({ provider: 'plausible', site: 'example.com' });
-// SSR events are hydrated & replayed automatically when consent permits
-```
-
-## Provider specifics (built-in)
-
-* **Umami**: cookieless; no user identification; self-host friendly (`host` required when not using cloud).
-* **Plausible**: cookieless; goals & revenue support; 5-minute dashboard delay typical.
-* **GA4**: consent-sensitive; supports identify via `user_id`; optional `apiSecret` for Measurement Protocol.
-
-See `docs/providers/*.md` for details & option maps.
-
-## Error handling
-
-You’ll receive structured errors (e.g. queue overflow, init failures):
-
-```ts
-init({
-  onError: (err: any) => {
-    // err.code could be 'QUEUE_OVERFLOW' | 'INIT_FAILED' | ...
-    // send to your logger/Sentry
-  }
-});
-```
-
-Queue overflow is signaled when buffered events exceed `queueSize` (default 50). Oldest events are dropped first.
+For full documentation, see the **Quickstart**, detailed guides, API reference, and example applications on the **[Trackkit docs site](https://enkosiventures.github.io/trackkit)**.
 
 ## TypeScript niceties
 
@@ -184,23 +65,41 @@ type Events = {
 
 (Trackkit’s core API is fully typed; strict event typing can be layered via your app types or helper wrappers.)
 
-## CSP tips / MV3
+## SSR
 
-Add only the endpoints you actually use to `connect-src`. No `script-src` relaxations are required because Trackkit ships in your bundle.
+Trackkit ships a dedicated SSR entry:
 
-```jsonc
-"connect-src": ["'self'","https://cloud.umami.is","https://plausible.io","https://www.google-analytics.com"]
+```ts
+import { ssrTrack } from 'trackkit/ssr';
+
+export function render() {
+  ssrTrack('pageview', { url: '/home' });
+}
 ```
 
-## Examples
+SSR events are serialised into the page and hydrated into the client runtime
+queue exactly once.
 
-See `/examples` for:
+See the **[full SSR documentation](https://enkosiventures.github.io/trackkit/guides/ssr)** for complete guidance.
 
-* Vite SPA demo
-* Chrome MV3 extension demo
+## Built-in Provider specifics
+
+* **Umami**: cookieless; self-host friendly (`host` required when not using cloud). `identify()` is implemented as a no-op for compatibility with the facade.
+* **Plausible**: cookieless; goals & revenue support; 5-minute dashboard delay typical.
+* **GA4**: consent-sensitive; supports identify via `user_id`; optional `apiSecret` for Measurement Protocol.
+
+All providers follow Trackkit’s gating rules (**PolicyGate → Consent → Provider** readiness). Provider-specific behaviour applies after that.
+
+See the **[Provider Guides](https://enkosiventures.github.io/trackkit/providers/umami)** for complete details.
+
+## Migrating from existing tracking snippets
+
+Trackkit provides comprehensive migration guides for:
+
+* **[GA4 (from gtag.js)](https://enkosiventures.github.io/trackkit/migration/from-ga4)**
+* **[Plausible script](https://enkosiventures.github.io/trackkit/migration/from-plausible)**
+* **[Umami script](https://enkosiventures.github.io/trackkit/migration/from-umami)**
 
 ## License
 
 MIT © Enkosi Ventures
-
----

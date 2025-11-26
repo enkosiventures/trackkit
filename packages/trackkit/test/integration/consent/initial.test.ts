@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createFacade } from '../../helpers/providers';
+import { createMockFacade } from '../../helpers/providers';
 import { grantConsent, destroy } from '../../../src';
 
 // Small tick helper to allow async callbacks/flushes to run
@@ -23,7 +23,7 @@ describe('Consent: initial state behavior', () => {
   });
 
   it("initial: 'denied' drops non-essential events (no queue), pageview & track blocked", async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       provider: 'noop',
       autoTrack: false,
       domains: ['localhost'],
@@ -47,16 +47,17 @@ describe('Consent: initial state behavior', () => {
 
     await tick();
 
-    expect(provider.pageviewCalls.length).toBe(0);
-    expect(provider.eventCalls.length).toBe(0);
-    expect(provider.identifyCalls.length).toBe(0);
+    const { eventCalls, pageviewCalls, identifyCalls } = provider.diagnostics;
+    expect(pageviewCalls.length).toBe(0);
+    expect(eventCalls.length).toBe(0);
+    expect(identifyCalls.length).toBe(0);
 
     // No queueing under denied
-    expect(facade.getQueue().size).toBe(0);
+    expect(facade.getQueueSize()).toBe(0);
   });
 
   it("initial: 'denied' allows essential only when allowEssentialOnDenied = true", async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       provider: 'noop',
       autoTrack: false,
       domains: ['localhost'],
@@ -80,16 +81,17 @@ describe('Consent: initial state behavior', () => {
 
     await tick();
 
-    expect(provider.identifyCalls.length).toBe(1);
-    expect(provider.identifyCalls[0]).toBe('u-1');
+    const { identifyCalls, pageviewCalls, eventCalls } = provider.diagnostics;
+    expect(identifyCalls.length).toBe(1);
+    expect(identifyCalls[0]).toBe('u-1');
 
-    expect(provider.pageviewCalls.length).toBe(0);
-    expect(provider.eventCalls.length).toBe(0);
-    expect(facade.getQueue().size).toBe(0);
+    expect(pageviewCalls.length).toBe(0);
+    expect(eventCalls.length).toBe(0);
+    expect(facade.getQueueSize()).toBe(0);
   });
 
   it("initial: 'pending' queues & flushes on grant", async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       provider: 'noop',
       autoTrack: false,
       domains: ['localhost'],
@@ -105,19 +107,21 @@ describe('Consent: initial state behavior', () => {
 
     // Queued under pending
     facade.track('queued_event', { x: 1 });
-    expect(facade.getQueue().size).toBe(1);
+    expect(facade.getQueueSize()).toBe(1);
 
     // Grant -> should flush
     grantConsent();
     await tick();
 
-    expect(facade.getQueue().size).toBe(0);
-    expect(provider.eventCalls.length).toBe(1);
-    expect(provider.eventCalls[0]?.name).toBe('queued_event');
+    expect(facade.getQueueSize()).toBe(0);
+
+    const { eventCalls } = provider.diagnostics;
+    expect(eventCalls.length).toBe(1);
+    expect(eventCalls[0]?.name).toBe('queued_event');
   });
 
   it("initial: 'granted' sends immediately", async () => {
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       provider: 'noop',
       autoTrack: false,
       domains: ['localhost'],
@@ -136,16 +140,17 @@ describe('Consent: initial state behavior', () => {
 
     await tick();
 
-    expect(provider.pageviewCalls.length).toBe(1);
-    expect(provider.eventCalls.length).toBe(1);
-    expect(provider.eventCalls[0]?.name).toBe('immediate');
-    expect(facade.getQueue().size).toBe(0);
+    const { eventCalls, pageviewCalls } = provider.diagnostics;
+    expect(pageviewCalls.length).toBe(1);
+    expect(eventCalls.length).toBe(1);
+    expect(eventCalls[0]?.name).toBe('immediate');
+    expect(facade.getQueueSize()).toBe(0);
   });
 
   it('stored consent overrides initial (stored granted persists)', async () => {
     // First run: persist granted
     {
-      const { facade } = await createFacade({
+      const { facade } = await createMockFacade({
         provider: 'noop',
         autoTrack: false,
         domains: ['localhost'],
@@ -164,7 +169,7 @@ describe('Consent: initial state behavior', () => {
     }
 
     // Second run: initial denied but stored granted should win
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       provider: 'noop',
       autoTrack: false,
       domains: ['localhost'],
@@ -181,9 +186,10 @@ describe('Consent: initial state behavior', () => {
 
     await tick();
 
-    expect(provider.eventCalls.length).toBe(1);
-    expect(provider.eventCalls[0]?.name).toBe('should_send_immediately');
-    expect(facade.getQueue().size).toBe(0);
+    const { eventCalls } = provider.diagnostics;
+    expect(eventCalls.length).toBe(1);
+    expect(eventCalls[0]?.name).toBe('should_send_immediately');
+    expect(facade.getQueueSize()).toBe(0);
   });
 
   it('policy version reset respects initial', async () => {
@@ -195,7 +201,7 @@ describe('Consent: initial state behavior', () => {
       );
     } catch {/* no-op */}
 
-    const { facade, provider } = await createFacade({
+    const { facade, provider } = await createMockFacade({
       provider: 'noop',
       autoTrack: false,
       domains: ['localhost'],
@@ -216,8 +222,9 @@ describe('Consent: initial state behavior', () => {
     facade.pageview();
     await tick();
 
-    expect(provider.eventCalls.length).toBe(0);
-    expect(provider.pageviewCalls.length).toBe(0);
-    expect(facade.getQueue().size).toBe(0);
+    const { eventCalls, pageviewCalls } = provider.diagnostics;
+    expect(eventCalls.length).toBe(0);
+    expect(pageviewCalls.length).toBe(0);
+    expect(facade.getQueueSize()).toBe(0);
   });
 });

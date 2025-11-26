@@ -1,0 +1,17 @@
+{
+  "entryPointStrategy": "expand",
+  "entryPoints": ["dist/types/**/*.d.ts"],
+  "out": "docs",
+  "exclude": [
+    "**/__tests__/**",
+    "**/*.test.d.ts",
+    "**/node_modules/**"
+  ],
+  "hideGenerator": true,
+  "cleanOutputDir": true,
+  "categorizeByGroup": false,
+  "sort": ["source-order"],
+  "navigationLinks": {
+    "GitHub": "https://github.com/enkosi/trackkit"
+  }
+}

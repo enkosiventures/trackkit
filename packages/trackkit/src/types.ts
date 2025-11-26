@@ -1,15 +1,30 @@
-import type { ConsentOptions } from './consent/types';
+import type { ConsentCategory, ConsentOptions } from './consent/types';
+import type { ResilienceOptions } from './dispatcher/transports';
+import type { BatchingOptions, ConnectionOptions, PerformanceOptions } from './dispatcher/types';
 import type { AnalyticsError } from './errors';
+import type { GA4Options } from './providers/ga4/types';
+import type { PlausibleOptions } from './providers/plausible/types';
+import type { UmamiOptions } from './providers/umami/types';
 
-/**
- * Event types
- */
-export type EventType = 'track' | 'pageview' | 'identify';
+
+export type AnalyticsMode = 'singleton' | 'factory';
+
 
 /**
  * Event properties - can be any JSON-serializable data
  */
 export type Props = Record<string, unknown>;
+
+/**
+ * Event types
+ */
+// export type ArgsByType = {
+//   track:    [name: string, props?: Props, url?: string];
+//   pageview: [url?: string];
+//   identify: [userId: string | null];
+// };
+// export type EventType = keyof ArgsByType;
+export type EventType = 'track' | 'pageview' | 'identify';
 
 /**
  * Analytics provider types
@@ -79,6 +94,9 @@ export type EventContext = PageContext;
 
 // ---- Facade-only options (always honored, even on noop fallback)
 export type InitOptions = {
+
+  // CORE OPTIONS
+
   /**
    * Analytics provider type
    * @default 'noop'
@@ -98,41 +116,7 @@ export type InitOptions = {
    */
   host?: string;
 
-  /**
-   * Maximum number of events to queue before dropping oldest
-   * @default 50
-   */
-  queueSize?: number;          // default 50
-
-  /**
-   * Number of events to batch together
-   * @default 10
-   */
-  batchSize?: number;          // default 10
-
-  /**
-   * Time in ms before forcing batch send
-   * @default 1000
-   */
-  batchTimeout?: number;       // default 1000
-
-  /**
-   * Enable debug logging to console
-   * @default false
-   */
-  debug?: boolean;
-
-  /**
-   * Transport mechanism for sending events
-   * @default 'beacon'
-   */
-  transport?: 'auto' | 'beacon' | 'fetch' | 'xhr';
-
-  /**
-   * Enable caching for requests
-   * @default true
-   */
-  cache?: boolean;
+  // GENERAL OPTIONS
 
   /**
    * Enable page tracking when the page is hidden
@@ -144,24 +128,42 @@ export type InitOptions = {
    * Automatically track page views
    * @default true
    */
-  autoTrack?: boolean;         // default true
+  autoTrack?: boolean;
 
   /**
-   * Honor Do Not Track browser setting
-   * @default true
+   * Number of events to batch together
+   * @default 10
    */
-  doNotTrack?: boolean;        // default true
+  batchSize?: number;
 
   /**
-   * Track localhost events (Plausible)
+   * Time in ms before forcing batch send
+   * @default 1000
+   */
+  batchTimeout?: number;
+
+  /**
+   * Enable cache-busting (ie disable caching) for requests
    * @default false
    */
-  trackLocalhost?: boolean;    // default false
+  bustCache?: boolean;
+
+  /**
+   * Enable debug logging to console
+   * @default false
+   */
+  debug?: boolean;
 
   /**
    * Whitelist of domains to track
    */
   domains?: string[];
+
+  /**
+   * Honor Do Not Track browser setting
+   * @default true
+   */
+  doNotTrack?: boolean;
 
   /**
    * Exclude paths from tracking (Plausible)
@@ -174,37 +176,42 @@ export type InitOptions = {
   includeHash?: boolean;
 
   /**
+   * Maximum number of events to queue before dropping oldest
+   * @default 50
+   */
+  queueSize?: number;
+
+  /**
+   * Track localhost events (Plausible)
+   * @default false
+   */
+  trackLocalhost?: boolean;
+
+  /**
+   * Transport mechanism for sending events
+   * @default 'beacon'
+   */
+  transport?: 'auto' | 'beacon' | 'fetch' | 'xhr';
+
+  // OPTION COLLECTIONS
+
+  batching?: BatchingOptions;
+  connection?: ConnectionOptions;
+
+  /**
    * Custom consent options for GDPR compliance
    */
   consent?: ConsentOptions;
 
-  /**
-   * Default properties for all events (Plausible)
-   */
-  defaultProps?: Record<string, string>;
-
-  /**
-   * Custom error handler for analytics errors
-   * @default console.error
-   */
-  onError?: (error: AnalyticsError) => void;
-
-  /**
-   * Provide a custom way to resolve the current URL. Default derives from window.location.
-   */
-  urlResolver?: () => string;
-
-  /**
-   * Transform the resolved URL (e.g., strip PII tokens) before dedupe/exclusions.
-   */
-  urlTransform?: (url: string) => string;
-
   navigationSource?: NavigationSource;
+  performance?: PerformanceOptions;
+  resilience?: ResilienceOptions;
 
+  // PROVIDER-SPECIFIC OPTIONS
 
   // Umami-specific options
   /**
-   * Umami website ID
+   * Umami website ID (alternative to `site` alias)
    * @example '9e1e6d6e-7c0e-4b0e-8f0a-5c5b5b5b5b5b'
    */
   website?: string;
@@ -212,7 +219,12 @@ export type InitOptions = {
 
   // Plausible-specific options
   /**
-   * Plausible domain to track
+   * Default properties for all events (Plausible)
+   */
+  defaultProps?: Record<string, string>;
+
+  /**
+   * Plausible domain to track (alternative to `site` alias)
    * @example 'example.com'
    */
   domain?: string;
@@ -224,12 +236,6 @@ export type InitOptions = {
 
 
   // GA4-specific options
-  /**
-   * Google Analytics 4 measurement ID
-   * @example 'G-XXXXXXXXXX'
-   */
-  measurementId?: string;
-
   /**
    * Custom API secret for server-side tracking
    * Required for providers that support server-side events
@@ -261,6 +267,30 @@ export type InitOptions = {
    * @default false
    */
   debugMode?: boolean;
+
+  /**
+   * Google Analytics 4 measurement ID (alternative to `site` alias)
+   * @example 'G-XXXXXXXXXX'
+   */
+  measurementId?: string;
+
+  // FUNCTION OPTIONS
+
+  /**
+   * Custom error handler for analytics errors
+   * @default console.error
+   */
+  onError?: (error: AnalyticsError) => void;
+
+  /**
+   * Provide a custom way to resolve the current URL. Default derives from window.location.
+   */
+  urlResolver?: () => string;
+
+  /**
+   * Transform the resolved URL (e.g., strip PII tokens) before dedupe/exclusions.
+   */
+  urlTransform?: (url: string) => string;
 }
 
 export interface FacadeOptions {
@@ -271,57 +301,34 @@ export interface FacadeOptions {
   autoTrack: boolean;
   doNotTrack: boolean;
   trackLocalhost: boolean;
-  cache: boolean;
+  bustCache: boolean;
   allowWhenHidden: boolean;
   includeHash: boolean;
   domains?: string[];
   exclude?: string[];
   transport: 'auto' |'beacon' | 'xhr' | 'fetch';
   consent?: ConsentOptions;
+  batching?: BatchingOptions;
+  connection?: ConnectionOptions;
   navigationSource?: NavigationSource;
+  performance?: PerformanceOptions;
+  resilience?: ResilienceOptions;
   onError?: (error: AnalyticsError) => void;
   urlResolver?: () => string;
   urlTransform?: (url: string) => string;
 }
 
 /** Normalized alias: accept `site` at input, but canonicalize below and drop `site`. */
-// export type NoopOptions = ProviderBase;
 export type NoopOptions = {
-  provider: 'noop' 
+  provider: 'noop';
   site?: string;
   host?: string;
-};
-
-export type UmamiOptions = {
-  provider: 'umami';
-  site?: string;
-  website: string;
-  host?: string;
-};
-
-export type PlausibleOptions =  {
-  provider: 'plausible';
-  site?: string;
-  domain: string;
-  host?: string;
-  revenue?: { currency: string; trackingEnabled: boolean };
-};
-
-export type GA4Options = {
-  provider: 'ga4';
-  site?: string;
-  measurementId: string;
-  apiSecret?: string;
-  customDimensions?: Record<string, string>;
-  customMetrics?: Record<string, string>;
-  host?: string;
-  debugEndpoint?: boolean;
-  debugMode?: boolean;
 };
 
 // ---- Final input type
 export type ProviderOptions = NoopOptions | UmamiOptions | PlausibleOptions | GA4Options;
 
+export type ResolvedProviderOptions = ProviderOptions;
 
 // Internal resolved shape
 export interface ResolvedOptions {
@@ -340,7 +347,7 @@ export interface AnalyticsInstance {
    * @param props - Optional event properties
    * @param category - Optional event category for grouping (defaults to 'analytics')
    */
-  track(name: string, props?: Props, category?: string): void;
+  track(name: string, props?: Props, category?: ConsentCategory): void;
 
   /**
    * Track a page view
@@ -367,12 +374,12 @@ export interface ProviderInstance {
    * @param props - List of event properties (may be empty)
    * @param pageContext - Page context for the event
    */
-  track(name: string, props: Props, pageContext: PageContext): void;
+  track(name: string, props: Props, pageContext: PageContext): Promise<void>;
   /**
    * Track a page view
    * @param pageContext - Page context for the page view
    */
-  pageview(pageContext: PageContext): void;
+  pageview(pageContext: PageContext): Promise<void>;
   /**
    * Identify the current user
    * @param userId - User identifier or null to clear

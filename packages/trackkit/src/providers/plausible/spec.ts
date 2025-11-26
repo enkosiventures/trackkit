@@ -1,5 +1,6 @@
-import type { PageContext, PlausibleOptions, ProviderOptions } from '../../types';
+import type { PageContext } from '../../types';
 import { createConfigProvider, type ProviderSpec } from '../base/adapter';
+import type { PlausibleEventPayload, PlausibleOptions } from './types';
 
 /**
  * Plausible spec.
@@ -25,15 +26,14 @@ const plausibleSpec: ProviderSpec<PlausibleOptions> = {
 
   version: '1.0.0',
 
-  defaults: (options: ProviderOptions) => {
-    const plausibleOptions = options as PlausibleOptions;
-    const domain = plausibleOptions.domain?.trim();
+  defaults: (options: PlausibleOptions) => {
+    const domain = options.domain?.trim();
     if (!domain) throw new Error('[plausible] "domain" is required');
     return {
       provider: 'plausible',
       domain,
-      host: normalizeHost(plausibleOptions.host),
-      ...(plausibleOptions.revenue ? { revenue: plausibleOptions.revenue } : {}),
+      host: normalizeHost(options.host),
+      ...(options.revenue ? { revenue: options.revenue } : {}),
     };
   },
 
@@ -47,25 +47,30 @@ const plausibleSpec: ProviderSpec<PlausibleOptions> = {
   limits: { maxBeaconBytes: 64_000 },
 
   payload: {
-    pageview: (pageContext: PageContext, options: PlausibleOptions) => {
-      const body: Record<string, unknown> = {
+    pageview: (pageContext: PageContext, options: PlausibleOptions): PlausibleEventPayload => {
+      const body: PlausibleEventPayload = {
         name: 'pageview',
         url: pageContext.url,
         domain: options.domain,
+        ...(pageContext.referrer ? { referrer: pageContext.referrer } : {}),
+        ...(pageContext.title ? { props: { page_title: pageContext.title } } : {}),
       };
-      if (pageContext.referrer) body.referrer = pageContext.referrer;
-      if (pageContext.title) body.page_title = pageContext.title;
       return body;
     },
 
-    event: (name: string, props: Record<string, unknown>, pageContext: PageContext, options: PlausibleOptions) => {
-      const body: Record<string, unknown> = {
+    event: (
+      name: string,
+      props: Record<string, unknown>,
+      pageContext: PageContext,
+      options: PlausibleOptions
+    ): PlausibleEventPayload => {
+      const body: PlausibleEventPayload = {
         name,
         url: pageContext.url,
         domain: options.domain,
+        ...(pageContext.referrer ? { referrer: pageContext.referrer } : {}),
       };
-      if (pageContext.referrer) body.referrer = pageContext.referrer;
-      if (props && Object.keys(props).length > 0) body.props = props;
+      if (props && Object.keys(props).length > 0) body.props = props as Record<string, string | number>;
       if (options.revenue?.trackingEnabled && props.revenue && typeof props.revenue === 'object') {
         body.revenue = {
           // @ts-expect-error

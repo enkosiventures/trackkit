@@ -20,12 +20,10 @@ Trackkit supports multiple analytics providers behind one stable API. This guide
 
 > Sizes are Trackkit adapter budgets, not exact byte counts.
 
----
 
 ## Decision guide
 
 ```
-
 Need user-level analytics (user journeys, audiences)?
 ├─ Yes → Google Analytics 4 (GA4)
 └─ No → Is strict privacy & data control a priority?
@@ -35,12 +33,12 @@ Need user-level analytics (user journeys, audiences)?
 └─ No  → Prefer deeper features/Google Ads integration?
 ├─ Yes → GA4
 └─ No  → Plausible (simplest path)
+```
 
-````
-
----
 
 ## Provider details
+
+> **Note:** Umami, Plausible, and GA4 all allow for a `site` field in their initialization options that aliases the providers' corresponding site identifier fields (`website`, `domain`, and `measurementId` respectively).
 
 ### Umami
 
@@ -59,15 +57,14 @@ Need user-level analytics (user journeys, audiences)?
 
 **Trackkit config**
 ```ts
-init({
+createAnalytics({
   provider: 'umami',
-  site: 'your-website-id',             // aka "website"
-  host: 'https://analytics.yourdomain.com', // your Umami host (if not cloud)
+  site: 'your-website-id',  // or website: '...'
+  host: 'https://analytics.yourdomain.com',  // your Umami host (if not cloud)
   // autoTrack, domains, exclude, etc. as needed
 });
-````
+```
 
----
 
 ### Plausible
 
@@ -89,17 +86,16 @@ init({
 **Trackkit config**
 
 ```ts
-init({
+createAnalytics({
   provider: 'plausible',
-  site: 'yourdomain.com',
-  // host: 'https://plausible.yourdomain.com', // if self-hosted
+  site: 'yourdomain.com',  // or domain: '...'
+  // host: 'https://plausible.yourdomain.com',  // if self-hosted
   // If your Plausible setup uses revenue goals, send revenue props on events
 });
 ```
 
 > **Revenue:** If you’ve configured revenue goals in Plausible, send revenue/currency in `track()` props; the adapter will forward them appropriately. Exact mapping depends on your Plausible goal setup.
 
----
 
 ### Google Analytics 4 (GA4)
 
@@ -121,29 +117,68 @@ init({
 **Trackkit config**
 
 ```ts
-init({
+createAnalytics({
   provider: 'ga4',
-  measurementId: 'G-XXXXXXXXXX', // required
-  // apiSecret: 'your-measurement-protocol-secret', // optional (advanced)
+  measurementId: 'G-XXXXXXXXXX',  // or measurementId: '...',
+  // apiSecret: 'your-measurement-protocol-secret',  // optional (advanced)
   // autoTrack, defaultProps, etc.
 });
 ```
 
+**Trackkit integrates GA4 via Measurement Protocol (no script tag)**
+If you rely on script-based features (e.g., diagnostics, tag manager), you may choose to load gtag.js manually.
+
 > GA4 usually sets cookies unless you restrict storage via Consent Mode. Ensure you implement consent correctly for your region.
 
----
 
-## “Can I run more than one provider?”
+## Running Multiple Providers
 
-**Stage 6:** Trackkit supports **one active provider per SDK instance**.
-Running two providers simultaneously via the same singleton is not supported.
+You can run multiple providers at once by creating multiple instances and mirroring the events you care about:
 
-**Common workarounds**
+```ts
+import { createAnalytics } from 'trackkit';
+
+// Privacy baseline for all users
+const baseline = createAnalytics({
+  provider: 'plausible',
+  site: 'example.com',
+});
+
+// Marketing provider (created lazily once consent is granted)
+let ga: ReturnType<typeof createAnalytics> | null = null;
+
+export function onMarketingConsent(status: 'pending' | 'granted' | 'denied') {
+  if (status === 'granted' && !ga) {
+    ga = createAnalytics({
+      provider: 'ga4',
+      site: 'G-XXXXXXXXXX',
+    });
+  }
+
+  // optional: drop the GA4 instance (or just leave it dormant)
+  if (status === 'denied') {
+    ga4 = null;
+  }
+}
+
+// Helper that mirrors important events into both providers
+export function trackSignupCompleted(plan: string) {
+  const payload = { plan } as const;
+
+  baseline.track('signup_completed', payload);
+  ga?.track('signup_completed', payload);
+}
+```
+
+> Prefer the singleton helpers? You can mirror in a similar way by calling `init` twice (once per provider) and writing a wrapper `trackSignupCompleted` that calls the global `track` for each config. For anything non-trivial, per-provider instances are easier to reason about.
+
+You can't run more than one provider in a single instance or singleton; instead you compose multiple instances at the app level.
+
+Other patterns:
 
 * **Server-side fan-out:** Send events to your backend and relay to multiple vendors.
-* **App-level composition:** If/when Trackkit exposes multi-instance APIs, you can initialize two facades and call both. (Roadmap item—watch the repo.)
+* **Feature flags / experiments:** Randomize the provider per user in dev/stage to compare behavior.
 
----
 
 ## Migration notes
 
@@ -164,26 +199,33 @@ Running two providers simultaneously via the same singleton is not supported.
 ```ts
 // A/B test providers (dev/stage only)
 const provider = Math.random() > 0.5 ? 'plausible' : 'umami';
-init({ provider, site: 'your-site' });
+createAnalytics({ provider, site: 'your-site' });
 ```
 
----
 
 ## Recommendations by use case
 
-* **E-commerce** → **GA4**
-  Enhanced e-commerce, audiences, Ads integration, attribution
+* **E-commerce** → _**GA4:**_
+  * Enhanced e-commerce
+  * Audiences
+  * Ads integration
+  * Attribution
 
-* **Blogs / Marketing sites** → **Plausible**
-  Clean metrics, privacy-first, managed hosting option
+* **Blogs / Marketing sites** → _**Plausible:**_
+  * Clean metrics
+  * Privacy-first
+  * Managed hosting option
 
-* **SaaS / Internal tools (self-hosted)** → **Umami**
-  Data control, cookieless analytics, simple dashboard
+* **SaaS / Internal tools (self-hosted)** → _**Umami:**_
+  * Data control
+  * Cookieless analytics
+  * Simple dashboard
 
-* **Landing pages / Campaigns** → **Plausible**
-  Quick setup, lightweight, goal-centric
+* **Landing pages / Campaigns** → _**Plausible:**_
+  * Quick setup
+  * Lightweight
+  * Goal-centric
 
----
 
 ## Performance
 
@@ -195,7 +237,6 @@ Approximate added payload (gzipped) when the provider is initialized:
 
 Trackkit lazy-loads only the selected provider.
 
----
 
 ## Privacy & compliance
 
@@ -205,21 +246,35 @@ Trackkit lazy-loads only the selected provider.
 **CCPA example**
 
 ```ts
+import { createAnalytics } from 'trackkit';
+
+const analytics = createAnalytics({
+  provider: 'your-choice',
+  consent: {
+    // Treat CCPA opt-out as "denied" from the start
+    initialStatus: userIsCalifornia && userOptedOut ? 'denied' : 'pending',
+    requireExplicit: false,
+  },
+});
+```
+
+You can also handle this imperatively:
+
+```ts
+const analytics = createAnalytics({ provider: 'your-choice' });
+
 if (userIsCalifornia && userOptedOut) {
-  // Skip init entirely
-} else {
-  init({ provider: 'your-choice' });
+  analytics.denyConsent();
 }
 ```
 
----
 
 ## Practical configuration examples
 
 ### Domains & excludes
 
 ```ts
-init({
+createAnalytics({
   provider: 'plausible',
   site: 'example.com',
   domains: ['example.com', 'www.example.com'],     // allowlist
@@ -232,7 +287,7 @@ init({
 ### GA4 with consent
 
 ```ts
-init({
+const analytics = createAnalytics({
   provider: 'ga4',
   measurementId: 'G-XXXX',
   // Respect browser DNT by default; override only if your policy allows:
@@ -240,5 +295,5 @@ init({
 });
 
 // later, when user consents:
-grantConsent();
+analytics.grantConsent();
 ```

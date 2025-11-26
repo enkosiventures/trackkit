@@ -5,11 +5,13 @@ For SPAs, Trackkit can automatically send pageviews when the URL changes.
 ## Enable
 
 ```ts
-init({
+createAnalytics({
   autoTrack: true,   // turn on
   includeHash: false // remove #hash from URLs (default)
 });
 ```
+
+> Autotracked pageviews pass through the same consent, queue, and PolicyGate rules as manually triggered events.
 
 ## URL Policy
 
@@ -23,10 +25,10 @@ init({
 If you prefer manual control:
 
 ```ts
-init({ autoTrack: false });
+const analytics = createAnalytics({ autoTrack: false });
 
-pageview();        // current location
-pageview('/home'); // explicit (rare)
+analytics.pageview();        // current location
+analytics.pageview('/home'); // explicit (rare)
 ```
 
 ## Duplicate Guard

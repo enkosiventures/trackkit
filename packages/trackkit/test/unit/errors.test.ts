@@ -3,27 +3,51 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   init,
   track,
-  destroy,
   waitForReady,
   getDiagnostics,
-  getInstance,
 } from '../../src';
-import { AnalyticsError } from '../../src/errors';
+import {
+  AnalyticsError,
+  dispatchError,
+  setUserErrorHandler,
+  normalizeError,
+  isAnalyticsError,
+} from '../../src/errors';
+import { resetTests } from '../helpers/core';
+import * as Log from '../../src/util/logger';
 
 // @vitest-environment jsdom
 
+describe('Error pipeline', () => {
+  it('invokes user error handler with AnalyticsError', () => {
+    let seen: any = null;
+    setUserErrorHandler((e) => { seen = e; });
+    const err = new AnalyticsError('boom', 'INIT_FAILED', 'noop');
+    dispatchError(err);
+    expect(seen).toBeInstanceOf(AnalyticsError);
+    expect(seen.code).toBe('INIT_FAILED');
+
+    // restore default
+    setUserErrorHandler(null);
+  });
+});
+
+
 describe('Error handling (Facade)', () => {
-  let consoleError: any;
+  let logger: any;
 
   beforeEach(() => {
-    consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    destroy();
-    vi.clearAllMocks();
+    logger = vi.spyOn(Log, 'logger', 'get').mockReturnValue({
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    } as any);
+    resetTests(vi);
   });
 
   afterEach(async () => {
-    await destroy();
-    vi.restoreAllMocks();
+    resetTests(vi);
   });
 
   it('falls back to noop for unknown provider (no INVALID_CONFIG emitted)', async () => {
@@ -36,8 +60,8 @@ describe('Error handling (Facade)', () => {
     expect(onError).not.toHaveBeenCalled();
 
     const diag = getDiagnostics();
-    expect(diag.provider).toBe('noop');
-    expect(diag.providerReady).toBe(true);
+    expect(diag?.provider.key).toBe('noop');
+    expect(diag?.provider.state).toBe('ready');
   });
 
   it('emits INVALID_CONFIG and falls back to noop for provider with missing required options', async () => {
@@ -58,8 +82,8 @@ describe('Error handling (Facade)', () => {
 
     await waitForReady();
     const diag = getDiagnostics();
-    expect(diag.provider).toBe('noop');
-    expect(diag.providerReady).toBe(true);
+    expect(diag?.provider.key).toBe('noop');
+    expect(diag?.provider.state).toBe('ready');
   });
 
   it('handles errors thrown inside onError handler safely', async () => {
@@ -72,7 +96,8 @@ describe('Error handling (Facade)', () => {
     await new Promise(r => setTimeout(r, 0));
 
     // Assert: somewhere in error logs we note "Error in error handler" and include the thrown message.
-    const hadHandlerFailureLog = consoleError.mock.calls.some(call =>
+    const errorCalls = logger.mock.results?.[0]?.value?.error?.mock?.calls ?? [];
+    const hadHandlerFailureLog = errorCalls.some(call =>
       call.join(' ').includes('Error in error handler') &&
       call.join(' ').includes('"message":"boom"')
     );
@@ -107,29 +132,57 @@ describe('Error handling (Facade)', () => {
     expect(overflowCall).toBeDefined();
   });
 
-  it('destroy() errors are caught and surfaced as PROVIDER_ERROR', async () => {
-    const onError = vi.fn();
+  it('normalizeError: passes AnalyticsError through unchanged', () => {
+    const err = new AnalyticsError('a', 'UNKNOWN', 'p');
+    expect(normalizeError(err)).toBe(err);
+  });
 
-    init({ provider: 'noop', debug: true, onError });
-    await waitForReady();
+  it('normalizeError: wraps native Error and sets provider/fallback code', () => {
+    const native = new Error('boom');
+    const out = normalizeError(native, 'TIMEOUT', 'umami');
+    expect(isAnalyticsError(out)).toBe(true);
+    expect(out.code).toBe('TIMEOUT');
+    expect(out.provider).toBe('umami');
+    expect(out.originalError).toBe(native);
+  });
 
-    // Get the stateful wrapper and sabotage the inner provider.destroy()
-    const statefulProvider = getInstance() as any;
-    expect(statefulProvider).toBeDefined();
+  it('normalizeError: string/unknown gets stringified', () => {
+    const out = normalizeError(123 as any, 'INVALID_CONFIG', 'ga4');
+    expect(out).toBeInstanceOf(AnalyticsError);
+    expect(out.message).toBe('123');
+    expect(out.code).toBe('INVALID_CONFIG');
+    expect(out.provider).toBe('ga4');
+  });
 
-    const innerProvider = statefulProvider.provider;
-    const originalDestroy = innerProvider.destroy;
-    innerProvider.destroy = () => { throw new Error('provider destroy failed'); };
+  it('dispatchError: with NO user handler, default handler logs (once) and de-dupes repeats', () => {
+    dispatchError(new Error('dup'), 'READY_TIMEOUT');
+    dispatchError(new Error('dup'), 'READY_TIMEOUT');
+    expect(logger).toHaveBeenCalledTimes(1); // de-duped
+  });
 
-    // destroy should catch and emit
-    destroy();
-
-    // restore to avoid bleed
-    innerProvider.destroy = originalDestroy;
-
-    const providerErr = onError.mock.calls.find(
-      (args) => (args[0] as AnalyticsError).code === 'PROVIDER_ERROR'
+  it('dispatchError: with user handler, default handler does not run', () => {
+    const user = vi.fn();
+    setUserErrorHandler(user);
+    dispatchError(new Error('x'), 'UNKNOWN');
+    expect(user).toHaveBeenCalledTimes(1);
+    // default handler shouldn't run in this mode
+    expect(logger).not.toHaveBeenCalledWith(
+      expect.stringContaining('Unhandled analytics error'),
+      expect.anything()
     );
-    expect(providerErr).toBeDefined();
+  });
+
+  it('dispatchError: user handler exceptions are caught and logged, then default still invoked if no user handler set', () => {
+    // Install a user handler that throws, then unset it to exercise default path
+    setUserErrorHandler(() => { throw new Error('handler blew up'); });
+    dispatchError(new Error('payload 1'), 'UNKNOWN');
+
+    // Immediately unset to force the "no user handler" branch for default handler
+    setUserErrorHandler(null);
+    dispatchError(new Error('payload 2'), 'UNKNOWN');
+
+    // One log (the first) should contain "Error in error handler"
+    const errorCalls = logger.mock.results?.[0]?.value?.error?.mock?.calls ?? [];
+    expect(errorCalls.filter((args: any[]) => args.join(' ').includes('Error in error handler'))).toHaveLength(1);
   });
 });

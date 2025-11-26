@@ -1,22 +1,20 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import noopProvider from '../../../src/providers/noop';
-import { init, waitForReady, grantConsent, destroy, track, PageContext } from '../../../src';
+import noop from '../../../src/providers/noop';
+import { init, waitForReady, grantConsent, track, PageContext } from '../../../src';
+import { resetTests } from '../../helpers/core';
 
 describe('No-op Provider', () => {
   beforeEach(() => {
-    destroy();
-    vi.clearAllMocks();
-    window.history.replaceState({}, '', '/');
+    resetTests(vi);
   });
 
   afterEach(() => {
-    destroy();
-    vi.clearAllMocks();
+    resetTests(vi);
   });
 
   it('implements all required methods', () => {
-    const instance = noopProvider.create({ provider: 'noop' }, false, false);
+    const instance = noop.create({ provider: { provider: 'noop' }});
     expect(instance).toMatchObject({
       track: expect.any(Function),
       pageview: expect.any(Function),
@@ -26,8 +24,7 @@ describe('No-op Provider', () => {
   });
 
   it('accepts full call shape even when debug=false', () => {
-    const p = noopProvider.create({ provider: 'noop' }, false, false);
-
+    const p = noop.create({ provider: { provider: 'noop' }});
     const spyTrack = vi.spyOn(p, 'track');
     const spyPv = vi.spyOn(p, 'pageview');
     const spyId = vi.spyOn(p, 'identify');
@@ -46,7 +43,7 @@ describe('No-op Provider', () => {
   it('logs method calls in debug mode via facade flow', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
-    init({ debug: true, trackLocalhost: true });
+    init({ debug: true, trackLocalhost: true, consent: { disablePersistence: true }});
     await waitForReady();
     grantConsent();
 
@@ -73,17 +70,17 @@ describe('No-op Provider', () => {
   });
 
   it('destroy is idempotent', () => {
-    const p = noopProvider.create({ provider: 'noop' }, false, false);
+    const p = noop.create({ provider: { provider: 'noop' }});
     expect(() => { p.destroy(); p.destroy(); }).not.toThrow();
   });
 
   it('identify and pageview flow through facade to provider', async () => {
-    init({ debug: false, trackLocalhost: true });
+    init({ debug: false, trackLocalhost: true, consent: { disablePersistence: true }});
     await waitForReady();
     grantConsent();
 
     // No direct handle to provider here; re-create raw provider to validate shapes
-    const p = noopProvider.create({ provider: 'noop' }, false, false);
+    const p = noop.create({ provider: { provider: 'noop' }});
 
     const spyPv = vi.spyOn(p, 'pageview');
     const spyId = vi.spyOn(p, 'identify');

@@ -1,5 +1,6 @@
-import type { GA4Options, PageContext, ProviderInstance, ProviderOptions } from '../../types';
+import type { PageContext, ProviderInstance, ProviderOptions } from '../../types';
 import { send, type TransportMethod } from '../base/transport';
+import type { GA4Options } from './types';
 
 /**
  * Minimal GA4 client.
@@ -50,8 +51,8 @@ function getOrCreateSessionId(): number {
   }
 }
 
-export function createGA4Client(options: ProviderOptions): ProviderInstance {
-  const ga4Options = options as GA4Options;
+export function createGA4Client(options: { provider: ProviderOptions }): ProviderInstance {
+  const ga4Options = options.provider as GA4Options;
   const measurementId = ga4Options.measurementId?.trim();
   if (!measurementId) throw new Error('[ga4] "measurementId" is required');
 
