@@ -116,5 +116,5 @@ See lifecycle logs, send decisions, and de-duplication behaviour.
 
 ## Related Docs
 
-- [Global configuration keys](/api/configuration)
+- [Global configuration keys](/reference/configuration)
 - [Umami CSP guidance](/guides/csp#umami-plausible-no-external-scripts)

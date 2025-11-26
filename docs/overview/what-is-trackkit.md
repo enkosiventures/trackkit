@@ -119,5 +119,5 @@ See the full [Trackkit FAQ](../overview/faq.md) for answers about providers, con
 Next steps:
 
 - Get hands-on with the [Quickstart](/overview/quickstart).
-- See how to configure providers in [Configuration](/api/configuration).
-- Browse [Examples](/guides/examples) for real app setups.
+- See how to configure providers in [Configuration](/reference/configuration).
+- Browse [Examples](/examples/overview) for real app setups.

@@ -6,7 +6,7 @@ labels: docs
 
 ## Which page(s)?
 
-- URL(s) or path(s), e.g. `/guides/queue-management`, `/api/configuration`
+- URL(s) or path(s), e.g. `/guides/queue-management`, `/reference/configuration`
 
 ## What’s wrong or missing?
 

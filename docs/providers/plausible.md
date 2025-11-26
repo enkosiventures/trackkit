@@ -118,5 +118,5 @@ createAnalytics({
 
 ## Related Docs
 
-- [Global configuration keys](/api/configuration)
+- [Global configuration keys](/reference/configuration)
 - [Plausible CSP guidance](/guides/csp#umami-plausible-no-external-scripts)

@@ -4,7 +4,7 @@ Trackkit buffers events when it’s *not safe* to send yet, then replays them in
 
 > **Want to see queue management in action?**
 >
-> Run the [Consent & Queue Playground](/examples/consent-queue-playground) and see event queueing in action.
+> Run the [Consent & Queue Playground](/overview/playground) and see event queueing in action.
 
 
 ## Event Interaction Model

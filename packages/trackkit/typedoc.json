@@ -1,17 +1,22 @@
 {
-  "entryPointStrategy": "expand",
-  "entryPoints": ["dist/types/**/*.d.ts"],
+  "entryPointStrategy": "resolve",
+  "entryPoints": ["src/index.ts"],
+  "tsconfig": "tsconfig.json",
   "out": "docs",
   "exclude": [
     "**/__tests__/**",
     "**/*.test.d.ts",
     "**/node_modules/**"
   ],
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "excludeProtected": false,
   "hideGenerator": true,
   "cleanOutputDir": true,
   "categorizeByGroup": false,
+  "includeVersion": true,
   "sort": ["source-order"],
   "navigationLinks": {
-    "GitHub": "https://github.com/enkosi/trackkit"
+    "GitHub": "https://github.com/enkosiventures/trackkit"
   }
 }
