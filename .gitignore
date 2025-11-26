@@ -141,3 +141,4 @@ vite.config.ts.timestamp-*
 # Misc
 *.DS_Store
 deadcode-report.md
+docs/reference/sdk/

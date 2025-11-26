@@ -1,22 +1,31 @@
 {
   "entryPointStrategy": "resolve",
-  "entryPoints": ["src/index.ts"],
+  "entryPoints": [
+    "src/index.ts",
+    "src/ssr.ts",
+    "src/dispatcher/types.ts",
+    "src/consent/types.ts",
+    "src/providers/umami/types.ts",
+    "src/providers/plausible/types.ts",
+    "src/providers/ga4/types.ts",
+    "src/queues/types.ts",
+    "src/facade/diagnostics.ts"
+  ],
   "tsconfig": "tsconfig.json",
-  "out": "docs",
+  "plugin": ["typedoc-plugin-markdown"],
+  "out": "../../docs/reference/sdk",
+  "theme": "markdown",
+  "readme": "none",
   "exclude": [
     "**/__tests__/**",
     "**/*.test.d.ts",
     "**/node_modules/**"
   ],
-  "excludeInternal": true,
-  "excludePrivate": true,
-  "excludeProtected": false,
+  "gitRevision": "main",
+  "sourceLinkTemplate": "https://github.com/enkosiventures/trackkit/blob/{gitRevision}/{path}#L{line}",
   "hideGenerator": true,
+  "hidePageHeader": true,
   "cleanOutputDir": true,
   "categorizeByGroup": false,
-  "includeVersion": true,
   "sort": ["source-order"],
-  "navigationLinks": {
-    "GitHub": "https://github.com/enkosiventures/trackkit"
-  }
 }

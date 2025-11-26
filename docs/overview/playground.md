@@ -2,4 +2,6 @@
 
 Try Trackkit here and now:
 
-<TrackkitPlayground />
+<ClientOnly>
+  <TrackkitPlayground />
+</ClientOnly>

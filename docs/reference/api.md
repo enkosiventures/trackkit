@@ -1,6 +1,11 @@
-# API Reference
+# Public API Overview
 
 This page documents the public API surface of the Trackkit JavaScript SDK.
+
+> Looking for full SDK signatures? See the **[SDK (TypeDoc) reference](/reference/sdk/README)**.
+
+
+## Summary
 
 Core functions are imported from `trackkit`, the main entrypoint:
 
