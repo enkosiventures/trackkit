@@ -14,12 +14,15 @@ export interface Transport {
  * target known analytics domains or third-party scripts.
  *
  * Server contract (recommended):
- *   POST {proxyUrl}
- *   Headers:
- *     Content-Type: application/json
- *     Authorization: Bearer <token>         (optional)
- *     X-Trackkit-Target: <provider URL>     (required)
- *   Body: { payload: any }
+ * 
+ * ```http
+ * POST {proxyUrl}
+ * Headers:
+ *   Content-Type: application/json
+ *   Authorization: Bearer <token>         (optional)
+ *   X-Trackkit-Target: <provider URL>     (required)
+ * Body: { "payload": any }
+ * ```
  *
  * The server should validate the target against an allowlist and forward the
  * JSON payload to that URL, returning the provider response status.
