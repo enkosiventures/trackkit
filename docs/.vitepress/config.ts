@@ -1,10 +1,26 @@
 import { sidebar } from './sidebar';
+import { resolve } from 'node:path'
 
 export default {
   title: 'Trackkit',
   description: 'Unified, privacy-first analytics SDK',
 
   base: '/trackkit/',
+
+  vite: {
+    resolve: {
+      alias: [
+        // top-level API
+        { find: 'trackkit', replacement: resolve(__dirname, '../../packages/trackkit/src/index.ts') },
+        // (optional) subpath imports like 'trackkit/providers/...'
+        { find: /^trackkit\/(.*)$/, replacement: resolve(__dirname, '../../packages/trackkit/src/$1') },
+      ],
+    },
+    server: {
+      fs: { allow: [resolve(__dirname, '../../')] }, // allow reading the monorepo
+    },
+    optimizeDeps: { exclude: ['trackkit'] },
+  },
 
   themeConfig: {
     siteTitle: 'Trackkit',
@@ -13,7 +29,7 @@ export default {
       { text: 'Overview', link: '/overview/what-is-trackkit' },
       { text: 'Guides', link: '/guides/choosing-provider' },
       { text: 'Examples', link: '/examples/overview' },
-      { text: 'Reference', link: '/reference/api' }
+      { text: 'Reference', link: '/reference/configuration' }
     ],
 
     sidebar,

@@ -1,7 +1,7 @@
 <template>
   <div class="tk-playground">
     <div class="tk-header">
-      <h2>Trackkit Playground</h2>
+      <h2>Welcome to the Trackkit Playground!</h2>
       <p>
         This embedded playground runs a <code>createAnalytics()</code> instance using the
         <code>noop</code> provider. Nothing is sent over the network – it’s purely here to

@@ -89,8 +89,8 @@ if [[ ${QUICK} -eq 0 ]]; then
 
   if [[ ${WITH_DOCS} -eq 1 ]]; then
     say "Build docs"
-    pnpm --filter trackkit run docs:build
-    ok "Docs built → packages/trackkit/docs"
+    pnpm run docs:build
+    ok "Docs built"
   fi
 fi
 

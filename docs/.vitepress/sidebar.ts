@@ -69,11 +69,14 @@ export const sidebar: DefaultTheme.Sidebar = {
     {
       text: 'Reference',
       items: [
-        { text: 'API Reference', link: '/reference/api' },
         { text: 'Configuration', link: '/reference/configuration' },
         { text: 'Error Codes', link: '/reference/error-codes' },
         { text: 'Providers', link: '/reference/providers' },
-        { text: 'Glossary', link: '/reference/glossary' }
+        { text: 'Glossary', link: '/reference/glossary' },
+        { text: 'API', collapsed: false, items: [
+          { text: 'Public API Overview', link: '/reference/api' },
+          { text: 'SDK (TypeDoc) Reference', link: '/reference/sdk/README' }
+        ] },
       ]
     }
   ],
