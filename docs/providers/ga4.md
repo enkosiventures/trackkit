@@ -161,5 +161,5 @@ You’ll see:
 
 ## Related Docs
 
-- [Global configuration keys](/api/configuration)
+- [Global configuration keys](/reference/configuration)
 - [GA4 CSP guidance](/guides/csp#google-analytics-4-loads-gtag-js)

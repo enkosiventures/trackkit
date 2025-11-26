@@ -4,7 +4,7 @@ Trackkit buffers analytics events until consent allows sending (if your policy r
 
 > **Want to see consent controls in action?**
 >
-> Run the [Consent & Queue Playground](/examples/consent-queue-playground) and watch how consent decisions affect what’s actually enqueued and sent.
+> Run the [Consent & Queue Playground](/overview/playground) and watch how consent decisions affect what’s actually enqueued and sent.
 
 
 ## Consent States

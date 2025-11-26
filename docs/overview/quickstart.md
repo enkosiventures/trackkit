@@ -195,7 +195,7 @@ const analytics = createAnalytics({
 
 ## Next steps
 
-- Understand provider-specific options: [Configuration](/api/configuration)
+- Understand provider-specific options: [Configuration](/reference/configuration)
 - Learn how consent and queueing interact: 
   - [Consent & Privacy](/guides/consent-and-privacy)
   - [Queue Management](/guides/queue-management)

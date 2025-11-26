@@ -144,7 +144,7 @@ For runtime injection and SSR-safe config, see the **[Configuration](https://enk
 * CRA → `REACT_APP_TRACKKIT_*`
 * Generic/Node → `TRACKKIT_*`
 
-For Next.js, prefer runtime injection or a small custom loader that passes values into `init` at startup (see `docs/api/configuration.md` for details).
+For Next.js, prefer runtime injection or a small custom loader that passes values into `init` at startup (see `docs/reference/configuration.md` for details).
 
 ### Multiple Providers
 
