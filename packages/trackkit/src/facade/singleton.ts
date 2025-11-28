@@ -1,4 +1,4 @@
-import type { InitOptions, Props } from '../types';
+import type { AnalyticsOptions, Props } from '../types';
 import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { AnalyticsFacade } from './index';
 import type { ConsentCategory, ConsentStatus } from '../consent/types';
@@ -14,7 +14,7 @@ function ensureInstance(): AnalyticsFacade {
   return (instance ??= new AnalyticsFacade());
 }
 
-export function init(opts: InitOptions = {}): AnalyticsFacade {
+export function init(opts?: AnalyticsOptions): AnalyticsFacade {
   const instance = ensureInstance();
   instance.init(opts);
   return instance;

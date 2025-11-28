@@ -2,10 +2,37 @@ import type { ConsentCategory } from '../consent/types';
 import type { ProviderInstance, ProviderOptions, ProviderType } from '../types';
 import type { Sender } from './base/transport';
 
+/**
+ * Base options common to all providers
+ */
+export type BaseProviderOptions = {
+  /**
+   * Analytics provider type
+   * @default 'noop'
+   * @example 'umami', 'plausible', 'ga4'
+   */
+  name: ProviderType;
+
+  /**
+   * Generic alias for provider-specific site/property ID
+   * @example 'G-XXXXXXXXXX' for Google Analytics
+   */
+  site?: string;
+
+  /**
+   * Custom analytics host URL
+   * @example 'https://analytics.example.com'
+   */
+  host?: string;
+};
+
+/**
+ * General options for provider factories
+ */
 export type FactoryOptions = {
-  bustCache?: boolean;
-  debug?: boolean;
-  sender?: Sender;
+  bustCache: boolean;
+  debug: boolean;
+  sender: Sender;
 };
 
 /**
@@ -16,11 +43,11 @@ export type ProviderState = 'idle' | 'initializing' | 'ready' | 'destroyed' | 'u
 /**
  * Provider adapter factory interface
  */
-export interface ProviderFactory {
+export type ProviderFactory = {
   /**
    * Create a new analytics instance
    */
-  create(options: { provider: ProviderOptions; factory?: FactoryOptions }): ProviderInstance;
+  create(options: { provider: ProviderOptions; factory: FactoryOptions }): ProviderInstance;
 
   /**
    * Provider metadata
@@ -42,7 +69,7 @@ export type ProviderLoader = SyncLoader | AsyncLoader;
  * Consent configuration for providers
  * Used to determine if provider can operate based on user consent
  */
-export interface ProviderConsentConfig {
+export type ProviderConsentConfig = {
   /**
    * Whether this provider requires explicit consent
    * Can be overridden by user configuration

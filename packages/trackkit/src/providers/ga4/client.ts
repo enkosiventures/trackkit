@@ -1,5 +1,5 @@
 import type { PageContext, ProviderInstance, ProviderOptions } from '../../types';
-import { send, type TransportMethod } from '../base/transport';
+import { Sender, type TransportMethod } from '../base/transport';
 import type { GA4Options } from './types';
 
 /**
@@ -51,7 +51,9 @@ function getOrCreateSessionId(): number {
   }
 }
 
-export function createGA4Client(options: { provider: ProviderOptions }): ProviderInstance {
+export function createGA4Client(
+  options: { provider: ProviderOptions, factory: { sender: Sender } },
+): ProviderInstance {
   const ga4Options = options.provider as GA4Options;
   const measurementId = ga4Options.measurementId?.trim();
   if (!measurementId) throw new Error('[ga4] "measurementId" is required');
@@ -113,7 +115,13 @@ export function createGA4Client(options: { provider: ProviderOptions }): Provide
       payload.consent = consent; // GA4 MP consent object
     }
 
-    const res = await send({ method, url: endpoint, headers, body: payload, maxBeaconBytes: 64_000 });
+    const res = await options.factory.sender({
+      method,
+      url: endpoint,
+      headers,
+      body: payload,
+      maxBeaconBytes: 64_000,
+    });
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
       throw new Error(`[ga4] request failed: ${res.status} ${res.statusText}${detail ? ` — ${detail}` : ''}`);

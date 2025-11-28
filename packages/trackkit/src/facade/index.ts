@@ -1,5 +1,5 @@
-import type { EventType, FacadeOptions, InitOptions, Props, ProviderOptions } from '../types';
-import { mergeConfig, validateProviderConfig, getConsentConfig } from './config';
+import type { EventType, AnalyticsOptions, Props, ResolvedFacadeOptions, ResolvedProviderOptions } from '../types';
+import { resolveConfig, validateProviderConfig } from './config';
 import { ConsentManager } from '../consent/ConsentManager';
 import type { ConsentCategory, ConsentStatus, ConsentStoredState } from '../consent/types';
 import { PolicyGate } from './policy-gate';
@@ -7,7 +7,7 @@ import { ContextService } from './context';
 import { ProviderManager } from './provider-manager';
 import { NavigationService } from './navigation';
 import { logger, createLogger, setGlobalLogger } from '../util/logger';
-import { DEFAULT_CATEGORY, ESSENTIAL_CATEGORY, FACADE_BASE_DEFAULTS } from '../constants';
+import { DEFAULT_CATEGORY, DEFAULT_PROVIDER_OPTIONS, ESSENTIAL_CATEGORY, FACADE_BASE_DEFAULTS } from '../constants';
 import { AnalyticsError, dispatchError, setUserErrorHandler } from '../errors';
 import { DiagnosticsService } from './diagnostics';
 import type { StatefulProvider } from '../providers/stateful-wrapper';
@@ -16,6 +16,7 @@ import { isServer } from '../util/env';
 import { ConnectionMonitor } from '../connection/monitor';
 import { OfflineStore } from '../connection/offline-store';
 import { PerformanceTracker } from '../performance/tracker';
+import { ResolvedDispatcherOptions } from '../dispatcher/types';
 
 /**
  * Wraps a promise and rejects on timeout.
@@ -35,8 +36,12 @@ function withTimeout<T>(p: Promise<T>, ms?: number, onTimeout?: () => unknown): 
 export class AnalyticsFacade {
   readonly id = `AF_${Math.random().toString(36).slice(2,10)}`;
 
-  private cfg: FacadeOptions | null = null;
-  private pCfg: ProviderOptions | null = null;
+  private config: {
+    facade: ResolvedFacadeOptions;
+    provider: ResolvedProviderOptions;
+    dispatcher: ResolvedDispatcherOptions;
+  } | null = null;
+
   private consent: ConsentManager | null = null;
   private monitor: ConnectionMonitor | null = null;
   private performanceTracker: PerformanceTracker | null = null;
@@ -47,9 +52,8 @@ export class AnalyticsFacade {
   private policy!: PolicyGate;
   private provider!: ProviderManager;
   private nav!: NavigationService;
-  // private dispatcher!: Dispatcher;
 
-  private diag!: DiagnosticsService;
+  private diagnostics!: DiagnosticsService;
 
   private initPromise: Promise<void> | null = null;
 
@@ -64,42 +68,45 @@ export class AnalyticsFacade {
   // Collect calls made before init() (when context/queues don’t exist yet)
   private preInitBuffer: EventQueue = new EventQueue({ maxSize: FACADE_BASE_DEFAULTS.queueSize });
 
-  init(opts: InitOptions = {}): this {
+  init(opts: AnalyticsOptions = {}): this {
     if (this.initPromise) return this;
 
-    const resolved = mergeConfig(opts);
-    this.cfg = resolved.facadeOptions;
-    this.pCfg = resolved.providerOptions;
+    this.config = resolveConfig(opts);
+    const {
+      facade: facadeConfig,
+      provider: providerConfig,
+      dispatcher: dispatcherConfig,
+    } = this.config;
 
-    setGlobalLogger(createLogger(!!this.cfg?.debug));
-    logger.debug("Initializing analytics", { provider: this.pCfg.provider});
+    setGlobalLogger(createLogger(!!facadeConfig.debug));
+    logger.debug("Initializing analytics", { provider: providerConfig.name });
 
-    setUserErrorHandler(this.cfg?.onError);
+    setUserErrorHandler(facadeConfig.onError);
 
     this.nav        = new NavigationService();
-    this.context    = new ContextService(this.cfg!);
+    this.context    = new ContextService(facadeConfig);
     this.queues     = new QueueService({
-      maxSize: this.cfg!.queueSize,
-      debug: !!this.cfg?.debug,
+      maxSize: facadeConfig.queueSize,
+      debug: !!facadeConfig.debug,
       onOverflow: dropped => this.onOverflow(dropped.length),
     });
 
-    // optional connection+offline
-    this.monitor = this.cfg?.connection?.monitor ? new ConnectionMonitor({
-      slowThreshold: this.cfg.connection?.slowThreshold, checkInterval: this.cfg.connection?.checkInterval
+    this.monitor = dispatcherConfig.connection?.monitor ? new ConnectionMonitor({
+      slowThreshold: dispatcherConfig.connection?.slowThreshold,
+      checkInterval: dispatcherConfig.connection?.checkInterval,
     }) : null;
-    this.offline = this.cfg?.connection?.offlineStorage ? new OfflineStore() : null;
+    this.offline = dispatcherConfig.connection?.offlineStorage ? new OfflineStore() : null;
 
-    if (this.cfg.performance?.enabled) {
+    if (dispatcherConfig.performance?.enabled) {
       this.performanceTracker = new PerformanceTracker();
       this.performanceTracker.markInitStart();
     }
 
     try {
-      validateProviderConfig(resolved);
+      validateProviderConfig(providerConfig);
       this.setupProviderDependencies();
     } catch (e) {
-      dispatchError(e, 'INVALID_CONFIG', this.pCfg?.provider ?? 'unknown');
+      dispatchError(e, 'INVALID_CONFIG', providerConfig.name ?? 'unknown');
       this.setupFallbackNoopProvider();
     }
 
@@ -147,7 +154,7 @@ export class AnalyticsFacade {
         await this.fallbackToNoop(e);
       } catch (fallbackErr) {
         // Hard failure: make waiters fail fast
-        this.cfg?.onError?.(
+        this.config?.facade.onError?.(
           new AnalyticsError(
             'Initialization failure',
             'INIT_FAILED',
@@ -312,7 +319,7 @@ export class AnalyticsFacade {
     return processed;
   }
 
-  getDiagnostics() { return this.diag.getSnapshot(); }
+  getDiagnostics() { return this.diagnostics.getSnapshot(); }
 
   destroy() {
     this.nav.stop();
@@ -428,13 +435,13 @@ export class AnalyticsFacade {
   }
 
   private sendInitialPV() {
-    if (!this.cfg?.autoTrack) return;
+    if (!this.config?.facade.autoTrack) return;
     const url = this.context.normalizeUrl(this.context.resolveCurrentUrl());
     this.pageview(url);
   }
 
   private maybeStartAutotrack() {
-    if (!this.cfg?.autoTrack) return;
+    if (!this.config?.facade.autoTrack) return;
     this.nav.start((url) => {
       this.execute({ type: 'pageview', url });
     });
@@ -445,13 +452,21 @@ export class AnalyticsFacade {
   }
 
   private setupProviderDependencies() {
-    this.consent    = new ConsentManager(getConsentConfig(this.cfg!, this.pCfg?.provider));
-    this.policy     = new PolicyGate(this.cfg!, this.consent, this.pCfg?.provider || 'noop');
-    this.provider   = new ProviderManager(this.pCfg!, this.cfg!);
-    this.diag       = new DiagnosticsService(
-      this.id, this.cfg!, this.consent as any,
+    if (!this.config) {
+      throw new AnalyticsError(
+        'Cannot setup provider dependencies: not initialized',
+        'INVALID_CONFIG'
+      );
+    }
+
+    const { facade, provider, dispatcher } = this.config;
+    this.consent = new ConsentManager(facade.consent);
+    this.policy = new PolicyGate(facade, this.consent);
+    this.provider = new ProviderManager(provider, facade, dispatcher);
+    this.diagnostics = new DiagnosticsService(
+      this.id, facade, dispatcher, this.consent,
       this.queues, this.context, this.provider,
-      this.pCfg?.provider ?? null, this.performanceTracker,
+      provider.name, this.performanceTracker,
     );
   }
 
@@ -463,7 +478,7 @@ export class AnalyticsFacade {
       this.providerIsReady = true;
 
       // Enqueue initial PV now; PolicyGate decides send/queue/drop
-      if (this.cfg?.autoTrack) this.sendInitialPV();
+      if (this.config?.facade.autoTrack) this.sendInitialPV();
 
       // Start SPA listeners right away; PolicyGate will handle gating
       this.maybeStartAutotrack();
@@ -483,7 +498,7 @@ export class AnalyticsFacade {
         'QUEUE_OVERFLOW',
         this.provider.name(),
       );
-      this.cfg?.onError?.(err);
+      this.config?.facade.onError?.(err);
     } catch {}
   }
 
@@ -497,7 +512,7 @@ export class AnalyticsFacade {
         'POLICY_BLOCKED',
         this.provider.name(),
       );
-      this.cfg?.onError?.(err);
+      this.config?.facade.onError?.(err);
     } catch {}
   }
 
@@ -509,13 +524,19 @@ export class AnalyticsFacade {
         'PROVIDER_ERROR',
         this.provider.name(),
       );
-      this.cfg?.onError?.(err);
+      this.config?.facade.onError?.(err);
     } catch {}
   }
 
   private setupFallbackNoopProvider() {
     try { this.provider?.destroy(); } catch {}
-    this.pCfg = { provider: 'noop' } as any;
+
+    if (this.config) {
+      this.config.provider = DEFAULT_PROVIDER_OPTIONS;
+    } else {
+      this.config = resolveConfig();
+    }
+
     this.setupProviderDependencies();
   }
 

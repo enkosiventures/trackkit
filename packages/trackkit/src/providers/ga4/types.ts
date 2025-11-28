@@ -1,19 +1,52 @@
-export type GA4Options = {
-  provider: 'ga4';
-  site?: string;
+import { RequiredExcept, RequiredOnly } from "../../util/types";
+import { BaseProviderOptions } from "../types";
+
+export type GA4Options = BaseProviderOptions & {
+  name: 'ga4';
+
+  /**
+   * Google Analytics 4 measurement ID (alternative to `site` alias)
+   * @example 'G-XXXXXXXXXX'
+   */
   measurementId: string;
+
+  /**
+   * Custom API secret for server-side tracking
+   * Required for providers that support server-side events
+   */
   apiSecret?: string;
+
+  /**
+   * Custom dimensions mapping
+   * Maps friendly names to GA4 dimension names
+   * @example { plan_type: 'custom_dimension_1' }
+   */
   customDimensions?: Record<string, string>;
+
+  /**
+   * Custom metrics mapping
+   * Maps friendly names to GA4 metric names
+   * @example { engagement_score: 'custom_metric_1' }
+   */
   customMetrics?: Record<string, string>;
-  host?: string;
+
+  /** 
+   * Send to GA validation endpoint (/debug/mp/collect).
+   */
   debugEndpoint?: boolean;
+
+  /**
+   * Add GA4 `debug_mode=1` event param so events show in DebugView.
+   */
   debugMode?: boolean;
 };
+
+export type ResolvedGA4Options = RequiredOnly<GA4Options, 'name' | 'host' | 'measurementId' | 'debugMode'>;
 
 /**
  * GA4 event parameters
  */
-export interface GA4EventParams {
+export type GA4EventParams = {
   // Required parameters
   session_id?: string;
   engagement_time_msec?: number;
@@ -59,7 +92,7 @@ export interface GA4EventParams {
 /**
  * GA4 item for ecommerce events
  */
-export interface GA4Item {
+export type GA4Item = {
   // Required
   item_id: string;
   item_name: string;
@@ -90,7 +123,7 @@ export interface GA4Item {
 /**
  * GA4 Measurement Protocol response
  */
-export interface GA4DebugResponse {
+export type GA4DebugResponse = {
   validationMessages: Array<{
     fieldPath: string;
     description: string;

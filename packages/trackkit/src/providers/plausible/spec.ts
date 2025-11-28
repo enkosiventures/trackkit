@@ -7,14 +7,6 @@ import type { PlausibleEventPayload, PlausibleOptions } from './types';
  * Only: normalize options, provide endpoints, map payloads.
  * No policy (consent/DNT/localhost/exclusions) and no navigation logic here.
  */
-// export type PlausibleOptions = {
-//   /** Required: the domain you configured in Plausible (e.g. example.com) */
-//   domain: string;
-//   /** API host; defaults to official cloud. Use your proxy if set. */
-//   host?: string; // e.g. 'https://plausible.io'
-//   /** Optional: revenue tracking configuration */
-//   revenue?: { currency: string; trackingEnabled: boolean };
-// };
 
 function normalizeHost(host?: string): string {
   if (!host) return 'https://plausible.io';
@@ -30,7 +22,7 @@ const plausibleSpec: ProviderSpec<PlausibleOptions> = {
     const domain = options.domain?.trim();
     if (!domain) throw new Error('[plausible] "domain" is required');
     return {
-      provider: 'plausible',
+      name: 'plausible',
       domain,
       host: normalizeHost(options.host),
       ...(options.revenue ? { revenue: options.revenue } : {}),

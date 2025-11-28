@@ -1,60 +1,82 @@
 import { readEnvConfig } from '../util/env';
-import { getProviderMetadata } from '../providers/metadata';
 import { AnalyticsError } from '../errors';
-import type { FacadeOptions, InitOptions, ProviderOptions, ProviderType, ResolvedOptions } from '../types';
+import type { AnalyticsOptions, ProviderOptions, ResolvedAnalyticsOptions } from '../types';
 import { normalizeProviderOptions } from '../providers/normalize';
-import { applyFacadeDefaults } from './normalize';
+import { applyDispatcherDefaults, applyFacadeDefaults } from './normalize';
 import { logger } from '../util/logger';
+import { DEFAULT_PROVIDER_OPTIONS } from '../constants';
+import { deepMerge } from '../util';
 
 
-export function extractProviderOptions(options: InitOptions): ProviderOptions {
-  switch (options.provider) {
+function mergeOptions(env: AnalyticsOptions, user: AnalyticsOptions): AnalyticsOptions {
+  const { provider: envProvider, ...envRest } = env;
+  const { provider: userProvider, ...userRest } = user;
+
+  const mergedRest = deepMerge(envRest, userRest);
+
+  return {
+    ...mergedRest,
+    provider: userProvider ?? envProvider ?? DEFAULT_PROVIDER_OPTIONS,
+  };
+}
+
+export function resolveConfig(userOptions: AnalyticsOptions = {}): ResolvedAnalyticsOptions {
+  const env = readEnvConfig();
+  const combined = mergeOptions(env, userOptions);
+
+  const rawProvider = extractProviderOptions(combined);
+  const provider = normalizeProviderOptions(rawProvider);
+  const dispatcher = applyDispatcherDefaults(combined.dispatcher);
+  const facade = applyFacadeDefaults(combined, provider.name);
+  
+  return { facade, provider, dispatcher } as const;
+}
+
+export function extractProviderOptions(options: AnalyticsOptions): ProviderOptions {
+  const provider = options.provider;
+  
+  // Handle missing provider gracefully
+  if (!provider) {
+    return DEFAULT_PROVIDER_OPTIONS;
+  }
+  
+  switch (provider.name) {
     case 'plausible':
       return {
-        provider: 'plausible',
-        domain: options.domain ?? options.site!,
-        host: options.host,
-        revenue: options.revenue,
+        name: 'plausible',
+        domain: provider.domain ?? provider.site!,
+        host: provider.host,
+        revenue: provider.revenue,
       };
     case 'umami':
       return {
-        provider: 'umami',
-        website: options.website ?? options.site!,
-        host: options.host,
+        name: 'umami',
+        website: provider.website ?? provider.site!,
+        host: provider.host,
       };
     case 'ga4':
       return {
-        provider: 'ga4',
-        measurementId: options.measurementId ?? options.site!,
-        host: options.host,
-        apiSecret: options.apiSecret,
-        customDimensions: options.customDimensions,
-        customMetrics: options.customMetrics,
-        debugEndpoint: options.debugEndpoint,
-        debugMode: options.debugMode,
+        name: 'ga4',
+        measurementId: provider.measurementId ?? provider.site!,
+        host: provider.host,
+        apiSecret: provider.apiSecret,
+        customDimensions: provider.customDimensions,
+        customMetrics: provider.customMetrics,
+        debugEndpoint: provider.debugEndpoint,
+        debugMode: provider.debugMode,
       };
+    case 'noop':
     default:
-      return { provider: 'noop' };
+      return DEFAULT_PROVIDER_OPTIONS;
   }
 }
 
-export function mergeConfig(userOptions: InitOptions): ResolvedOptions {
-  const env = readEnvConfig();
-  const combined = { ...env, ...userOptions };
-
-  const rawProvider = extractProviderOptions(combined);
-  const providerOptions = normalizeProviderOptions(rawProvider);
-
-  const facadeOptions = applyFacadeDefaults(combined, providerOptions.provider);
-  return { facadeOptions, providerOptions } as const;
-}
-
-export function validateProviderConfig({ providerOptions }: ResolvedOptions): void {
-  const { provider } = providerOptions;
+export function validateProviderConfig(providerOptions: ProviderOptions): void {
+  const { name } = providerOptions;
 
   let field;
   let errorMessage;
-  switch (provider) {
+  switch (name) {
     case 'plausible':
       field = 'domain';
       if (!providerOptions.domain) {
@@ -82,7 +104,7 @@ export function validateProviderConfig({ providerOptions }: ResolvedOptions): vo
     case 'noop':
       break;
     default:
-      errorMessage = `Unknown provider: ${provider}`;
+      errorMessage = `Unknown provider: ${name}`;
   }
 
   if (errorMessage) {
@@ -90,19 +112,7 @@ export function validateProviderConfig({ providerOptions }: ResolvedOptions): vo
     throw new AnalyticsError(
       errorMessage,
       'INVALID_CONFIG',
-      provider
+      name,
     );
   }
-}
-
-export function getConsentConfig(
-  facadeOptions: FacadeOptions | null,
-  provider?: ProviderType,
-): Record<string, unknown> {
-  const providerMeta = getProviderMetadata(provider);
-
-  return {
-    ...providerMeta?.consentDefaults,
-    ...facadeOptions?.consent,
-  };
 }

@@ -1,12 +1,29 @@
-export type PlausibleOptions =  {
-  provider: 'plausible';
-  site?: string;
+import { RequiredExcept } from "../../util/types";
+import { BaseProviderOptions } from "../types";
+
+export type PlausibleOptions = BaseProviderOptions & {
+  name: 'plausible';
+
+  /**
+   * Default properties for all events (Plausible)
+   */
+  defaultProps?: Record<string, string>;
+
+  /**
+   * Plausible domain to track (alternative to `site` alias)
+   * @example 'example.com'
+   */
   domain: string;
-  host?: string;
+
+  /**
+   * Revenue tracking configuration (Plausible)
+   */
   revenue?: { currency: string; trackingEnabled: boolean };
 };
 
-export interface Revenue {
+export type ResolvedPlausibleOptions = RequiredExcept<PlausibleOptions, 'defaultProps' | 'revenue' | 'site'>;
+
+export type Revenue = {
   amount: number | string,
   currency: string,
 }
@@ -14,7 +31,7 @@ export interface Revenue {
 /**
  * Plausible event payload
  */
-export interface PlausibleEventPayload {
+export type PlausibleEventPayload = {
   // Required fields
   name: string;    // Event name
   url: string;    // URL

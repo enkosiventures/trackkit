@@ -3,11 +3,9 @@ import { StatefulProvider } from './stateful-wrapper';
 import { providers } from './registry';
 import { logger } from '../util/logger';
 import type { AnalyticsError } from '../errors';
-import { DEFAULT_ERROR_HANDLER, DEFAULT_PROVIDER, DEFAULT_PROVIDER_OPTIONS } from '../constants';
 import { makeDispatcherSender } from './base/transport';
-import type { NetworkDispatcherOptions, ResilienceOptions } from '../dispatcher';
-import type { BatchingOptions } from '../dispatcher/types';
-import { applyBatchingDefaults, applyResilienceDefaults } from '../facade/normalize';
+import type { NetworkDispatcherOptions } from '../dispatcher';
+import type { ResolvedBatchingOptions, ResolvedResilienceOptions } from '../dispatcher/types';
 import type { PerformanceTracker } from '../performance/tracker';
 
 
@@ -19,34 +17,17 @@ const providerRegistry = new Map(
   Object.entries(providers).map(([name, loader]) => [name as ProviderType, loader])
 );
 
-type ProviderLoaderOptions = {
-  providerOptions: ProviderOptions | null;
-  batchingOptions?: BatchingOptions;
-  resilienceOptions?: ResilienceOptions;
-  bustCache?: boolean;
-  debug?: boolean;
-  performanceTracker?: PerformanceTracker | null;
-  onError?: (error: AnalyticsError) => void;
-};
-
 export async function loadProvider(
-  loaderOptions?: ProviderLoaderOptions,
+  providerConfig: ProviderOptions,
+  batching: ResolvedBatchingOptions,
+  resilience: ResolvedResilienceOptions,
+  defaultHeaders: Record<string, string>,
+  bustCache: boolean,
+  debug: boolean,
+  onError: (error: AnalyticsError) => void,
+  performanceTracker?: PerformanceTracker | null,
 ): Promise<StatefulProvider> {
-  const {
-    providerOptions,
-    batchingOptions,
-    resilienceOptions,
-    bustCache,
-    debug,
-    performanceTracker,
-    onError = DEFAULT_ERROR_HANDLER,
-  } = loaderOptions || {};
-  const options = providerOptions || DEFAULT_PROVIDER_OPTIONS;
-  const batching = applyBatchingDefaults(batchingOptions);
-  const resilience = applyResilienceDefaults(resilienceOptions);
-
-  // alias GA → GA4 (common config name)
-  const name = options.provider ?? DEFAULT_PROVIDER;
+  const name = providerConfig.name;
   logger.debug('Loading provider:', name);
 
   const loader = providerRegistry.get(name);
@@ -70,10 +51,15 @@ export async function loadProvider(
     const sender = makeDispatcherSender({
       batching,
       resilience,
+      bustCache,
+      defaultHeaders,
       performanceTracker,
     } satisfies NetworkDispatcherOptions);
 
-    const provider = factory.create({provider: options, factory: { bustCache, debug, sender }});
+    const provider = factory.create({
+      provider: providerConfig,
+      factory: { bustCache, debug, sender },
+    });
     const stateful = new StatefulProvider(provider, onError);
 
     // Init without blocking; surface errors

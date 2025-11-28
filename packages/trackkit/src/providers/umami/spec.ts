@@ -33,7 +33,7 @@ const umamiSpec: ProviderSpec<UmamiOptions> = {
     const website = options.website?.trim();
     if (!website) throw new Error('[umami] "website" is required');
     return {
-      provider: 'umami',
+      name: 'umami',
       website,
       host: normalizeHost(options.host),
     };

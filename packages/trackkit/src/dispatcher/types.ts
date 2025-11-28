@@ -7,6 +7,7 @@ export interface Transport {
   send(payload: DispatchPayload): Promise<Response | void>;
 }
 
+// ---------------------- Dispatcher Options ----------------------
 
 /**
  * Sends analytics to a same-origin (or explicitly allowed) proxyUrl which
@@ -28,74 +29,170 @@ export interface Transport {
  * JSON payload to that URL, returning the provider response status.
  */
 export type ProxyTransportOptions = {
-  proxyUrl: string;                          // e.g. "/api/trackkit"
-  token?: string;                            // optional bearer token
-  headers?: Record<string, string>;          // additional static headers
+  /** 
+   * URL of the proxy endpoint to send analytics through 
+   * @example "/api/trackkit"
+   */
+  proxyUrl: string;
+  /** Optional bearer token for proxy authorization */
+  token?: string;
+  /** Additional static headers to include in proxy requests */
+  headers?: Record<string, string>;
   /** If true, use fetch({ keepalive: true }) for nicer unload semantics. */
   keepalive?: boolean;
   /** Optional allowlist enforcement client-side (defense-in-depth). */
-  allowlist?: Array<string | RegExp>;        // target URL must match one of these
+  allowlist?: Array<string | RegExp>;
 };
 
-// ---------------------- Dispatcher Options ----------------------
+export interface BatchingOptions {
+  /** Enable event batching to reduce network requests */
+  enabled: boolean;
+  /** Number of batches that can be sent simultaneously */
+  concurrency?: number;
+  /** Remove duplicate events within the same batch */
+  deduplication?: boolean;
+  /** Maximum payload size in bytes per batch */
+  maxBytes?: number;
+  /** Maximum number of events per batch */
+  maxSize?: number;
+  /** Maximum time in milliseconds to wait before sending an incomplete batch */
+  maxWait?: number;
+}
 
-export type DispatcherConfig = {
-  batching?: (BatchConfig & { enabled: boolean }) | undefined;
-  performance?: { enabled?: boolean; sampleRate?: number } | undefined;
+/** 
+ * Fully resolved batching options with defaults applied 
+ * 
+ * @see BatchingOptions
+ */
+export interface ResolvedBatchingOptions extends Required<BatchingOptions> {}
 
-  /**
-   * Optional resilience options used only for NetworkItem.
-   * If you never pass network items, this is ignored and the code path is dormant.
-   */
-  resilience?: ResilienceOptions;
+export interface ConnectionOptions {
+  /** Interval in milliseconds to check network connection status */
+  checkInterval?: number;
+  /** Enable network connection monitoring */
+  monitor?: boolean;
+  /** Store events offline when network is unavailable */
+  offlineStorage?: boolean;
+  /** Interval in milliseconds to sync offline events when back online */
+  syncInterval?: number;
+  /** Threshold in milliseconds to consider a request "slow" */
+  slowThreshold?: number;
+}
 
-  /**
-   * Optional default headers merged into network sends (NetworkItem only).
-   * Per-item `init?.headers` takes precedence where keys overlap.
-   */
-  defaultHeaders?: Record<string, string>;
-};
+/** 
+ * Fully resolved connection options with defaults applied 
+ * 
+ * @see ConnectionOptions
+ */
+export interface ResolvedConnectionOptions extends Required<ConnectionOptions> {}
+
+export interface PerformanceOptions {
+  /** Enable performance monitoring for analytics requests */
+  enabled?: boolean;
+  /** Sample rate from 0 to 1 (1 = track every event, 0.1 = track 10% of events) */
+  sampleRate?: number;
+  /** Number of recent events to keep in memory for performance calculations */
+  windowSize?: number;
+}
+
+/** 
+ * Fully resolved performance options with defaults applied 
+ * 
+ * @see PerformanceOptions
+ */
+export interface ResolvedPerformanceOptions extends Required<PerformanceOptions> {}
 
 export interface RetryOptions {
-  maxAttempts?: number;
+  /** Initial delay in milliseconds before first retry */
   initialDelay?: number;
-  maxDelay?: number;
-  multiplier?: number;
+  /** Add random jitter to retry delays to avoid thundering herd */
   jitter?: boolean;
+  /** Maximum number of retry attempts for failed requests */
+  maxAttempts?: number;
+  /** Maximum delay in milliseconds between retries */
+  maxDelay?: number;
+  /** Multiplier for exponential backoff (e.g., 2.0 doubles delay each retry) */
+  multiplier?: number;
+  /**
+   * HTTP status codes that should trigger a retry
+   * @example [408, 429, 500, 502, 503, 504]
+   */
   retryableStatuses?: number[];
 }
 
-export interface BatchingOptions {
-  enabled: boolean;
-  maxSize?: number;
-  maxWait?: number;
-  maxBytes?: number;
-  concurrency?: number;
-  deduplication?: boolean;
-  retry?: RetryOptions;
-};
+/** 
+ * Fully resolved retry options with defaults applied 
+ * 
+ * @see RetryOptions
+ */
+export interface ResolvedRetryOptions extends Required<RetryOptions> {}
 
-export interface ConnectionOptions {
-  monitor?: boolean;
-  offlineStorage?: boolean;
-  syncInterval?: number;
-  slowThreshold?: number;
-  checkInterval?: number;
-};
-
-export interface PerformanceOptions {
-  enabled?: boolean;
-  /** Sample rate 0–1; 1 = track every event. */
-  sampleRate?: number;
-  /** How many recent events to keep for averages. */
-  windowSize?: number;
-};
+/**
+ * Strategy for handling failed requests and network issues
+ * 'proxy'  - use a server-side proxy to send events
+ * 'beacon' - use navigator.sendBeacon for best-effort delivery
+ * 'none'   - do not attempt any fallback
+ */
+export type FallbackStrategy = 'proxy' | 'beacon' | 'none';
 
 export interface ResilienceOptions {
+  /** Detect and handle ad blockers or network issues */
   detectBlockers?: boolean;
+  /** 
+   * Strategy to use when primary transport fails or is blocked.
+   * - 'proxy': Route through server-side proxy (requires proxy.proxyUrl)
+   * - 'beacon': Use navigator.sendBeacon for best-effort delivery  
+   * - 'none': Allow requests to fail naturally
+   * @default Smart default: 'proxy' if proxy configured, otherwise 'beacon'
+   */
+  fallbackStrategy?: FallbackStrategy;
+  /** Proxy configuration for bypassing ad blockers */
   proxy?: ProxyTransportOptions;
-  fallbackStrategy?: 'proxy'|'beacon'|'none';
-};
+  /** Retry configuration for failed requests */
+  retry?: RetryOptions;
+}
+
+/** 
+ * Fully resolved resilience options with defaults applied 
+ * 
+ * @see ResilienceOptions
+ */
+export interface ResolvedResilienceOptions extends Required<Omit<ResilienceOptions, 'proxy' | 'retry'>> {
+  retry: ResolvedRetryOptions;
+  proxy?: ProxyTransportOptions;
+}
+
+/**
+ * Configuration options for the analytics event dispatcher.
+ * 
+ * Controls how events are transported, batched, and handled when network
+ * issues occur. These options provide fine-grained control over reliability,
+ * performance, and resilience characteristics of the analytics system.
+ */
+export interface DispatcherOptions {
+  /** Default HTTP headers applied to all outgoing requests */
+  defaultHeaders?: Record<string, string>;
+  /** Event batching configuration to optimize network usage */
+  batching?: BatchingOptions;
+  /** Network connection monitoring and offline handling */
+  connection?: ConnectionOptions;
+  /** Performance monitoring and sampling configuration */
+  performance?: PerformanceOptions;
+  /** Network resilience and error recovery configuration */
+  resilience?: ResilienceOptions;
+}
+
+/** 
+ * Fully resolved dispatcher options with all defaults applied
+ * 
+ * @see DispatcherOptions
+ */
+export interface ResolvedDispatcherOptions extends Required<Pick<DispatcherOptions, 'defaultHeaders'>> {
+  batching: ResolvedBatchingOptions;
+  connection: ResolvedConnectionOptions;
+  performance: ResolvedPerformanceOptions;
+  resilience: ResolvedResilienceOptions;
+}
 
 // ---------------------- Batching Types ----------------------
 
@@ -123,15 +220,6 @@ export type Batch = {
   status: 'pending' | 'sending' | 'sent' | 'failed';
 };
 
-export type BatchConfig = {
-  maxSize?: number;
-  maxWait?: number;
-  maxBytes?: number;
-  concurrency?: number;
-  deduplication?: boolean;
-  retry?: RetryOptions;
-};
-
 // ---------------------- Network Dispatcher Types ----------------------
 
 /**
@@ -151,11 +239,10 @@ export type NetworkItem = {
   size?: number;
 };
 
-export type NetworkBatching = BatchConfig & { enabled: boolean };
-
-export type NetworkDispatcherOptions = {
-  batching?: NetworkBatching;
-  resilience?: ResilienceOptions;                 // plumbed into resolveTransport
-  performanceTracker?: PerformanceTracker | null; // wraps sends for perf tracking
-  defaultHeaders?: Record<string, string>;        // headers applied to every send
-};
+export interface NetworkDispatcherOptions {
+  batching: ResolvedBatchingOptions;
+  resilience: ResolvedResilienceOptions;
+  bustCache: boolean;
+  defaultHeaders: Record<string, string>; 
+  performanceTracker?: PerformanceTracker | null;
+}

@@ -116,14 +116,19 @@ Transport resolution (in `dispatcher/transports/resolve.ts`) follows this preced
 
      1. Determine the **desired fallback**:
 
-        * use `resilience.fallbackStrategy` if set, else
-        * use the detector’s suggested fallback, else
-        * default to `'proxy'`.
-     2. If desired is `'beacon'` → use `BeaconTransport`.
-     3. If desired is `'proxy'`:
+        * use `resilience.fallbackStrategy` if explicitly set, else
+        * use the detector's suggested fallback, else
+        * **smart default**: `'proxy'` if `proxyUrl` is configured, otherwise `'beacon'`.
 
-        * if `resilience.proxy.proxyUrl` is set → use `ProxiedTransport`.
-        * otherwise → fall back to `BeaconTransport`.
+     2. Execute the chosen strategy:
+
+        * `'beacon'` → use `BeaconTransport`.
+        * `'none'` → use base `FetchTransport` (let requests fail naturally).
+        * `'proxy'`:
+          * if `resilience.proxy.proxyUrl` is configured → use `ProxiedTransport`.
+          * if not configured → throw configuration error.
+
+**Note**: The smart default prevents silent fallbacks when proxy is requested but not properly configured, providing clearer error messages for misconfiguration.
 
 ### Configuring `resilience`
 

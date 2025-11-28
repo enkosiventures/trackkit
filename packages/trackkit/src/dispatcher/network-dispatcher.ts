@@ -1,5 +1,7 @@
+import { DEFAULT_HEADERS } from '../constants';
 import { applyBatchingDefaults, applyResilienceDefaults } from '../facade/normalize';
 import type { PerformanceTracker } from '../performance/tracker';
+import { stripEmptyFields } from '../util';
 import { EventBatchProcessor } from './batch-processor';
 import type { Transport } from './transports';
 import { resolveTransport } from './transports';
@@ -34,31 +36,25 @@ function estimateSize(payload: unknown): number {
  * Providers can new-up this class and call `enqueue()` instead of using a raw transport.
  */
 export class NetworkDispatcher {
-  private transportP: Promise<Transport> | null = null;
+  private transportPromise: Promise<Transport> | null = null;
   private batcher: EventBatchProcessor | null = null;
   private performanceTracker: PerformanceTracker | null = null;
   private readonly batchingEnabled: boolean;
 
-  constructor(private readonly opts: NetworkDispatcherOptions) {
-    this.opts = {
-      batching: applyBatchingDefaults(opts.batching || {}),
-      resilience: applyResilienceDefaults(opts.resilience || {}),
-      defaultHeaders: opts.defaultHeaders || {},
+  constructor(private readonly options: NetworkDispatcherOptions) {
+    this.options = {
+      batching: applyBatchingDefaults(options.batching || {}),
+      resilience: applyResilienceDefaults(options.resilience || {}),
+      defaultHeaders: options.defaultHeaders || DEFAULT_HEADERS,
+      bustCache: options.bustCache || false,
     }
-    this.performanceTracker = opts.performanceTracker || null;
-    this.batchingEnabled = !!opts.batching?.enabled;
+    this.performanceTracker = options.performanceTracker || null;
+    this.batchingEnabled = !!options.batching.enabled;
     if (this.batchingEnabled) {
-      // Construct the batcher *now* so providers can enqueue immediately.
+      // Construct the batcher now so providers can enqueue immediately.
       this.batcher = new EventBatchProcessor(
-        // Pass *only* the knobs EventBatchProcessor actually supports
-        {
-          maxSize: this.opts.batching?.maxSize,
-          maxWait: this.opts.batching?.maxWait,
-          maxBytes: this.opts.batching?.maxBytes,
-          concurrency: this.opts.batching?.concurrency,
-          deduplication: this.opts.batching?.deduplication,
-          retry: this.opts.batching?.retry,
-        },
+        this.options.batching,
+        this.options.resilience.retry,
         (batch) => this.sendBatch(batch.events)
       );
     }
@@ -66,15 +62,70 @@ export class NetworkDispatcher {
 
   /** For tests: inject a specific transport. */
   _setTransportForTests(t: Transport) {
-    this.transportP = Promise.resolve(t);
+    this.transportPromise = Promise.resolve(t);
   }
 
   private async getTransport(): Promise<Transport> {
-    if (!this.transportP) {
-      const maybe = resolveTransport(this.opts.resilience);
-      this.transportP = Promise.resolve(maybe);
+    if (!this.transportPromise) {
+      const maybe = resolveTransport(this.options.resilience);
+      this.transportPromise = Promise.resolve(maybe);
     }
-    return this.transportP;
+    return this.transportPromise;
+  }
+
+  private appendCacheParam(url: string): string {
+    // Robust even for absolute URLs; falls back to string concat if URL ctor fails.
+    try {
+      const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+      const u = new URL(url, base);
+      u.searchParams.set('cache', String(Date.now()));
+      return u.toString().replace(/^https?:\/\/[^/]+/, ''); // keep as path if same-origin
+    } catch {
+      const sep = url.includes('?') ? '&' : '?';
+      return `${url}${sep}cache=${Date.now()}`;
+    }
+  }
+
+  private processBody(body: unknown, method?: string): string | undefined {
+    if (method === 'GET') return undefined;
+    if (!body) return '';
+    if (typeof body === 'string') return body;
+    
+    const stripped = stripEmptyFields(body);
+    return JSON.stringify(stripped);
+  }
+
+  private prepareFinalPayload(payload: DispatchPayload, bustCache?: boolean): DispatchPayload {
+    let finalUrl = payload.url;
+    const headers = mergeHeaders(this.options.defaultHeaders, payload.init?.headers);
+    
+    // Cache busting logic
+    if (bustCache) {
+      const method = payload.init?.method || 'POST';
+      if (method === 'GET' || method === 'BEACON') {
+        finalUrl = this.appendCacheParam(finalUrl);
+      } else {
+        Object.assign(headers, {
+          'Cache-Control': 'no-store, max-age=0',
+          'Pragma': 'no-cache'
+        });
+      }
+    }
+
+    // Ensure content-type
+    if (!headers['content-type'] && payload.body) {
+      headers['content-type'] = 'application/json';
+    }
+
+    return {
+      ...payload,
+      url: finalUrl,
+      init: {
+        ...payload.init,
+        headers,
+        body: this.processBody(payload.body, payload.init?.method)
+      }
+    };
   }
 
   /**
@@ -84,11 +135,11 @@ export class NetworkDispatcher {
   async send(payload: DispatchPayload): Promise<void> {
     if (!this.batchingEnabled || !this.batcher) {
       // immediate send path
-      const t = await this.getTransport();
-      const headers = mergeHeaders(this.opts.defaultHeaders, payload.init?.headers);
-      const finalPayload = { ...payload, init: { ...(payload.init || {}), headers } };
+      const transport = await this.getTransport();
+      const headers = mergeHeaders(this.options.defaultHeaders, payload.init?.headers);
+      const finalPayload = this.prepareFinalPayload({ ...payload, init: { ...(payload.init || {}), headers }});
 
-      const sendFn = () => t.send(finalPayload);
+      const sendFn = () => transport.send(finalPayload);
 
       if (this.performanceTracker) {
         await this.performanceTracker.trackNetworkRequest('network-send', sendFn);
@@ -130,8 +181,8 @@ export class NetworkDispatcher {
 
     // Send sequentially to preserve order within the batch; the batcher controls overall concurrency.
     for (const e of events) {
-      const headers = mergeHeaders(this.opts.defaultHeaders, e.payload.init?.headers);
-      const finalPayload = { ...e.payload, init: { ...(e.payload.init || {}), headers } };
+      const headers = mergeHeaders(this.options.defaultHeaders, e.payload.init?.headers);
+      const finalPayload = this.prepareFinalPayload({ ...e.payload, init: { ...(e.payload.init || {}), headers }});
       const sendFn = () => t.send(finalPayload);
 
       if (this.performanceTracker) {

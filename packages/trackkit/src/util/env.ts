@@ -4,7 +4,7 @@
  */
 
 import { stripEmptyFields } from "../util";
-import type { InitOptions } from "../types";
+import type { AnalyticsOptions } from "../types";
 
 export interface EnvConfig {
   provider?: string;
@@ -73,48 +73,27 @@ function maybeFormat(value: string | undefined, formatter?: (val: string) => any
   }
 }
 
-export function readEnvConfig(): InitOptions {
-  return stripEmptyFields<InitOptions>({
-    // CORE OPTIONS
-    provider: maybeFormat(getEnvVar('PROVIDER')),
-    site: maybeFormat(getEnvVar('SITE')),
-    host: maybeFormat(getEnvVar('HOST')),
-
-    // GENERAL OPTIONS
+export function readEnvConfig(): AnalyticsOptions {
+  return stripEmptyFields<AnalyticsOptions>({
+    // FACADE OPTIONS
     allowWhenHidden: parseEnvBoolean(getEnvVar('ALLOW_WHEN_HIDDEN')),
     autoTrack: parseEnvBoolean(getEnvVar('AUTO_TRACK')),
-    batchSize: maybeFormat(getEnvVar('BATCH_SIZE'), parseInt),
-    batchTimeout: maybeFormat(getEnvVar('BATCH_TIMEOUT'), parseInt),
     bustCache: parseEnvBoolean(getEnvVar('BUST_CACHE')),
+    consent: maybeFormat(getEnvVar('CONSENT')),
     debug: parseEnvBoolean(getEnvVar('DEBUG')),
     domains: maybeFormat(getEnvVar('DOMAINS'), s => s.split(',').map(x => x.trim())),
     doNotTrack: parseEnvBoolean(getEnvVar('DO_NOT_TRACK')),
     exclude: maybeFormat(getEnvVar('EXCLUDE'), s => s.split(',').map(x => x.trim())),
     includeHash: parseEnvBoolean(getEnvVar('INCLUDE_HASH')),
+    navigationSource: maybeFormat(getEnvVar('NAVIGATION_SOURCE')),
     queueSize: maybeFormat(getEnvVar('QUEUE_SIZE'), parseInt),
     trackLocalhost: parseEnvBoolean(getEnvVar('TRACK_LOCALHOST')),
-    transport: maybeFormat(getEnvVar('TRANSPORT')) as any,
 
-    // OPTION COLLECTIONS
-    consent: maybeFormat(getEnvVar('CONSENT')),
-  
-    // PROVIDER-SPECIFIC OPTIONS
+    // PROVIDER OPTIONS
+    provider: maybeFormat(getEnvVar('PROVIDER')),
 
-    // - Plausible
-    defaultProps: maybeFormat(getEnvVar('DEFAULT_PROPS')),
-    domain: maybeFormat(getEnvVar('DOMAIN')),
-    revenue: maybeFormat(getEnvVar('REVENUE')),
-
-    // - Umami
-    website: maybeFormat(getEnvVar('WEBSITE')),
-
-    // - GA4
-    apiSecret: maybeFormat(getEnvVar('API_SECRET')),
-    customDimensions: maybeFormat(getEnvVar('CUSTOM_DIMENSIONS')),
-    customMetrics: maybeFormat(getEnvVar('CUSTOM_METRICS')),
-    debugEndpoint: parseEnvBoolean(getEnvVar('DEBUG_ENDPOINT')),
-    debugMode: parseEnvBoolean(getEnvVar('DEBUG_MODE')),
-    measurementId: maybeFormat(getEnvVar('MEASUREMENT_ID')),
+    // DISPATCHER OPTIONS
+    dispatcher: maybeFormat(getEnvVar('DISPATCHER')),
   });
 }
 
@@ -134,26 +113,6 @@ export function parseEnvNumber(value: string | undefined, defaultValue: number):
   const parsed = parseInt(value, 10);
   return isNaN(parsed) ? defaultValue : parsed;
 }
-
-/**
- * Check if we're in a browser environment
- */
-// export function hasDOM(): boolean {
-//   return typeof window !== 'undefined' && typeof document !== 'undefined';
-// }
-
-// export function isBrowser(): boolean {
-//   // “Browser” means DOM-ful contexts (not workers)
-//   return hasDOM();
-// }
-
-// export function isServer(): boolean {
-//   return !isBrowser();
-// }
-
-// export function inBrowser(): boolean {
-//   return typeof window !== 'undefined';
-// }
 
 /**
  * Environment detection helpers

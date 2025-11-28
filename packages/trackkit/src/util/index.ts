@@ -58,3 +58,44 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
 }
+
+/**
+ * Deep merges two objects, with values from `override` taking precedence.
+ * Handles nested objects recursively while preserving type safety.
+ * 
+ * @param base - Base object with default values
+ * @param override - Override object with user-provided values
+ * @returns Merged object with override values taking precedence
+ */
+export function deepMerge<T extends Record<string, any>>(
+  base: T | undefined,
+  override: Partial<T> | undefined
+): T {
+  if (!base && !override) return {} as T;
+  if (!override) return base as T;
+  if (!base) return override as T;
+
+  const result: T = { ...(base as any) };
+
+  for (const key in override) {
+    const k = key as keyof T;
+    const overrideValue = override[k];
+
+    if (overrideValue === undefined) continue;
+
+    const baseValue = result[k];
+
+    if (isPlainObject(baseValue) && isPlainObject(overrideValue)) {
+      // recursive merge on nested objects
+      (result as any)[k] = deepMerge(
+        baseValue as Record<string, any>,
+        overrideValue as Record<string, any>
+      );
+    } else {
+      // primitive / array / other → direct override
+      (result as any)[k] = overrideValue;
+    }
+  }
+
+  return result;
+}

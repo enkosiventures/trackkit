@@ -1,5 +1,3 @@
-import { logger } from "../../util/logger";
-import { stripEmptyFields } from "../../util";
 import type { NetworkDispatcherOptions } from "../../dispatcher";
 import { NetworkDispatcher } from "../../dispatcher";
 
@@ -31,25 +29,14 @@ export type TransportRequest = {
   bustCache?: boolean;
 };
 
-function appendCacheParam(url: string): string {
-  // Robust even for absolute URLs; falls back to string concat if URL ctor fails.
-  try {
-    const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
-    const u = new URL(url, base);
-    u.searchParams.set('cache', String(Date.now()));
-    return u.toString().replace(/^https?:\/\/[^/]+/, ''); // keep as path if same-origin
-  } catch {
-    const sep = url.includes('?') ? '&' : '?';
-    return `${url}${sep}cache=${Date.now()}`;
-  }
-}
+export type Sender = (req: TransportRequest) => Promise<Response>;
 
 /**
  * Wrap the NetworkDispatcher to send per-item.
  * We return a synthetic OK Response so adapter `ok/parseError` logic remains intact.
  */
-export function makeDispatcherSender(opts: NetworkDispatcherOptions): Sender {
-  const dispatcher = new NetworkDispatcher(opts);
+export function makeDispatcherSender(options: NetworkDispatcherOptions): Sender {
+  const dispatcher = new NetworkDispatcher(options);
   const RESPONSE_OK = { ok: true, status: 204, statusText: 'OK' } as unknown as Response;
 
   return async ({ method, url, headers, body }) => {
@@ -62,84 +49,4 @@ export function makeDispatcherSender(opts: NetworkDispatcherOptions): Sender {
     await dispatcher.send({ url, body, init });
     return RESPONSE_OK; // no per-event response in batched path
   };
-}
-
-export type Sender = (req: TransportRequest) => Promise<Response>;
-
-export function makeDirectSender(): Sender {
-  return (req) => send(req);
-}
-
-export async function send(req: TransportRequest): Promise<Response> {
-  const { method, url, body, maxBeaconBytes, signal } = req;
-
-  const canBeacon =
-    typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function';
-
-  // Will we *attempt* beacon? (AUTO prefers beacon if available)
-  const wantBeacon = method === 'BEACON' || (method === 'AUTO' && canBeacon);
-
-  // Enable cache-busting when req.bustCache === true
-  const bustCache = req.bustCache === true;
-
-  // Decide final URL: add ?cache=... for GET or when we intend to use beacon.
-  // Note: if we later fall back from beacon→fetch due to size, the query param is harmless.
-  const finalUrl =
-    bustCache && (method === 'GET' || wantBeacon) ? appendCacheParam(url) : url;
-
-  const strippedBody = stripEmptyFields(body);
-
-  // Headers: only meaningful for fetch; beacon ignores headers.
-  const headers = {
-    'content-type': 'application/json',
-    ...(bustCache && method !== 'GET' && !wantBeacon
-      ? { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' }
-      : {}),
-    ...(req.headers || {}),
-  };
-
-  logger.debug('Transport.send', {
-    method,
-    url: finalUrl,
-    headers,
-    maxBeaconBytes,
-    signal: req.signal ? 'exists' : 'none',
-    bustCache,
-    wantBeacon,
-  });
-  logger.debug('Transport.body', strippedBody);
-
-  // Prepare payload
-  const serialized =
-    typeof strippedBody === 'string'
-      ? strippedBody
-      : strippedBody == null
-      ? ''
-      : JSON.stringify(strippedBody);
-
-  // Try beacon when requested and within size limits
-  if (wantBeacon && canBeacon) {
-    const within = !maxBeaconBytes || serialized.length <= maxBeaconBytes;
-    if (within) {
-      const blob = new Blob([serialized], { type: 'application/json' });
-      const ok = navigator.sendBeacon(finalUrl, blob);
-      if (ok) {
-        // sendBeacon has no response; pretend 204 so callers can treat it as success
-        return new Response(null, { status: 204, statusText: 'No Content (beacon)' });
-      }
-      // If sendBeacon returns false, fall through to fetch
-    }
-  }
-
-  // Fetch (primary or fallback)
-  const useMethod = method === 'GET' ? 'GET' : 'POST';
-  const init: RequestInit = {
-    method: useMethod,
-    headers,
-    body: useMethod === 'GET' ? undefined : serialized,
-    keepalive: true,
-    signal: signal ?? undefined,
-  };
-
-  return fetch(finalUrl, init);
 }

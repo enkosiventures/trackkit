@@ -1,4 +1,4 @@
-import type { RetryOptions } from "./types";
+import type { ResolvedRetryOptions, RetryOptions } from "./types";
 
 
 export function calculateRetryDelay(attempt: number, config: Required<RetryOptions>) {
@@ -20,22 +20,23 @@ export function isRetryableError(err: any, config: Required<RetryOptions>) {
 
 export class RetryManager {
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
-  constructor(private cfg: Required<RetryOptions>) {}
+  constructor(private config: ResolvedRetryOptions) {}
 
   scheduleRetry(key: string, fn: () => Promise<void>, attempt = 1) {
-    if (attempt > this.cfg.maxAttempts) return;
-    const delay = calculateRetryDelay(attempt, this.cfg);
+    if (attempt > this.config.maxAttempts) return;
+    const delay = calculateRetryDelay(attempt, this.config);
     this.cancelRetry(key);
     const t = setTimeout(async () => {
       this.timers.delete(key);
       try {
         await fn();
       } catch (e) {
-        if (isRetryableError(e, this.cfg)) this.scheduleRetry(key, fn, attempt + 1);
+        if (isRetryableError(e, this.config)) this.scheduleRetry(key, fn, attempt + 1);
       }
     }, delay);
     this.timers.set(key, t);
   }
   cancelRetry(key: string) { const t = this.timers.get(key); if (t) clearTimeout(t); this.timers.delete(key); }
   cancelAll() { this.timers.forEach(clearTimeout); this.timers.clear(); }
+  maxAttempts() { return this.config.maxAttempts; }
 }

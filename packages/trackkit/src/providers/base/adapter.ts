@@ -1,7 +1,7 @@
 import type { PageContext, ProviderInstance, ProviderType } from '../../types';
 import type { FactoryOptions } from '../types';
 import type { Sender} from './transport';
-import { makeDirectSender, type TransportMethod } from './transport';
+import type { TransportMethod } from './transport';
 
 
 /**
@@ -53,19 +53,18 @@ async function defaultParseError(res: Response): Promise<Error> {
 
 export function createConfigProvider<ProviderOptions>(spec: ProviderSpec<ProviderOptions>) {
   return {
-    /** Factory to keep parity with your existing “provider factories” */
-    create(options: { provider: ProviderOptions; factory?: FactoryOptions }): ProviderInstance {
+    /** Factory to keep parity with existing provider factories */
+    create(options: { provider: ProviderOptions; factory: FactoryOptions }): ProviderInstance {
       const providerOptions = spec.defaults(options.provider);
       const headers = spec.headers?.(providerOptions);
       const ok = spec.ok ?? defaultOk;
       const parseError = spec.parseError ?? defaultParseError;
-      const resolvedSender: Sender = options.factory?.sender ?? makeDirectSender();
 
       const sendAndCheck = async (method: TransportMethod, url: string, body: unknown) => {
-        const res = await resolvedSender({
+        const res = await options.factory.sender({
           method, url, headers, body,
           maxBeaconBytes: spec.limits?.maxBeaconBytes,
-          bustCache: options.factory?.bustCache,
+          bustCache: options.factory.bustCache,
         });
         if (!ok(res)) throw await parseError(res);
       };

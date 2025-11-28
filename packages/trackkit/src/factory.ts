@@ -1,7 +1,7 @@
 import { AnalyticsFacade } from './facade/index';
-import type { InitOptions } from './types';
+import type { AnalyticsOptions } from './types';
 
-export function createAnalytics(opts?: InitOptions) {
+export function createAnalytics(opts?: AnalyticsOptions) {
   const a = new AnalyticsFacade();
   if (opts) a.init(opts);
   return a;

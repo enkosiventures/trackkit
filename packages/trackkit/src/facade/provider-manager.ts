@@ -1,7 +1,8 @@
 import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { loadProvider } from '../providers/loader';
-import type { FacadeOptions, ProviderOptions, EventType, PageContext } from '../types';
+import type { ProviderOptions, EventType, PageContext, ResolvedFacadeOptions } from '../types';
 import type { PerformanceTracker } from '../performance/tracker';
+import { ResolvedDispatcherOptions } from '../dispatcher/types';
 
 
 export class ProviderManager {
@@ -9,19 +10,24 @@ export class ProviderManager {
   private injected: boolean = false;
   private readySubscribers = new Set<() => void>();
 
-  constructor(private pCfg: ProviderOptions | null, private fCfg: FacadeOptions | null) {}
+  constructor(
+    private providerConfig: ProviderOptions,
+    private facadeConfig: ResolvedFacadeOptions,
+    private dispatcherConfig: ResolvedDispatcherOptions,
+  ) {}
 
   async load(performanceTracker?: PerformanceTracker | null): Promise<StatefulProvider> {
     if (this.injected && this.provider) return this.provider;
-    const loaded = await loadProvider({
-        providerOptions: this.pCfg,
-        batchingOptions: this.fCfg?.batching,
-        resilienceOptions: this.fCfg?.resilience,
-        bustCache: this.fCfg?.bustCache,
-        debug: this.fCfg?.debug,
-        performanceTracker,
-        onError: this.fCfg?.onError,
-    });
+    const loaded = await loadProvider(
+      this.providerConfig,
+      this.dispatcherConfig.batching,
+      this.dispatcherConfig.resilience,
+      this.dispatcherConfig.defaultHeaders,
+      this.facadeConfig.bustCache,
+      this.facadeConfig.debug,
+      this.facadeConfig.onError,
+      performanceTracker,
+    );
     this.provider = loaded;
 
     const current = this.provider;

@@ -1,10 +1,10 @@
-import type { ConsentCategory, ConsentOptions } from './consent/types';
-import type { ResilienceOptions } from './dispatcher/transports';
-import type { BatchingOptions, ConnectionOptions, PerformanceOptions } from './dispatcher/types';
+import type { ConsentCategory, ConsentOptions, ResolvedConsentOptions } from './consent/types';
+import type { DispatcherOptions, ResolvedDispatcherOptions } from './dispatcher/types';
 import type { AnalyticsError } from './errors';
-import type { GA4Options } from './providers/ga4/types';
-import type { PlausibleOptions } from './providers/plausible/types';
-import type { UmamiOptions } from './providers/umami/types';
+import type { GA4Options, ResolvedGA4Options } from './providers/ga4/types';
+import type { NoopOptions, ResolvedNoopOptions } from './providers/noop/types';
+import type { PlausibleOptions, ResolvedPlausibleOptions } from './providers/plausible/types';
+import type { ResolvedUmamiOptions, UmamiOptions } from './providers/umami/types';
 
 
 export type AnalyticsMode = 'singleton' | 'factory';
@@ -36,6 +36,8 @@ export interface NavigationSource {
   /** Subscribe to normalized URL changes (pathname + search + hash). */
   subscribe(cb: (url: string) => void): () => void;
 }
+
+export interface ResolvedNavigationSource extends Required<NavigationSource> {}
 
 /** 
  * Page-level context computed by the facade at send-time.
@@ -92,67 +94,61 @@ export interface PageContext {
 /** Optional context for custom events; identical today for simplicity. */
 export type EventContext = PageContext;
 
-// ---- Facade-only options (always honored, even on noop fallback)
-export type InitOptions = {
+/**
+ * Analytics provider configuration options.
+ * 
+ * Specifies which analytics service to use and its configuration. TrackKit supports:
+ * - **GA4**: Google Analytics 4 with measurement ID and optional custom dimensions
+ * - **Plausible**: Privacy-focused analytics with domain configuration
+ * - **Umami**: Self-hosted analytics with website ID  
+ * - **Noop**: No-operation provider for testing or opt-out scenarios
+ * 
+ * Each provider has its own specific configuration requirements.
+ */
+export type ProviderOptions = 
+  | NoopOptions
+  | UmamiOptions
+  | PlausibleOptions
+  | GA4Options;
 
-  // CORE OPTIONS
+export type ResolvedProviderOptions = 
+  | ResolvedNoopOptions
+  | ResolvedUmamiOptions
+  | ResolvedPlausibleOptions
+  | ResolvedGA4Options;
 
-  /**
-   * Analytics provider type
-   * @default 'noop'
-   * @example 'umami', 'plausible', 'ga4'
-   */
-  provider?: ProviderType;
-
-  /**
-   * Generic alias for provider-specific site/property ID
-   * @example 'G-XXXXXXXXXX' for Google Analytics
-   */
-  site?: string;
-
-  /**
-   * Custom analytics host URL
-   * @example 'https://analytics.example.com'
-   */
-  host?: string;
-
-  // GENERAL OPTIONS
+/**
+ * Core analytics facade configuration options.
+ * 
+ * These options control the behavior of the TrackKit facade layer - the part that
+ * handles URL tracking, consent management, filtering, and coordination between
+ * different analytics providers. These settings apply regardless of which specific
+ * analytics provider you're using.
+ * 
+ * All properties are required when used internally, but become optional in 
+ * AnalyticsOptions with sensible defaults applied.
+ */
+export interface FacadeOptions {
 
   /**
    * Enable page tracking when the page is hidden
-   * @default false
    */
-  allowWhenHidden?: boolean;
+  allowWhenHidden: boolean;
 
   /**
    * Automatically track page views
-   * @default true
    */
-  autoTrack?: boolean;
-
-  /**
-   * Number of events to batch together
-   * @default 10
-   */
-  batchSize?: number;
-
-  /**
-   * Time in ms before forcing batch send
-   * @default 1000
-   */
-  batchTimeout?: number;
+  autoTrack: boolean;
 
   /**
    * Enable cache-busting (ie disable caching) for requests
-   * @default false
    */
-  bustCache?: boolean;
+  bustCache: boolean;
 
   /**
    * Enable debug logging to console
-   * @default false
    */
-  debug?: boolean;
+  debug: boolean;
 
   /**
    * Whitelist of domains to track
@@ -161,124 +157,45 @@ export type InitOptions = {
 
   /**
    * Honor Do Not Track browser setting
-   * @default true
    */
-  doNotTrack?: boolean;
+  doNotTrack: boolean;
 
   /**
-   * Exclude paths from tracking (Plausible)
+   * Exclude paths from tracking
    */
   exclude?: string[];
 
   /**
    * Include hash in URL for hash-router SPAs that need it
    */
-  includeHash?: boolean;
+  includeHash: boolean;
 
   /**
    * Maximum number of events to queue before dropping oldest
-   * @default 50
    */
-  queueSize?: number;
+  queueSize: number;
 
   /**
-   * Track localhost events (Plausible)
-   * @default false
+   * Track localhost events
    */
-  trackLocalhost?: boolean;
-
-  /**
-   * Transport mechanism for sending events
-   * @default 'beacon'
-   */
-  transport?: 'auto' | 'beacon' | 'fetch' | 'xhr';
+  trackLocalhost: boolean;
 
   // OPTION COLLECTIONS
-
-  batching?: BatchingOptions;
-  connection?: ConnectionOptions;
 
   /**
    * Custom consent options for GDPR compliance
    */
   consent?: ConsentOptions;
 
+  /**
+   * Navigation source for SPA URL change detection
+   */
   navigationSource?: NavigationSource;
-  performance?: PerformanceOptions;
-  resilience?: ResilienceOptions;
-
-  // PROVIDER-SPECIFIC OPTIONS
-
-  // Umami-specific options
-  /**
-   * Umami website ID (alternative to `site` alias)
-   * @example '9e1e6d6e-7c0e-4b0e-8f0a-5c5b5b5b5b5b'
-   */
-  website?: string;
-
-
-  // Plausible-specific options
-  /**
-   * Default properties for all events (Plausible)
-   */
-  defaultProps?: Record<string, string>;
-
-  /**
-   * Plausible domain to track (alternative to `site` alias)
-   * @example 'example.com'
-   */
-  domain?: string;
-
-  /**
-   * Revenue tracking configuration (Plausible)
-   */
-  revenue?: { currency: string; trackingEnabled: boolean };
-
-
-  // GA4-specific options
-  /**
-   * Custom API secret for server-side tracking
-   * Required for providers that support server-side events
-   */
-  apiSecret?: string;
-
-  /**
-   * Custom dimensions mapping
-   * Maps friendly names to GA4 dimension names
-   * @example { plan_type: 'custom_dimension_1' }
-   */
-  customDimensions?: Record<string, string>;
-
-  /**
-   * Custom metrics mapping
-   * Maps friendly names to GA4 metric names
-   * @example { engagement_score: 'custom_metric_1' }
-   */
-  customMetrics?: Record<string, string>;
-
-  /** 
-   * Send to GA validation endpoint (/debug/mp/collect).
-   * @default false
-   */
-  debugEndpoint?: boolean;
-
-  /**
-   * Add GA4 `debug_mode=1` event param so events show in DebugView.
-   * @default false
-   */
-  debugMode?: boolean;
-
-  /**
-   * Google Analytics 4 measurement ID (alternative to `site` alias)
-   * @example 'G-XXXXXXXXXX'
-   */
-  measurementId?: string;
 
   // FUNCTION OPTIONS
 
   /**
    * Custom error handler for analytics errors
-   * @default console.error
    */
   onError?: (error: AnalyticsError) => void;
 
@@ -293,47 +210,58 @@ export type InitOptions = {
   urlTransform?: (url: string) => string;
 }
 
-export interface FacadeOptions {
-  debug: boolean;
-  queueSize: number;
-  batchSize: number;
-  batchTimeout: number;
-  autoTrack: boolean;
-  doNotTrack: boolean;
-  trackLocalhost: boolean;
-  bustCache: boolean;
-  allowWhenHidden: boolean;
-  includeHash: boolean;
-  domains?: string[];
-  exclude?: string[];
-  transport: 'auto' |'beacon' | 'xhr' | 'fetch';
-  consent?: ConsentOptions;
-  batching?: BatchingOptions;
-  connection?: ConnectionOptions;
-  navigationSource?: NavigationSource;
-  performance?: PerformanceOptions;
-  resilience?: ResilienceOptions;
-  onError?: (error: AnalyticsError) => void;
+export interface ResolvedFacadeOptions extends Required<Omit<FacadeOptions,'consent'|'navigationSource'|'urlResolver'|'urlTransform'>> {
+  consent: ResolvedConsentOptions;
+  navigationSource: ResolvedNavigationSource;
   urlResolver?: () => string;
   urlTransform?: (url: string) => string;
 }
 
-/** Normalized alias: accept `site` at input, but canonicalize below and drop `site`. */
-export type NoopOptions = {
-  provider: 'noop';
-  site?: string;
-  host?: string;
-};
+/**
+ * Configuration options for initializing the analytics system.
+ * 
+ * This is the main entry point for configuring TrackKit. It combines:
+ * - **Facade options**: Core tracking behavior (autoTrack, domains, consent, etc.)
+ * - **Provider options**: Analytics service configuration (GA4, Plausible, Umami)  
+ * - **Dispatcher options**: Transport, batching, and resilience settings
+ * 
+ * All facade options are optional here and will use sensible defaults.
+ * 
+ * @example
+ * ```typescript
+ * const analytics = createAnalytics({
+ *   provider: { name: 'ga4', measurementId: 'G-XXXXXXXXXX' },
+ *   autoTrack: true,
+ *   trackLocalhost: false,
+ *   dispatcher: {
+ *     batching: { enabled: true, maxSize: 10 }
+ *   }
+ * });
+ * ```
+ */
+export interface AnalyticsOptions extends Partial<FacadeOptions> {
+  /** Analytics provider configuration (GA4, Plausible, Umami, or noop) */
+  provider?: ProviderOptions;
+  /** Advanced transport, batching, and resilience configuration */
+  dispatcher?: DispatcherOptions;
+}
 
-// ---- Final input type
-export type ProviderOptions = NoopOptions | UmamiOptions | PlausibleOptions | GA4Options;
-
-export type ResolvedProviderOptions = ProviderOptions;
-
-// Internal resolved shape
-export interface ResolvedOptions {
-  facadeOptions: FacadeOptions;
-  providerOptions: ProviderOptions;
+/**
+ * Internal resolved configuration after applying defaults and validation.
+ * 
+ * This is the normalized shape used internally by the analytics facade after
+ * processing user-provided AnalyticsOptions. All facade options are resolved
+ * to concrete values, and provider options are validated and normalized.
+ * 
+ * @internal
+ */
+export interface ResolvedAnalyticsOptions {
+  /** Fully resolved facade options with all defaults applied */
+  facade: ResolvedFacadeOptions;
+  /** Validated and normalized provider configuration */
+  provider: ResolvedProviderOptions;
+  /** Resolved dispatcher configuration */
+  dispatcher: ResolvedDispatcherOptions;
 }
 
 /**

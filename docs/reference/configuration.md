@@ -43,10 +43,7 @@ They map onto the corresponding TypeScript options on the facade.
 
 | Key | Type | Description | Default (effective) |
 |-----|------|-------------|---------------------|
-| `PROVIDER` | string | Analytics provider (`umami`, `plausible`, `ga4`, `noop`) | `'noop'` |
-| `SITE` | string | Generic provider application identifier | — (aliases `WEBSITE` / `DOMAIN` / `MEASUREMENT_ID`) |
-| `WEBSITE` / `DOMAIN` / `MEASUREMENT_ID` | string | Provider-specific application identifiers | — (either specific or generic identifier required) |
-| `HOST` | string | Analytics base URL (where applicable) | Provider default (`UMAMI_HOST`, `PLAUSIBLE_HOST`, `GA_HOST`) |
+| `PROVIDER` | JSON | Analytics provider options (configuration for `umami`, `plausible`, `ga4`, or `noop`) | see **Provider defaults** |
 | `QUEUE_SIZE` | number | Max in-memory facade queue size | `50` |
 | `DEBUG` | boolean (`true`/`false`/`1`/`0`) | Verbose debug logging | `false` |
 | `AUTO_TRACK` | boolean | Enable SPA navigation autotracking | `true` |
@@ -55,11 +52,10 @@ They map onto the corresponding TypeScript options on the facade.
 | `INCLUDE_HASH` | boolean | Include `#hash` in URLs | `false` |
 | `DOMAINS` | string / JSON | Allowed hostnames, e.g. `"app.example.com,www.example.com"` or `["app.example.com"]` | allow all |
 | `EXCLUDE` | string / JSON | URL substrings to exclude, e.g. `"/admin,/debug"` or `["/admin"]` | none |
-| `BATCH_SIZE` | number | Max events per facade batch | `10` |
-| `BATCH_TIMEOUT` | number (ms) | Max delay before a facade batch flushes | `1000` |
 | `TRANSPORT` | string | Transport hint (`'auto'`, `'fetch'`, `'beacon'`) | `'auto'` |
-| `DEFAULT_PROPS` | JSON | Extra properties merged into events | — |
+| `BATCHING` | JSON
 | `CONSENT` | JSON | Initial consent policy (see below) | see **Consent defaults** |
+| `CONNECTION` | JSON |
 
 A few important details:
 
