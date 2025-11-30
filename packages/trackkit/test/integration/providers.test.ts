@@ -28,17 +28,17 @@ describe('Provider Integration', () => {
   }> = [
     {
       name: 'umami',
-      config: { provider: 'umami', site: TEST_SITE_ID.umami },
+      config: { provider: { name: 'umami', site: TEST_SITE_ID.umami }},
       data: { url: `${UMAMI_HOST}${UMAMI_ENDPOINT}` }
     },
     {
       name: 'plausible',
-      config: { provider: 'plausible', site: 'test.com' },
+      config: { provider: { name: 'plausible', site: 'test.com' }},
       data: { url: 'https://plausible.io/api/event' }
     },
     {
       name: 'ga4',
-      config: { provider: 'ga4', site: 'G-TEST123456' },
+      config: { provider: { name: 'ga4', site: 'G-TEST123456' }},
       data: { url: /https:\/\/www\.google-analytics\.com\/(?:debug\/)?mp\/collect/ }
     },
   ];
@@ -231,7 +231,7 @@ describe('Provider Integration', () => {
       );
 
       // Start with no-op
-      init({ provider: 'noop' });
+      init();
       await waitForReady();
       track('noop_event');
 

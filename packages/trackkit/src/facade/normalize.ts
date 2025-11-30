@@ -4,7 +4,8 @@ import {
   PERFORMANCE_DEFAULTS, RESILIENCE_DEFAULTS, FACADE_BASE_DEFAULTS,
   DEFAULT_HEADERS,
   PROVIDER_DEFAULTS,
-  PROVIDER_BASE_DEFAULTS
+  PROVIDER_BASE_DEFAULTS,
+  DEFAULT_TRANSPORT_MODE,
 } from '../constants';
 import type { ResilienceOptions } from '../dispatcher/transports';
 import type { BatchingOptions, ConnectionOptions, DispatcherOptions, PerformanceOptions, ResolvedBatchingOptions, ResolvedConnectionOptions, ResolvedDispatcherOptions, ResolvedPerformanceOptions, ResolvedResilienceOptions, ResolvedRetryOptions, RetryOptions } from '../dispatcher/types';
@@ -64,6 +65,7 @@ export const applyResilienceDefaults = (options: ResilienceOptions = {}): Resolv
 export const applyNavigationSourceDefaults = (src?: NavigationSource): ResolvedNavigationSource => src ?? makeWindowNavigationSource();
 
 export const applyDispatcherDefaults = (combined: DispatcherOptions = {}): ResolvedDispatcherOptions => ({
+  transportMode: combined.transportMode ?? DEFAULT_TRANSPORT_MODE,
   defaultHeaders: combined.defaultHeaders ?? DEFAULT_HEADERS,
   batching: applyBatchingDefaults(combined.batching),
   connection: applyConnectionDefaults(combined.connection),
@@ -77,7 +79,7 @@ export function applyFacadeDefaults(
   providerName: ProviderType,
 ): ResolvedFacadeOptions {
   const providerDefaults = PROVIDER_DEFAULTS[providerName] || PROVIDER_BASE_DEFAULTS;
-  const trackLocalhost =
+  const trackLocalhost = providerName === 'noop' ? true :
     combined.trackLocalhost ?? providerDefaults.trackLocalhost ?? FACADE_BASE_DEFAULTS.trackLocalhost;
 
   return {

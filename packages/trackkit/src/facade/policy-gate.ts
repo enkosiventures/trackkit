@@ -8,8 +8,16 @@ export type SendDecision = { ok: boolean; reason:
   'ok'|'not-browser'|'consent-pending'|'consent-denied'|'dnt'|'localhost'|'domain-excluded'
 };
 
+export interface PolicyDiagnostics {
+  eventsEvaluated: number;
+  eventsBlocked: number;
+  lastDecision?: 'forwarded' | 'queued' | 'dropped';
+  lastReason?: SendDecision['reason'];
+}
+
 export class PolicyGate {
   constructor(private facade: ResolvedFacadeOptions, private consent: ConsentManager | null) {}
+
   shouldSend(type: EventType, category = DEFAULT_CATEGORY, url?: string): SendDecision {
     let consentStatus;
     if (!this.consent?.isAllowed(category)) consentStatus = this.consent?.getStatus();

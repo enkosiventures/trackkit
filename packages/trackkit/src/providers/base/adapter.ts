@@ -1,6 +1,5 @@
 import type { PageContext, ProviderInstance, ProviderType } from '../../types';
 import type { FactoryOptions } from '../types';
-import type { Sender} from './transport';
 import type { TransportMethod } from './transport';
 
 
@@ -61,7 +60,7 @@ export function createConfigProvider<ProviderOptions>(spec: ProviderSpec<Provide
       const parseError = spec.parseError ?? defaultParseError;
 
       const sendAndCheck = async (method: TransportMethod, url: string, body: unknown) => {
-        const res = await options.factory.sender({
+        const res = await options.factory.sender.send({
           method, url, headers, body,
           maxBeaconBytes: spec.limits?.maxBeaconBytes,
           bustCache: options.factory.bustCache,

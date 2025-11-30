@@ -4,6 +4,7 @@ import type { FacadeOptions, ProviderOptions, ProviderType, ResolvedFacadeOption
 import type { 
   FallbackStrategy, ResolvedBatchingOptions, ResolvedConnectionOptions,
   ResolvedPerformanceOptions, ResolvedResilienceOptions, ResolvedRetryOptions,
+  TransportMode,
 } from "./dispatcher/types";
 
 import { logger } from "./util/logger";
@@ -27,6 +28,7 @@ export const UMAMI_HOST = 'https://api.umami.is';
 export const PLAUSIBLE_HOST = 'https://plausible.io';
 export const GA_HOST = 'https://www.google-analytics.com';
 
+export const DEFAULT_TRANSPORT_MODE: TransportMode = 'smart';
 export const DEFAULT_HEADERS = {};
 
 export const RETRY_DEFAULTS: ResolvedRetryOptions = {

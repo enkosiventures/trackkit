@@ -5,8 +5,9 @@ import { logger } from '../util/logger';
 import type { AnalyticsError } from '../errors';
 import { makeDispatcherSender } from './base/transport';
 import type { NetworkDispatcherOptions } from '../dispatcher';
-import type { ResolvedBatchingOptions, ResolvedResilienceOptions } from '../dispatcher/types';
+import type { ResolvedBatchingOptions, ResolvedResilienceOptions, TransportMode } from '../dispatcher/types';
 import type { PerformanceTracker } from '../performance/tracker';
+import { DiagnosticsService } from '../facade/diagnostics';
 
 
 /**
@@ -21,10 +22,12 @@ export async function loadProvider(
   providerConfig: ProviderOptions,
   batching: ResolvedBatchingOptions,
   resilience: ResolvedResilienceOptions,
+  transportMode: TransportMode,
   defaultHeaders: Record<string, string>,
   bustCache: boolean,
   debug: boolean,
   onError: (error: AnalyticsError) => void,
+  diagnostics: DiagnosticsService | null,
   performanceTracker?: PerformanceTracker | null,
 ): Promise<StatefulProvider> {
   const name = providerConfig.name;
@@ -52,7 +55,9 @@ export async function loadProvider(
       batching,
       resilience,
       bustCache,
+      transportMode,
       defaultHeaders,
+      diagnostics,
       performanceTracker,
     } satisfies NetworkDispatcherOptions);
 

@@ -3,6 +3,7 @@ import { logger, stringifyError } from './util/logger';
 
 export type ErrorCode = 
   | 'INIT_FAILED'
+  | 'NOT_INITIALIZED'
   | 'PROVIDER_ERROR'
   | 'NETWORK_ERROR'
   | 'QUEUE_OVERFLOW'

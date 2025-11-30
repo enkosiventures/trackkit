@@ -35,7 +35,6 @@ describe('Consent Flow Integration', () => {
 
   it('queues events while consent is pending (explicit required)', async () => {
     const facade = init({
-      provider: 'noop',
       trackLocalhost: true,
       consent: { requireExplicit: true, disablePersistence: true },
     });
@@ -55,7 +54,6 @@ describe('Consent Flow Integration', () => {
 
   it('flushes the queue after provider ready + consent granted', async () => {
     init({
-      provider: 'noop',
       autoTrack: false,
       trackLocalhost: true,
       consent: { requireExplicit: true, disablePersistence: true },
@@ -86,7 +84,6 @@ describe('Consent Flow Integration', () => {
 
   it('drops new events when consent is denied', async () => {
     init({
-      provider: 'noop',
       trackLocalhost: true,
       consent: { requireExplicit: true, disablePersistence: true },
     });
@@ -115,7 +112,6 @@ describe('Consent Flow Integration', () => {
 
   it('handles implicit consent flow (auto-promote on first emittable event)', async () => {
     init({
-      provider: 'noop',
       trackLocalhost: true,
       consent: { requireExplicit: false, disablePersistence: true },
     });
@@ -137,7 +133,6 @@ describe('Consent Flow Integration', () => {
   it('persists consent across sessions when persistence enabled', async () => {
     // Session 1
     init({
-      provider: 'noop',
       trackLocalhost: true,
       consent: { requireExplicit: true, /* persist by default */ },
     });
@@ -149,7 +144,6 @@ describe('Consent Flow Integration', () => {
 
     // Session 2 in the SAME test (we didn’t clear localStorage)
     init({
-      provider: 'noop',
       trackLocalhost: true,
       consent: { requireExplicit: true },
     });
@@ -160,7 +154,6 @@ describe('Consent Flow Integration', () => {
   it('resets consent to pending when policy version changes', () => {
     // Session 1
     init({
-      provider: 'noop',
       consent: { requireExplicit: true, policyVersion: '1.0' },
     });
     grantConsent();
@@ -168,7 +161,6 @@ describe('Consent Flow Integration', () => {
 
     // Session 2 with a new policy version
     init({
-      provider: 'noop',
       consent: { requireExplicit: true, policyVersion: '2.0' },
     });
 
@@ -179,7 +171,6 @@ describe('Consent Flow Integration', () => {
     const listener = vi.fn();
 
     init({
-      provider: 'noop',
       consent: { requireExplicit: true, disablePersistence: true },
     });
 
@@ -211,7 +202,6 @@ describe('Consent Flow Integration', () => {
 
   it('clears queue on consent denial', async () => {
     init({
-      provider: 'noop',
       trackLocalhost: true,
       consent: { requireExplicit: true, disablePersistence: true },
     });
@@ -235,7 +225,6 @@ describe('Consent Flow Integration', () => {
     const changes: string[] = [];
 
     const facade = init({
-      provider: 'noop',
       consent: { requireExplicit: true, disablePersistence: true },
     });
 
@@ -257,7 +246,6 @@ describe('Consent Flow Integration', () => {
   it('allows "essential" category even when denied (when configured)', async () => {
     // Denied but allow essential
     init({
-      provider: 'noop',
       trackLocalhost: true,
       consent: { requireExplicit: true, disablePersistence: true, allowEssentialOnDenied: true },
     });

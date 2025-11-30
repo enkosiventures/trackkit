@@ -115,7 +115,7 @@ export function createGA4Client(
       payload.consent = consent; // GA4 MP consent object
     }
 
-    const res = await options.factory.sender({
+    const res = await options.factory.sender.send({
       method,
       url: endpoint,
       headers,

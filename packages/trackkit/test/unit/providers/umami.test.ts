@@ -27,7 +27,7 @@ describe('Umami provider / client', () => {
     );
 
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: { provider: 'umami', website: TEST_SITE_ID.umami }});
+    const instance = umami.create({ provider: { name: 'umami', website: TEST_SITE_ID.umami }});
     const ctx: PageContext = {
       url: '/a',
       title: 'T',
@@ -71,7 +71,7 @@ describe('Umami provider / client', () => {
     );
 
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: { provider: 'umami', website: TEST_SITE_ID.umami } });
+    const instance = umami.create({ provider: { name: 'umami', website: TEST_SITE_ID.umami } });
 
     // Provide ctx with an explicit url + viewport to avoid 0x0 defaults
     const ctx: PageContext = {
@@ -105,7 +105,7 @@ describe('Umami provider / client', () => {
     const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({
       provider: { 
-        provider: 'umami',
+        name: 'umami',
         website: TEST_SITE_ID.umami,
         host: 'https://analytics.example.com',
       }
@@ -122,7 +122,7 @@ describe('Umami provider / client', () => {
     );
 
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: { provider: 'umami', website: TEST_SITE_ID.umami } });
+    const instance = umami.create({ provider: { name: 'umami', website: TEST_SITE_ID.umami } });
 
     await expect(
       instance.track('oops', {}, { url: '/', viewportSize: { width: 1, height: 1 } })
@@ -138,7 +138,7 @@ describe('Umami provider / client', () => {
 
     const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({
-      provider: { provider: 'umami', website: TEST_SITE_ID.umami },
+      provider: { name: 'umami', website: TEST_SITE_ID.umami },
       factory: { bustCache: true },
     });
 
@@ -167,7 +167,7 @@ describe('Umami provider / client', () => {
 
     const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({
-      provider: { provider: 'umami', website: TEST_SITE_ID.umami },
+      provider: { name: 'umami', website: TEST_SITE_ID.umami },
       factory: { bustCache: true },
     });
     await instance.track('test', { value: 42 }, { url: '/', viewportSize: { width: 1, height: 1 } });
@@ -180,7 +180,7 @@ describe('Umami provider / client', () => {
 
   it('identify is a safe no-op', async () => {
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: { provider: 'umami', website: TEST_SITE_ID.umami }});
+    const instance = umami.create({ provider: { name: 'umami', website: TEST_SITE_ID.umami }});
     const ctx: PageContext = {
         url: '/a',
         title: 'T',
@@ -195,7 +195,7 @@ describe('Umami provider / client', () => {
 
   it('destroy() is idempotent', async () => {
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: { provider: 'umami', website: TEST_SITE_ID.umami }});
+    const instance = umami.create({ provider: { name: 'umami', website: TEST_SITE_ID.umami }});
     expect(() => instance.destroy()).not.toThrow();
     expect(() => instance.destroy()).not.toThrow();
   });

@@ -3,6 +3,7 @@ import { loadProvider } from '../providers/loader';
 import type { ProviderOptions, EventType, PageContext, ResolvedFacadeOptions } from '../types';
 import type { PerformanceTracker } from '../performance/tracker';
 import { ResolvedDispatcherOptions } from '../dispatcher/types';
+import { DiagnosticsService } from './diagnostics';
 
 
 export class ProviderManager {
@@ -16,16 +17,20 @@ export class ProviderManager {
     private dispatcherConfig: ResolvedDispatcherOptions,
   ) {}
 
-  async load(performanceTracker?: PerformanceTracker | null): Promise<StatefulProvider> {
+  async load(
+    diagnostics: DiagnosticsService | null,
+    performanceTracker?: PerformanceTracker | null): Promise<StatefulProvider> {
     if (this.injected && this.provider) return this.provider;
     const loaded = await loadProvider(
       this.providerConfig,
       this.dispatcherConfig.batching,
       this.dispatcherConfig.resilience,
+      this.dispatcherConfig.transportMode,
       this.dispatcherConfig.defaultHeaders,
       this.facadeConfig.bustCache,
       this.facadeConfig.debug,
       this.facadeConfig.onError,
+      diagnostics,
       performanceTracker,
     );
     this.provider = loaded;

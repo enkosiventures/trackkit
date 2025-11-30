@@ -29,9 +29,8 @@ export class TestTransport implements Transport {
   }
 }
 
-export function makeTestDispatcherSender(opts: NetworkDispatcherOptions, transport: Transport): Sender {
+export function makeTestDispatcherSender(opts: NetworkDispatcherOptions): Sender {
   const dispatcher = new NetworkDispatcher(opts);
-  dispatcher._setTransportForTests(transport);
   const RESPONSE_OK = { ok: true, status: 204, statusText: 'OK' } as unknown as Response;
 
   return async ({ method, url, headers, body }) => {

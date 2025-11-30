@@ -21,6 +21,7 @@ export class EventBatchProcessor {
     private batching: ResolvedBatchingOptions,
     retry: ResolvedRetryOptions,
     private sendFn: (batch: Batch) => Promise<void>,
+    private onAdd: ((event: BatchedEvent, current: Batch) => void) | null = null
   ) {
     this.retry = new RetryManager(retry);
   }
@@ -42,6 +43,7 @@ export class EventBatchProcessor {
     logger.debug(`Adding event to current batch: ${this.current.id}`, event);
     this.current.events.push(event);
     this.current.totalSize += size;
+    this.onAdd?.(event, this.current);
 
     // Case B: single-event bigger than maxBytes — send immediately as its own batch
     if (size > this.batching.maxBytes && this.current.events.length === 1) {

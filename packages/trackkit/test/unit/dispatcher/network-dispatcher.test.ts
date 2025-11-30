@@ -215,3 +215,62 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
     expect(last).toEqual({ x: 3 });
   });
 });
+
+
+describe('NetworkDispatcher - Additional Coverage', () => {
+  it('applies cache-busting when enabled', async () => {
+    const nd = new NetworkDispatcher({ 
+      bustCache: true,
+      batching: { enabled: false } 
+    });
+
+    await nd.send({ 
+      url: 'https://api.test/collect', 
+      body: { a: 1 },
+      init: { method: 'POST' }
+    });
+
+    const call = t.send.mock.calls[0][0];
+    expect(call.init.headers).toMatchObject({
+      'Cache-Control': 'no-store, max-age=0',
+      'Pragma': 'no-cache'
+    });
+  });
+
+  it('strips empty fields from body before sending', async () => {
+    const nd = new NetworkDispatcher({});
+    
+    await nd.send({ 
+      url: 'https://api.test/collect', 
+      body: { a: 1, b: null, c: undefined, d: '' }
+    });
+
+    const call = t.send.mock.calls[0][0];
+    expect(JSON.parse(call.body)).toEqual({ a: 1 });
+  });
+
+  it('sets content-type automatically for JSON bodies', async () => {
+    const nd = new NetworkDispatcher({});
+    
+    await nd.send({ 
+      url: 'https://api.test/collect', 
+      body: { test: true }
+    });
+
+    expect(t.send.mock.calls[0][0].init.headers).toMatchObject({
+      'content-type': 'application/json'
+    });
+  });
+
+  it('handles GET requests without body', async () => {
+    const nd = new NetworkDispatcher({});
+    
+    await nd.send({ 
+      url: 'https://api.test/collect?param=value',
+      init: { method: 'GET' }
+    });
+
+    const call = t.send.mock.calls[0][0];
+    expect(call.init.body).toBeUndefined();
+  });
+});

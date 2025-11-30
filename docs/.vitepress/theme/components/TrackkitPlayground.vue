@@ -22,6 +22,29 @@
             <code>track()</code> on the same instance. Watch the queue metrics as you click.
           </p>
 
+          <div class="tk-field">
+            <label for="pvPreset">Pageview URL</label>
+            <div class="tk-field-row">
+              <select id="pvPreset" v-model="config.pageviewPreset" @change="onChangePreset" class="tk-select">
+                <option value="playground">/docs/playground</option>
+                <option value="home">/</option>
+                <option value="docs-root">/docs/</option>
+                <option value="faq">/overview/faq#section</option>
+                <option value="custom">Custom…</option>
+              </select>
+              <input
+                class="tk-input"
+                :disabled="config.pageviewPreset !== 'custom'"
+                v-if="config.pageviewPreset === 'custom'"
+                v-model="config.pageviewUrl"
+                placeholder="/docs/playground"
+              />
+            </div>
+            <p class="tk-help">
+              Pick a preset, or choose <em>Custom…</em> to type your own.
+            </p>
+          </div>
+
           <div class="tk-button-row">
             <button class="tk-button" @click="sendEvent('pageview')">
               pageview()
@@ -34,7 +57,7 @@
           <p class="tk-help">
             Try filling the queue by lowering the queue size and spamming events while
             consent is <strong>pending</strong>, then switching to
-            <strong>granted</strong>.
+            <strong>granted</strong>. Duplicate pageviews are filtered out automatically.
           </p>
         </div>
       </div>
@@ -47,7 +70,8 @@
               <h3>Instance configuration</h3>
               <p class="tk-muted">
                 This recreates a single Trackkit instance with the given options.<br />
-                Provider is fixed to <code>noop</code> so the docs don’t hit any real endpoints.
+                Provider is fixed to <code>noop</code> to avoid hitting real endpoints.<br />
+                Recreate the instance to apply changes.
               </p>
 
               <div class="tk-field">
@@ -77,6 +101,33 @@
                   <input type="checkbox" v-model="config.autoTrack" />
                   Auto pageview on navigation
                 </label>
+                <label>
+                  <input type="checkbox" v-model="config.dnt" />
+                  Respect DNT
+                </label>
+                <label>
+                  <input type="checkbox" v-model="config.includeHash" />
+                  includeHash
+                </label>
+              </div>
+
+              <div class="tk-field">
+                <label>Batching</label>
+                <div class="tk-field-row">
+                  <label class="tk-checkbox-row" style="margin:0">
+                    <input type="checkbox" v-model="config.batchingEnabled" />
+                    Enable batching
+                  </label>
+                </div>
+                <div class="tk-field-row" :style="{ opacity: config.batchingEnabled ? 1 : 0.55 }">
+                  <label style="min-width: 80px;">maxSize</label>
+                  <input class="tk-input" type="number" min="1" v-model.number="config.batchMaxSize" :disabled="!config.batchingEnabled">
+                </div>
+                <div class="tk-field-row" :style="{ opacity: config.batchingEnabled ? 1 : 0.55 }">
+                  <label style="min-width: 80px;">maxWait</label>
+                  <input class="tk-input" type="number" min="0" v-model.number="config.batchMaxWait" :disabled="!config.batchingEnabled">
+                  <span class="tk-chip">ms</span>
+                </div>
               </div>
 
               <button class="tk-button" @click="recreateInstance">
@@ -143,15 +194,33 @@
               <h3>Runtime state</h3>
               <div v-if="snapshot" class="tk-grid">
                 <div class="tk-grid-item">
-                  <h4>Consent</h4>
+                  <h4>Dispatch</h4>
                   <dl>
                     <div>
-                      <dt>Status</dt>
-                      <dd>{{ snapshot.consent?.status ?? 'pending' }}</dd>
+                      <dt>Total dispatched</dt>
+                      <dd>{{ snapshot.performance.totalSends }}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <div class="tk-grid-item">
+                  <h4>Policy Gate</h4>
+                  <dl>
+                    <div>
+                      <dt>Evaluated</dt>
+                      <dd>{{ snapshot.policy?.eventsEvaluated ?? 0 }}</dd>
                     </div>
                     <div>
-                      <dt>Version</dt>
-                      <dd>{{ snapshot.consent?.version ?? '—' }}</dd>
+                      <dt>Blocked</dt>
+                      <dd>{{ snapshot.policy?.eventsBlocked ?? 0 }}</dd>
+                    </div>
+                    <div>
+                      <dt>Last decision</dt>
+                      <dd>{{ snapshot.policy?.lastDecision ?? '—' }}</dd>
+                    </div>
+                    <div>
+                      <dt>Last reason</dt>
+                      <dd>{{ snapshot.policy?.lastReason ?? '—' }}</dd>
                     </div>
                   </dl>
                 </div>
@@ -166,6 +235,28 @@
                     <div>
                       <dt>Runtime capacity</dt>
                       <dd>{{ snapshot.queue?.capacity ?? config.queueSize }}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <div class="tk-grid-item">
+                  <h4>Batching</h4>
+                  <dl>
+                    <div>
+                      <dt>Status</dt>
+                      <dd>{{ config.batchingEnabled ? 'on' : 'off' }}</dd>
+                    </div>
+                    <div v-if="config.batchingEnabled">
+                      <dt>Size / Wait</dt>
+                      <dd>{{ config.batchMaxSize }} / {{ config.batchMaxWait }}ms</dd>
+                    </div>
+                    <div v-if="config.batchingEnabled">
+                      <dt>Current batch size</dt>
+                      <dd>{{ snapshot.dispatcher?.batching.currentBatchSize ?? 0 }} bytes</dd>
+                    </div>
+                    <div v-if="config.batchingEnabled">
+                      <dt>Current batch quantity</dt>
+                      <dd>{{ snapshot.dispatcher?.batching.currentBatchQuantity ?? 0 }}</dd>
                     </div>
                   </dl>
                 </div>
@@ -254,6 +345,14 @@ const config = reactive({
   queueSize: 10,
   debug: true,
   autoTrack: false,
+  dnt: true,
+  includeHash: false,
+  batchingEnabled: true,
+  batchMaxSize: 3,
+  batchMaxWait: 10000,
+  // pageview URL controls
+  pageviewPreset: 'playground',
+  pageviewUrl: '/docs/playground',
 });
 
 const snapshot = ref<any | null>(null);
@@ -270,9 +369,15 @@ const formattedSnapshot = computed(() =>
   snapshot.value ? JSON.stringify(snapshot.value, null, 2) : '',
 );
 
-function refreshSnapshot() {
+async function refreshSnapshot() {
   if (!analytics || typeof analytics.getDiagnostics !== 'function') return;
-  snapshot.value = analytics.getDiagnostics();
+  const s = analytics.getDiagnostics();
+  // Support both sync and async implementations
+  if (s && typeof (s as any).then === 'function') {
+    snapshot.value = await (s as Promise<any>);
+  } else {
+    snapshot.value = s as any;
+  }
 }
 
 function logEvent(label: string, detail?: string) {
@@ -286,6 +391,17 @@ function logEvent(label: string, detail?: string) {
   }
 }
 
+function onChangePreset() {
+  switch (config.pageviewPreset) {
+    case 'playground': config.pageviewUrl = '/docs/playground'; break;
+    case 'home':       config.pageviewUrl = '/'; break;
+    case 'docs-root':  config.pageviewUrl = '/docs/'; break;
+    case 'faq':        config.pageviewUrl = '/overview/faq#section'; break;
+    case 'custom':     /* leave user's value */ break;
+    default:           config.pageviewUrl = '/docs/playground';
+  }
+}
+
 function createInstance() {
   if (!isClient.value) return;
 
@@ -294,10 +410,23 @@ function createInstance() {
 
   try {
     analytics = createAnalytics({
-      provider: 'noop',
       debug: config.debug,
       autoTrack: config.autoTrack,
+      doNotTrack: config.dnt,
+      includeHash: config.includeHash,
       queueSize: config.queueSize,
+      provider: { name: 'noop' },
+      dispatcher: {
+        transportMode: 'noop',
+        batching: {
+          enabled: config.batchingEnabled,
+          maxSize: config.batchingEnabled ? config.batchMaxSize : 1,
+          maxWait: config.batchingEnabled ? config.batchMaxWait : 0,
+        },
+        performance: {
+          enabled: true,
+        },
+      },
       consent: {
         initialStatus: 'pending',
         requireExplicit: true,
@@ -346,15 +475,15 @@ function setConsent(action: 'pending' | 'grant' | 'deny') {
       break;
   }
 
-  refreshSnapshot();
+  return refreshSnapshot();
 }
 
-function sendEvent(kind: 'pageview' | 'track') {
+async function sendEvent(kind: 'pageview' | 'track') {
   if (!analytics) return;
 
   if (kind === 'pageview') {
-    analytics.pageview?.('/docs/playground');
-    logEvent('pageview()', '/docs/playground');
+    analytics.pageview?.(config.pageviewUrl);
+    logEvent('pageview()', config.pageviewUrl);
   } else {
     analytics.track?.('playground_event', {
       surface: 'playground',
@@ -363,7 +492,7 @@ function sendEvent(kind: 'pageview' | 'track') {
     logEvent('track()', 'playground_event');
   }
 
-  refreshSnapshot();
+  await refreshSnapshot();
 }
 
 function clearLog() {
@@ -463,6 +592,16 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.tk-select, .tk-input {
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+  width: 100%;
 }
 
 .tk-chip {

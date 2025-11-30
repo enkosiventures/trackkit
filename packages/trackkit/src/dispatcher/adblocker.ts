@@ -1,4 +1,6 @@
-export type BlockerDetection = { blocked: boolean; method?: 'fetch'|'script'|'dns'|'unknown'; confidence: number; fallback?: 'proxy'|'beacon'|'none'; };
+import { FallbackStrategy } from "./types";
+
+export type BlockerDetection = { blocked: boolean; method?: 'fetch'|'script'|'dns'|'unknown'; confidence: number; fallback?: FallbackStrategy; };
 
 export async function detectBlockers(): Promise<BlockerDetection> {
   const results: BlockerDetection[] = await Promise.all([
@@ -7,7 +9,8 @@ export async function detectBlockers(): Promise<BlockerDetection> {
   const blocked = results.some(r => r.blocked);
   const confidence = Math.max(...results.map(r => r.confidence));
   const method = results.find(r => r.blocked)?.method || 'unknown';
-  return { blocked, method, confidence, fallback: blocked ? (method === 'dns' ? 'beacon' : 'proxy') : undefined };
+  const fallback: FallbackStrategy | undefined = blocked ? (method === 'dns' ? 'beacon' : 'proxy') : undefined;
+  return { blocked, method, confidence, fallback };
 }
 
 function checkFetch(): Promise<BlockerDetection> {

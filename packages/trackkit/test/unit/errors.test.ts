@@ -53,7 +53,7 @@ describe('Error handling (Facade)', () => {
   it('falls back to noop for unknown provider (no INVALID_CONFIG emitted)', async () => {
     const onError = vi.fn();
 
-    init({ provider: 'ghost' as any, debug: true, onError });
+    init({ provider: { name: 'ghost' as any }, debug: true, onError });
     await waitForReady();
 
     // Current facade normalizes to noop quietly.
@@ -68,7 +68,8 @@ describe('Error handling (Facade)', () => {
     const onError = vi.fn();
 
     init({
-      provider: 'umami',      // umami spec requires website; we omit it
+      // @ts-expect-error missing required option to emit INVALID_CONFIG
+      provider: { name: 'umami' },      // umami spec requires website; we omit it
       debug: true,
       onError,
     });
@@ -90,7 +91,8 @@ describe('Error handling (Facade)', () => {
     const loudHandler = vi.fn(() => { throw new Error('boom'); });
 
     // Use provider with invalid config to trigger invalid-config path
-    init({ provider: 'umami', debug: true, onError: loudHandler });
+    // @ts-expect-error missing required option to emit INVALID_CONFIG
+    init({ provider: { name: 'umami' }, debug: true, onError: loudHandler });
 
     // The handler was invoked (and threw), but we shouldn't crash.
     await new Promise(r => setTimeout(r, 0));
@@ -109,7 +111,6 @@ describe('Error handling (Facade)', () => {
 
     // Valid provider so reconfigureQueue runs; keep consent pending to force queueing.
     init({
-      provider: 'noop',
       queueSize: 3,
       debug: true,
       trackLocalhost: true,

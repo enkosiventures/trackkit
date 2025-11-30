@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NetworkDispatcher } from '../../src/dispatcher/network-dispatcher';
 import * as TransportsMod from '../../src/dispatcher/transports';
 import { flushTimers, microtick } from '../helpers/core';
+import { applyBatchingDefaults, applyDispatcherDefaults, applyResilienceDefaults } from '../../src/facade/normalize';
+import { DEFAULT_HEADERS, FACADE_BASE_DEFAULTS } from '../../src/constants';
+import { NetworkDispatcherOptions } from '../../src/dispatcher';
+import { DispatcherOptions } from '../../src/dispatcher/types';
 
 
 export class SpyTransport implements TransportsMod.Transport {
@@ -15,14 +19,15 @@ export class SpyTransport implements TransportsMod.Transport {
  * - Uses NetworkDispatcher for actual network I/O (batching/retries/timers)
  * - Exposes its dispatcher & transport for assertions
  */
-export function makeSpyProvider(opts?: {
-  dispatcher?: ConstructorParameters<typeof NetworkDispatcher>[0];
-}) {
+export function makeSpyProvider(networkDispatcherOptions: NetworkDispatcherOptions) {
   const transport = new SpyTransport();
-  const dispatcher = new NetworkDispatcher(opts?.dispatcher || {});
+
   // Force dispatcher to use our transport (no real network)
-  // If you prefer module-level spy on resolveTransport, you can keep that instead.
-  (dispatcher as any)._setTransportForTests?.(transport);
+  const dispatcher = new NetworkDispatcher(
+    {...networkDispatcherOptions,
+      transportOverride: transport,
+    }
+  );
 
   const diagnostics = {
     pageviewCalls: [] as Array<{ url: string }>,
@@ -60,8 +65,19 @@ export function makeSpyProvider(opts?: {
  * Convenience helper used by tests that expect a ready facade with one spy provider.
  * Wire this into your existing setupAnalytics if you want, or use directly in the tests.
  */
-export async function setupAnalyticsWithSpyProvider(createFacade: (providers: any[]) => any, dispatcherOpts?: ConstructorParameters<typeof NetworkDispatcher>[0]) {
-  const spy = makeSpyProvider({ dispatcher: dispatcherOpts });
+export async function setupAnalyticsWithSpyProvider(
+  createFacade: (providers: any[]) => any,
+  dispatcherOptions?: DispatcherOptions,
+  bustCache: boolean = FACADE_BASE_DEFAULTS.bustCache,
+) {
+  const resolvedDispatcherOptions = applyDispatcherDefaults(dispatcherOptions);
+  const networkDispatcherOpts = {
+    batching: resolvedDispatcherOptions.batching,
+    resilience: resolvedDispatcherOptions.resilience,
+    defaultHeaders: resolvedDispatcherOptions.defaultHeaders,
+    bustCache,
+  }
+  const spy = makeSpyProvider(networkDispatcherOpts);
   const api = createFacade([spy]);
   return { api, spy };
 }
@@ -169,6 +185,8 @@ describe('Dispatcher integration (facade ↔ provider NetworkDispatcher)', () =>
         enabled: true,
         maxSize: 1, // immediate dispatch per send
         maxWait: 0,
+      },
+      resilience: {
         retry: {
           maxAttempts: 2,
           initialDelay: 5, // use non-zero so we can see the timer

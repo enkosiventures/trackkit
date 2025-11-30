@@ -7,11 +7,17 @@ import type { ProviderState } from '../providers/types';
 import type { ProviderStateHistory } from '../util/state';
 import type { PerformanceTracker } from '../performance/tracker';
 import { ResolvedBatchingOptions, ResolvedDispatcherOptions } from '../dispatcher/types';
+import { PolicyDiagnostics, SendDecision } from './policy-gate';
 
 export interface ProviderStateSnapshot {
   provider: string | null;
   state: ProviderState | 'unknown';
   details?: unknown;
+}
+
+export type CurrentBatchMetrics = {
+  currentBatchSize: number;
+  currentBatchQuantity: number;
 }
 
 export interface DiagnosticsSnapshot {
@@ -32,7 +38,7 @@ export interface DiagnosticsSnapshot {
     method?: string;
   };
   dispatcher: {
-    batching: ResolvedBatchingOptions;
+    batching: ResolvedBatchingOptions & CurrentBatchMetrics;
     resilience: {
       detectBlockers: boolean;
       fallbackStrategy: 'proxy' | 'beacon' | 'none';
@@ -57,7 +63,10 @@ export interface DiagnosticsSnapshot {
     avgNetworkLatency: number;
     totalEvents: number;
     failedEvents: number;
+    totalSends: number;
+    failedSends: number;
   };
+  policy: PolicyDiagnostics;
   provider: {
     key: string | null;
     state: ProviderState;
@@ -90,6 +99,9 @@ export interface DiagnosticsSnapshot {
  * Used by `getDiagnostics()` on the facade to support debugging and health checks.
  */
 export class DiagnosticsService {
+  private policy: PolicyDiagnostics;
+  private currentBatchMetrics: CurrentBatchMetrics;
+
   constructor(
     private id: string,
     private facade: ResolvedFacadeOptions,
@@ -98,15 +110,42 @@ export class DiagnosticsService {
       snapshot(): ConsentStoredState | undefined;
     },
     private queues: QueueService,
-    private ctx: ContextService,
+    private context: ContextService | null,
     private provider: ProviderManager,
     private providerKey: ProviderType,
     private performanceTracker: PerformanceTracker | null,
-  ) {}
+  ) {
+    this.policy = {
+      eventsEvaluated: 0,
+      eventsBlocked: 0,
+      lastDecision: undefined,
+      lastReason: undefined,
+    };
+    this.currentBatchMetrics = {
+      currentBatchSize: 0,
+      currentBatchQuantity: 0,
+    };
+  }
+
+  updatePolicyDiagnostics(reason: SendDecision['reason'], transient: boolean) {
+    this.policy.lastReason = reason;
+    this.policy.eventsEvaluated++;
+
+    if (reason === 'ok') {
+      this.policy.lastDecision = 'forwarded';
+    } else {
+      this.policy.eventsBlocked++;
+      this.policy.lastDecision = transient ? 'queued' : 'dropped';
+    }
+  }
+
+  updateCurrentBatchMetrics(size: number, quantity: number) {
+    this.currentBatchMetrics.currentBatchSize = size;
+    this.currentBatchMetrics.currentBatchQuantity = quantity;
+  }
 
   getSnapshot(): DiagnosticsSnapshot {
     const capacity = this.facade.queueSize;
-
     const provider = this.provider.get();
     const providerSnapshot =
       provider && typeof (provider as any).getSnapshot === 'function'
@@ -129,7 +168,10 @@ export class DiagnosticsService {
         ...this.consent.snapshot(),
       },
       dispatcher: {
-        batching: this.dispatcher.batching,
+        batching: {
+          ...this.dispatcher.batching,
+          ...this.currentBatchMetrics,
+        },
         connection: {
           monitor: this.dispatcher.connection.monitor,
           offlineStorage: this.dispatcher.connection.offlineStorage,
@@ -155,8 +197,11 @@ export class DiagnosticsService {
             avgNetworkLatency: this.performanceTracker.metrics.avgNetworkLatency,
             totalEvents: this.performanceTracker.metrics.totalEvents,
             failedEvents: this.performanceTracker.metrics.failedEvents,
+            totalSends: this.performanceTracker.metrics.totalSends,
+            failedSends: this.performanceTracker.metrics.failedSends,
           }
         : undefined,
+      policy: this.policy,
       provider: {
         key: this.providerKey,
         ...providerSnapshot,
@@ -168,8 +213,8 @@ export class DiagnosticsService {
         capacity,
       },
       urls: {
-        lastPlanned: this.ctx.getLastPlannedUrl(),
-        lastSent: this.ctx.getLastSentUrl(),
+        lastPlanned: this.context?.getLastPlannedUrl() || null,
+        lastSent: this.context?.getLastSentUrl() || null,
       },
     };
   }

@@ -1,9 +1,43 @@
+import { NoopTransport } from './noop';
 import { FetchTransport } from './fetch';
 import { BeaconTransport } from './beacon';
 import { ProxiedTransport } from './proxy';
-import type { ResilienceOptions, Transport } from '../types';
+import type { ResilienceOptions, Transport, TransportMode } from '../types';
 import { AnalyticsError } from '../../errors';
+import { logger } from '../../util/logger';
+import { detectBlockers } from '../adblocker';
 
+
+async function smartTransportResolution(resilience?: ResilienceOptions) {
+  const base = new FetchTransport();
+
+  if (!resilience?.detectBlockers) return base;
+
+  const result = await detectBlockers();
+  if (!result.blocked) return base;
+
+  // We’re in “blocked” territory
+  const hasProxy = !!resilience.proxy?.proxyUrl;
+  const hinted = result.fallback; // 'proxy' | 'beacon' | 'none' | undefined
+
+  // Smart default: prefer proxy if configured, else beacon
+  const smartDefault: TransportMode = hasProxy ? 'proxy' : 'beacon';
+
+  // Honour explicit fallbackStrategy, but never choose proxy without a URL
+  let want = resilience.fallbackStrategy ?? hinted ?? smartDefault;
+
+  if (want === 'proxy' && !hasProxy) {
+    // Smart mode: downgrade, don’t throw
+    logger.warn(
+      '[dispatcher] fallbackStrategy="proxy" configured without resilience.proxy.proxyUrl; falling back to beacon'
+    );
+    want = 'beacon';
+  }
+
+  if (want === 'beacon') return new BeaconTransport();
+  if (want === 'proxy') return new ProxiedTransport(resilience.proxy!);
+  return base;
+}
 
 /**
  * Resolves the appropriate transport based on ad blocker detection and resilience configuration.
@@ -20,33 +54,27 @@ import { AnalyticsError } from '../../errors';
  * @returns Transport instance (sync) or Promise<Transport> (when detection enabled)
  * @throws AnalyticsError when proxy strategy requested but proxyUrl not configured
  */
-export function resolveTransport(resilience?: ResilienceOptions): Promise<Transport> | Transport {
-  const base = new FetchTransport();
-  
-  if (!resilience?.detectBlockers) return base;
-
-  return (async () => {
-    const { detectBlockers } = await import('../adblocker');
-    const result = await detectBlockers();
-
-    if (!result.blocked) return base;
-
-    // Smart default: use proxy only if configured, otherwise beacon
-    const defaultStrategy = resilience.proxy?.proxyUrl ? 'proxy' : 'beacon';
-    const want = resilience.fallbackStrategy ?? result.fallback ?? defaultStrategy;
-    
-    if (want === 'beacon') return new BeaconTransport();
-    if (want === 'none') return base; // Let it fail naturally
-    
-    // proxy strategy
-    if (resilience.proxy?.proxyUrl) {
-      return new ProxiedTransport(resilience.proxy);
-    }
-    
-    // Proxy requested but not configured - throw helpful error
-    throw new AnalyticsError(
-      'Proxy fallback strategy requires resilience.proxy.proxyUrl to be configured',
-      'INVALID_CONFIG',
-    );
-  })();
+export async function resolveTransport(
+  mode: TransportMode,
+  resilience?: ResilienceOptions
+): Promise<Transport> {
+  switch (mode) {
+    case 'noop':
+      return new NoopTransport();
+    case 'fetch':
+      return new FetchTransport();
+    case 'beacon':
+      return new BeaconTransport();
+    case 'proxy':
+      if (resilience?.proxy?.proxyUrl) {
+        return new ProxiedTransport(resilience.proxy);
+      }
+      throw new AnalyticsError(
+        'Proxy transport requires resilience.proxy.proxyUrl to be configured',
+        'INVALID_CONFIG',
+      );
+    case 'smart':
+    default:
+      return smartTransportResolution(resilience);
+  }
 }

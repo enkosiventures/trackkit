@@ -1,4 +1,5 @@
-import { DEFAULT_HEADERS } from '../constants';
+import { DEFAULT_HEADERS, DEFAULT_TRANSPORT_MODE } from '../constants';
+import { DiagnosticsService } from '../facade/diagnostics';
 import { applyBatchingDefaults, applyResilienceDefaults } from '../facade/normalize';
 import type { PerformanceTracker } from '../performance/tracker';
 import { stripEmptyFields } from '../util';
@@ -38,16 +39,19 @@ function estimateSize(payload: unknown): number {
 export class NetworkDispatcher {
   private transportPromise: Promise<Transport> | null = null;
   private batcher: EventBatchProcessor | null = null;
+  private diagnostics: DiagnosticsService | null = null;
   private performanceTracker: PerformanceTracker | null = null;
   private readonly batchingEnabled: boolean;
 
   constructor(private readonly options: NetworkDispatcherOptions) {
     this.options = {
+      bustCache: options.bustCache || false,
+      transportMode: options.transportMode || DEFAULT_TRANSPORT_MODE,
+      defaultHeaders: options.defaultHeaders || DEFAULT_HEADERS,
       batching: applyBatchingDefaults(options.batching || {}),
       resilience: applyResilienceDefaults(options.resilience || {}),
-      defaultHeaders: options.defaultHeaders || DEFAULT_HEADERS,
-      bustCache: options.bustCache || false,
     }
+    this.diagnostics = options.diagnostics || null;
     this.performanceTracker = options.performanceTracker || null;
     this.batchingEnabled = !!options.batching.enabled;
     if (this.batchingEnabled) {
@@ -55,20 +59,29 @@ export class NetworkDispatcher {
       this.batcher = new EventBatchProcessor(
         this.options.batching,
         this.options.resilience.retry,
-        (batch) => this.sendBatch(batch.events)
+        (batch) => this.sendBatch(batch.events),
+        (_, batch) => {
+          console.warn(`[NetworkDispatcher] Batch ${batch.id} now has ${batch.events.length} events, total size ${batch.totalSize} bytes.`);
+          console.warn(`[NetworkDispatcher] Diagnostics object:`, this.diagnostics);
+          this.diagnostics?.updateCurrentBatchMetrics(
+            batch.totalSize || 0,
+            batch.events.length || 0,
+          )
+        }
       );
     }
   }
 
-  /** For tests: inject a specific transport. */
-  _setTransportForTests(t: Transport) {
-    this.transportPromise = Promise.resolve(t);
-  }
-
   private async getTransport(): Promise<Transport> {
     if (!this.transportPromise) {
-      const maybe = resolveTransport(this.options.resilience);
-      this.transportPromise = Promise.resolve(maybe);
+      if (this.options.transportOverride) {
+        this.transportPromise = Promise.resolve(this.options.transportOverride);
+      } else {
+        this.transportPromise = resolveTransport(
+          this.options.transportMode,
+          this.options.resilience,
+        );
+      }
     }
     return this.transportPromise;
   }
@@ -177,13 +190,13 @@ export class NetworkDispatcher {
       payload: DispatchPayload;
     }>
   ): Promise<void> {
-    const t = await this.getTransport();
+    const transport = await this.getTransport();
 
     // Send sequentially to preserve order within the batch; the batcher controls overall concurrency.
-    for (const e of events) {
-      const headers = mergeHeaders(this.options.defaultHeaders, e.payload.init?.headers);
-      const finalPayload = this.prepareFinalPayload({ ...e.payload, init: { ...(e.payload.init || {}), headers }});
-      const sendFn = () => t.send(finalPayload);
+    for (const event of events) {
+      const headers = mergeHeaders(this.options.defaultHeaders, event.payload.init?.headers);
+      const finalPayload = this.prepareFinalPayload({ ...event.payload, init: { ...(event.payload.init || {}), headers }});
+      const sendFn = () => transport.send(finalPayload);
 
       if (this.performanceTracker) {
         await this.performanceTracker.trackNetworkRequest('network-batch-send', sendFn);

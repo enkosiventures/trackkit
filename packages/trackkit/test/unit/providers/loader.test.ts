@@ -59,7 +59,7 @@ describe('provider loader', () => {
     });
 
     it('loads provider via SYNC factory and returns StatefulProvider', async () => {
-      const sp = await loadProvider({ providerOptions: { provider: 'noop' }});
+      const sp = await loadProvider();
       expect(sp).toBeInstanceOf(StatefulProvider);
 
       const infoCalls = logger.mock.results?.[0]?.value?.info?.mock?.calls ?? [];
@@ -75,12 +75,12 @@ describe('provider loader', () => {
   });
 
   it('throws on unknown provider name', async () => {
-    await expect(loadProvider({ providerOptions: { provider: 'unknown' } as any })).rejects.toThrow(/Unknown analytics provider/i);
+    await expect(loadProvider({ providerOptions: { name: 'unknown' } as any })).rejects.toThrow(/Unknown analytics provider/i);
   });
 
   it('throws on invalid factory (missing create)', async () => {
     currentNoopFactory = {}; // no create
-    await expect(loadProvider({ providerOptions: { provider: 'noop' } })).rejects.toThrow(/Invalid provider factory/i);
+    await expect(loadProvider()).rejects.toThrow(/Invalid provider factory/i);
   });
 
   it('init failure is caught and forwarded to onError (no unhandled rejections)', async () => {
@@ -91,7 +91,6 @@ describe('provider loader', () => {
     const onError = vi.fn();
 
     await loadProvider({
-      providerOptions: { provider: 'noop' },
       bustCache: false,
       debug: false,
       onError,

@@ -1,5 +1,6 @@
 import type { NetworkDispatcherOptions } from "../../dispatcher";
 import { NetworkDispatcher } from "../../dispatcher";
+import { TransportMode } from "../../dispatcher/types";
 
 /**
  * Shared transport layer used by all providers.
@@ -29,7 +30,11 @@ export type TransportRequest = {
   bustCache?: boolean;
 };
 
-export type Sender = (req: TransportRequest) => Promise<Response>;
+export type Sender = {
+  type: TransportMode;
+  override: boolean;
+  send: (req: TransportRequest) => Promise<Response>;
+};
 
 /**
  * Wrap the NetworkDispatcher to send per-item.
@@ -39,14 +44,18 @@ export function makeDispatcherSender(options: NetworkDispatcherOptions): Sender 
   const dispatcher = new NetworkDispatcher(options);
   const RESPONSE_OK = { ok: true, status: 204, statusText: 'OK' } as unknown as Response;
 
-  return async ({ method, url, headers, body }) => {
-    // Respect method nuances only to the extent your dispatcher/resolveTransport supports.
-    // Common case: POST/AUTO. For BEACON, resolveTransport will choose beacon when applicable.
-    const init: RequestInit = {
-      method: method === 'GET' ? 'GET' : 'POST',
-      headers,
-    };
-    await dispatcher.send({ url, body, init });
-    return RESPONSE_OK; // no per-event response in batched path
+  return {
+    type: options.transportMode,
+    override: !!options.transportOverride,
+    send: async ({ method, url, headers, body }) => {
+      // Respect method nuances only to the extent your dispatcher/resolveTransport supports.
+      // Common case: POST/AUTO. For BEACON, resolveTransport will choose beacon when applicable.
+      const init: RequestInit = {
+        method: method === 'GET' ? 'GET' : 'POST',
+        headers,
+      };
+      await dispatcher.send({ url, body, init });
+      return RESPONSE_OK; // no per-event response in batched path
+    },
   };
-}
+};

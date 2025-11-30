@@ -10,7 +10,9 @@ export class PerformanceTracker {
     avgProcessingTime: 0,
     avgNetworkLatency: 0,
     totalEvents: 0,
-    failedEvents: 0
+    failedEvents: 0,
+    totalSends: 0,
+    failedSends: 0,
   };
 
   markInitStart() {
@@ -54,8 +56,10 @@ export class PerformanceTracker {
         const sum = this.networkTimings.reduce((a, b) => a + b, 0);
         this.metrics.avgNetworkLatency = sum / this.networkTimings.length;
       }
+      this.metrics.totalSends++;
       return res;
     } catch (err) {
+      this.metrics.failedSends++;
       if (hasPerf) {
         // still record the timing on failure
         const duration = performance.now() - start;
