@@ -80,9 +80,9 @@
                   <input
                     id="queueSize"
                     type="range"
-                    min="5"
-                    max="100"
-                    step="5"
+                    min="2"
+                    max="18"
+                    step="1"
                     v-model.number="config.queueSize"
                   />
                   <span class="tk-chip">{{ config.queueSize }}</span>
@@ -188,88 +188,92 @@
             </div>
           </div>
 
-          <!-- Right column: state + log -->
           <div class="tk-column">
             <div class="tk-panel">
               <h3>Runtime state</h3>
-              <div v-if="snapshot" class="tk-grid">
-                <div class="tk-grid-item">
+
+              <div v-if="snapshot" class="tk-metric-groups">
+                <!-- Dispatch -->
+                <div class="tk-metric-group">
                   <h4>Dispatch</h4>
-                  <dl>
-                    <div>
+                  <dl class="tk-metric-list">
+                    <div class="tk-metric-row">
                       <dt>Total dispatched</dt>
-                      <dd>{{ snapshot.performance.totalSends }}</dd>
+                      <dd>{{ snapshot.performance?.totalSends ?? 0 }}</dd>
                     </div>
                   </dl>
                 </div>
 
-                <div class="tk-grid-item">
-                  <h4>Policy Gate</h4>
-                  <dl>
-                    <div>
+                <!-- Policy gate -->
+                <div class="tk-metric-group">
+                  <h4>Policy gate</h4>
+                  <dl class="tk-metric-list">
+                    <div class="tk-metric-row">
                       <dt>Evaluated</dt>
                       <dd>{{ snapshot.policy?.eventsEvaluated ?? 0 }}</dd>
                     </div>
-                    <div>
+                    <div class="tk-metric-row">
                       <dt>Blocked</dt>
                       <dd>{{ snapshot.policy?.eventsBlocked ?? 0 }}</dd>
                     </div>
-                    <div>
+                    <div class="tk-metric-row">
                       <dt>Last decision</dt>
                       <dd>{{ snapshot.policy?.lastDecision ?? '—' }}</dd>
                     </div>
-                    <div>
+                    <div class="tk-metric-row">
                       <dt>Last reason</dt>
                       <dd>{{ snapshot.policy?.lastReason ?? '—' }}</dd>
                     </div>
                   </dl>
                 </div>
 
-                <div class="tk-grid-item">
+                <!-- Queue -->
+                <div class="tk-metric-group">
                   <h4>Queue</h4>
-                  <dl>
-                    <div>
+                  <dl class="tk-metric-list">
+                    <div class="tk-metric-row">
                       <dt>Buffered total</dt>
                       <dd>{{ snapshot.queue?.totalBuffered ?? 0 }}</dd>
                     </div>
-                    <div>
+                    <div class="tk-metric-row">
                       <dt>Runtime capacity</dt>
                       <dd>{{ snapshot.queue?.capacity ?? config.queueSize }}</dd>
                     </div>
                   </dl>
                 </div>
 
-                <div class="tk-grid-item">
+                <!-- Batching -->
+                <div class="tk-metric-group">
                   <h4>Batching</h4>
-                  <dl>
-                    <div>
+                  <dl class="tk-metric-list">
+                    <div class="tk-metric-row">
                       <dt>Status</dt>
                       <dd>{{ config.batchingEnabled ? 'on' : 'off' }}</dd>
                     </div>
-                    <div v-if="config.batchingEnabled">
-                      <dt>Size / Wait</dt>
+                    <div v-if="config.batchingEnabled" class="tk-metric-row">
+                      <dt>Size / wait</dt>
                       <dd>{{ config.batchMaxSize }} / {{ config.batchMaxWait }}ms</dd>
                     </div>
-                    <div v-if="config.batchingEnabled">
+                    <div v-if="config.batchingEnabled" class="tk-metric-row">
                       <dt>Current batch size</dt>
                       <dd>{{ snapshot.dispatcher?.batching.currentBatchSize ?? 0 }} bytes</dd>
                     </div>
-                    <div v-if="config.batchingEnabled">
+                    <div v-if="config.batchingEnabled" class="tk-metric-row">
                       <dt>Current batch quantity</dt>
                       <dd>{{ snapshot.dispatcher?.batching.currentBatchQuantity ?? 0 }}</dd>
                     </div>
                   </dl>
                 </div>
-              </div>
-              <div v-if="snapshot" class="tk-grid-rows">
-                <div class="tk-grid-item">
+
+                <!-- URLs -->
+                <div class="tk-metric-group">
                   <h4>URLs</h4>
-                  <dl>
-                    <div>
+                  <dl class="tk-metric-list">
+                    <div class="tk-metric-row">
                       <dt>Last planned</dt>
                       <dd>{{ snapshot.urls?.lastPlanned ?? '—' }}</dd>
                     </div>
-                    <div>
+                    <div class="tk-metric-row">
                       <dt>Last sent</dt>
                       <dd>{{ snapshot.urls?.lastSent ?? '—' }}</dd>
                     </div>
@@ -319,6 +323,8 @@
               </details>
             </div>
           </div>
+
+
         </div>
       </div>
     </div>
@@ -345,7 +351,7 @@ const config = reactive({
   queueSize: 10,
   debug: true,
   autoTrack: false,
-  dnt: true,
+  dnt: false,
   includeHash: false,
   batchingEnabled: true,
   batchMaxSize: 3,
@@ -728,42 +734,49 @@ onBeforeUnmount(() => {
   margin-top: 0.15rem;
 }
 
-.tk-grid-rows {
-  display: grid;
+/* Runtime state metric layout */
+
+.tk-metric-groups {
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
 }
 
-.tk-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-@media (max-width: 960px) {
-  .tk-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.tk-grid-item h4 {
+.tk-metric-group h4 {
   margin: 0 0 0.25rem;
   font-size: 0.9rem;
 }
 
-.tk-grid-item dl {
+/* Reset dl defaults and style rows as label/value pairs */
+.tk-metric-list {
   margin: 0;
+  padding: 0;
+}
+
+.tk-metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
   font-size: 0.8rem;
 }
 
-.tk-grid-item dt {
+.tk-metric-row + .tk-metric-row {
+  margin-top: 0.15rem;
+}
+
+.tk-metric-row dt {
+  margin: 0;
   font-weight: 500;
   color: var(--vp-c-text-2);
 }
 
-.tk-grid-item dd {
-  margin: 0 0 0.15rem;
+.tk-metric-row dd {
+  margin: 0;
+  text-align: right;
   word-break: break-word;
 }
+
 
 .tk-log {
   max-height: 180px;
