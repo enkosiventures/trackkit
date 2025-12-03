@@ -75,6 +75,7 @@ export async function setupAnalyticsWithSpyProvider(
     batching: resolvedDispatcherOptions.batching,
     resilience: resolvedDispatcherOptions.resilience,
     defaultHeaders: resolvedDispatcherOptions.defaultHeaders,
+    transportMode: resolvedDispatcherOptions.transportMode,
     bustCache,
   }
   const spy = makeSpyProvider(networkDispatcherOpts);

@@ -61,8 +61,6 @@ export class NetworkDispatcher {
         this.options.resilience.retry,
         (batch) => this.sendBatch(batch.events),
         (_, batch) => {
-          console.warn(`[NetworkDispatcher] Batch ${batch.id} now has ${batch.events.length} events, total size ${batch.totalSize} bytes.`);
-          console.warn(`[NetworkDispatcher] Diagnostics object:`, this.diagnostics);
           this.diagnostics?.updateCurrentBatchMetrics(
             batch.totalSize || 0,
             batch.events.length || 0,
@@ -99,47 +97,64 @@ export class NetworkDispatcher {
     }
   }
 
-  private processBody(body: unknown, method?: string): string | undefined {
-    if (method === 'GET') return undefined;
-    if (!body) return '';
+  private processBody(body: unknown, method?: string): unknown {
+    const m = method?.toUpperCase();
+
+    if (m === 'GET') return undefined;
+    if (body == null) return undefined;
+
     if (typeof body === 'string') return body;
-    
-    const stripped = stripEmptyFields(body);
-    return JSON.stringify(stripped);
+
+    // Treat any non-null object (including arrays) as JSON-ish and clean it
+    if (typeof body === 'object') {
+      return stripEmptyFields(body as Record<string, unknown>);
+    }
+
+    // numbers/booleans/etc – just pass through
+    return body;
   }
 
-  private prepareFinalPayload(payload: DispatchPayload, bustCache?: boolean): DispatchPayload {
+  private prepareFinalPayload(payload: DispatchPayload): DispatchPayload {
     let finalUrl = payload.url;
     const headers = mergeHeaders(this.options.defaultHeaders, payload.init?.headers);
-    
+    const method = (payload.init?.method || 'POST').toUpperCase();
+
     // Cache busting logic
-    if (bustCache) {
-      const method = payload.init?.method || 'POST';
+    if (this.options.bustCache) {
       if (method === 'GET' || method === 'BEACON') {
         finalUrl = this.appendCacheParam(finalUrl);
       } else {
         Object.assign(headers, {
           'Cache-Control': 'no-store, max-age=0',
-          'Pragma': 'no-cache'
+          'Pragma': 'no-cache',
         });
       }
     }
 
-    // Ensure content-type
-    if (!headers['content-type'] && payload.body) {
+    // Strip empty fields (and optionally handle GET/BEACON specially inside processBody)
+    const processedBody = this.processBody(payload.body, method);
+
+    // Ensure content-type only when we actually have a body that will be sent
+    if (!headers['content-type'] && processedBody != null && method !== 'GET' && method !== 'BEACON') {
       headers['content-type'] = 'application/json';
     }
 
     return {
       ...payload,
       url: finalUrl,
+
+      // Make the stripped body the canonical one seen by transports
+      body: processedBody,
+
       init: {
         ...payload.init,
         headers,
-        body: this.processBody(payload.body, payload.init?.method)
-      }
+        // optional: you *can* mirror it here for convenience if your transports prefer it:
+        // body: processedBody,
+      },
     };
   }
+
 
   /**
    * Public API for providers/adapters to queue network requests.

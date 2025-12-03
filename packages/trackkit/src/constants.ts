@@ -29,6 +29,7 @@ export const PLAUSIBLE_HOST = 'https://plausible.io';
 export const GA_HOST = 'https://www.google-analytics.com';
 
 export const DEFAULT_TRANSPORT_MODE: TransportMode = 'smart';
+export const DEFAULT_BUST_CACHE = false;
 export const DEFAULT_HEADERS = {};
 
 export const RETRY_DEFAULTS: ResolvedRetryOptions = {
@@ -83,7 +84,7 @@ export const CONSENT_DEFAULTS: ResolvedConsentOptions = {
 export const FACADE_BASE_DEFAULTS: ResolvedFacadeOptions = {
   allowWhenHidden: false,
   autoTrack: true,
-  bustCache: false,
+  bustCache: DEFAULT_BUST_CACHE,
   debug: false,
   domains: [],
   doNotTrack: true,

@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NetworkDispatcher } from '../../../src/dispatcher/network-dispatcher';
 import * as TransportsMod from '../../../src/dispatcher/transports';
+import { applyBatchingDefaults, applyResilienceDefaults } from '../../../src/facade/normalize';
+import { DEFAULT_BUST_CACHE, DEFAULT_HEADERS, DEFAULT_TRANSPORT_MODE } from '../../../src/constants';
 
 const sleep = (ms = 0) => new Promise(res => setTimeout(res, ms));
 
@@ -8,6 +10,14 @@ class SpyTransport implements TransportsMod.Transport {
   // shape compatible with Transport
   public id = `mock_${Math.random().toString(36).slice(2)}`;
   send = vi.fn(async (_: {url: string, body: unknown, init?: RequestInit}) => {});
+}
+
+const defaultNetworkDispatcherOptions = {
+  batching: applyBatchingDefaults(),
+  resilience: applyResilienceDefaults(),
+  bustCache: DEFAULT_BUST_CACHE,
+  transportMode: DEFAULT_TRANSPORT_MODE,
+  defaultHeaders: DEFAULT_HEADERS,
 }
 
 describe('NetworkDispatcher (provider-side, per-event sends)', () => {
@@ -23,7 +33,10 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
   });
 
   it('sends immediately when batching is disabled (per-event)', async () => {
-    const nd = new NetworkDispatcher({ defaultHeaders: { 'X-Test': '1' } });
+    const nd = new NetworkDispatcher({
+      ...defaultNetworkDispatcherOptions,
+      defaultHeaders: { 'X-Test': '1' },
+    });
 
     await nd.send({ url: 'https://api.test/collect', body: { a: 1 }, init: { headers: { Foo: 'Bar' } } });
     await nd.send({ url: 'https://api.test/collect', body: { b: 2 } });
@@ -48,7 +61,8 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
     vi.useFakeTimers();
 
     const nd = new NetworkDispatcher({
-      batching: { enabled: true, maxSize: 10, maxWait: 100 },
+      ...defaultNetworkDispatcherOptions,
+      batching: applyBatchingDefaults({ enabled: true, maxSize: 10, maxWait: 100 }),
     });
 
     await nd.send({ url: 'https://api.test/collect', body: { a: 1 } });
@@ -76,7 +90,8 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
 
   it('respects maxBytes and splits (per-event sends)', async () => {
     const nd = new NetworkDispatcher({
-      batching: { enabled: true, maxSize: 100, maxBytes: 300 },
+      ...defaultNetworkDispatcherOptions,
+      batching: applyBatchingDefaults({ enabled: true, maxSize: 100, maxBytes: 300 }),
     });
 
     await nd.send({ url: 'https://api.test/collect', body: { a: 'x'.repeat(120) } });
@@ -95,7 +110,13 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
 
   it('runs sealed batches concurrently (batch-level), events inside batch serial', async () => {
     const nd = new NetworkDispatcher({
-      batching: { enabled: true, maxSize: 2, maxWait: 1, concurrency: 2 },
+      ...defaultNetworkDispatcherOptions,
+      batching: applyBatchingDefaults({
+        enabled: true,
+        maxSize: 2,
+        maxWait: 1,
+        concurrency: 2,
+      }),
     });
 
     // Enqueue 5 → batches: [1,2], [3,4], then remainder [5] flushed later
@@ -140,10 +161,13 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
     vi.spyOn(TransportsMod, 'resolveTransport').mockImplementation(() => t as any);
 
     const nd = new NetworkDispatcher({
-      batching: {
+      ...defaultNetworkDispatcherOptions,
+      batching: applyBatchingDefaults({
         enabled: true,
         maxSize: 1,           // seal immediately so retry loop runs now
         maxWait: 0,
+      }),
+      resilience: applyResilienceDefaults({
         retry: {
           maxAttempts: 2,     // 1 failure + 1 retry
           initialDelay: 0,
@@ -152,7 +176,7 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
           jitter: false,
           retryableStatuses: [503],
         },
-      },
+      }),
     });
 
     await nd.send({ url: 'https://api.test/collect', body: { ok: true } });
@@ -169,7 +193,13 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
 
   it('flushes the first full batch on the next enqueue (exactly 2 sends)', async () => {
     const nd = new NetworkDispatcher({
-      batching: { enabled: true, maxSize: 2, maxWait: 10, concurrency: 2 },
+      ...defaultNetworkDispatcherOptions,
+      batching: applyBatchingDefaults({
+        enabled: true,
+        maxSize: 2,
+        maxWait: 10,
+        concurrency: 2,
+      }),
     });
 
     await nd.send({ url: 'https://api.test/collect', body: { x: 1 } });
@@ -194,7 +224,13 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
 
   it('splits at maxSize (2 sends) and flush() sends the remainder (+1)', async () => {
     const nd = new NetworkDispatcher({
-      batching: { enabled: true, maxSize: 2, maxWait: 10, concurrency: 2 },
+      ...defaultNetworkDispatcherOptions,
+      batching: applyBatchingDefaults({
+        enabled: true,
+        maxSize: 2,
+        maxWait: 10,
+        concurrency: 2,
+      }),
     });
 
     await nd.send({ url: 'https://api.test/collect', body: { x: 1 } });
@@ -218,10 +254,22 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
 
 
 describe('NetworkDispatcher - Additional Coverage', () => {
+  let t: SpyTransport;
+
+  beforeEach(() => {
+    t = new SpyTransport();
+    vi.spyOn(TransportsMod, 'resolveTransport').mockReturnValue(t as any);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('applies cache-busting when enabled', async () => {
-    const nd = new NetworkDispatcher({ 
+    const nd = new NetworkDispatcher({
+      ...defaultNetworkDispatcherOptions,
       bustCache: true,
-      batching: { enabled: false } 
+      batching: applyBatchingDefaults({ enabled: false }),
     });
 
     await nd.send({ 
@@ -231,14 +279,15 @@ describe('NetworkDispatcher - Additional Coverage', () => {
     });
 
     const call = t.send.mock.calls[0][0];
-    expect(call.init.headers).toMatchObject({
+    expect(call?.init?.headers).toMatchObject({
       'Cache-Control': 'no-store, max-age=0',
-      'Pragma': 'no-cache'
+      'Pragma': 'no-cache',
+      'content-type': 'application/json',
     });
   });
 
   it('strips empty fields from body before sending', async () => {
-    const nd = new NetworkDispatcher({});
+    const nd = new NetworkDispatcher(defaultNetworkDispatcherOptions);
     
     await nd.send({ 
       url: 'https://api.test/collect', 
@@ -246,31 +295,32 @@ describe('NetworkDispatcher - Additional Coverage', () => {
     });
 
     const call = t.send.mock.calls[0][0];
-    expect(JSON.parse(call.body)).toEqual({ a: 1 });
+    expect(call?.body).toEqual({ a: 1 });
   });
 
   it('sets content-type automatically for JSON bodies', async () => {
-    const nd = new NetworkDispatcher({});
+    const nd = new NetworkDispatcher(defaultNetworkDispatcherOptions);
     
     await nd.send({ 
       url: 'https://api.test/collect', 
       body: { test: true }
     });
 
-    expect(t.send.mock.calls[0][0].init.headers).toMatchObject({
+    expect(t.send.mock.calls[0][0]?.init?.headers).toMatchObject({
       'content-type': 'application/json'
     });
   });
 
   it('handles GET requests without body', async () => {
-    const nd = new NetworkDispatcher({});
+    const nd = new NetworkDispatcher(defaultNetworkDispatcherOptions);
     
     await nd.send({ 
       url: 'https://api.test/collect?param=value',
-      init: { method: 'GET' }
+      init: { method: 'GET' },
+      body: { shouldBeIgnored: true },
     });
 
     const call = t.send.mock.calls[0][0];
-    expect(call.init.body).toBeUndefined();
+    expect(call?.init?.body).toBeUndefined();
   });
 });

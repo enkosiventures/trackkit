@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventBatchProcessor } from '../../../src/dispatcher/batch-processor';
 import { microtick } from '../../helpers/core';
 import { Batch } from '../../../src/dispatcher/types';
+import { applyBatchingDefaults, applyRetryDefaults } from '../../../src/facade/normalize';
 
 
 describe('EventBatchProcessor', () => {
@@ -10,7 +11,11 @@ describe('EventBatchProcessor', () => {
 
   it('splits batches by maxSize', async () => {
     const sent: Batch[] = [];
-    const bp = new EventBatchProcessor({ maxSize: 2, maxWait: 10 }, async (b) => { sent.push(b); });
+    const bp = new EventBatchProcessor(
+      applyBatchingDefaults({ maxSize: 2, maxWait: 10 }),
+      applyRetryDefaults(),
+      async (b) => { sent.push(b); },
+    );
 
     bp.add({ id: 'a', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: 10 });
     bp.add({ id: 'b', timestamp: Date.now(), payload: { url: '', body: { b: 2 }}, size: 10 });
@@ -31,7 +36,11 @@ describe('EventBatchProcessor', () => {
 
   it('splits batches by maxBytes', async () => {
     const sent: Batch[] = [];
-    const bp = new EventBatchProcessor({ maxBytes: 100, maxWait: 10 }, async (b) => { sent.push(b); });
+    const bp = new EventBatchProcessor(
+      applyBatchingDefaults({ maxBytes: 100, maxWait: 10 }),
+      applyRetryDefaults(),
+      async (b) => { sent.push(b); },
+    );
 
     const bigPayload = { data: 'x'.repeat(150) }; // > 100 bytes after JSON
     bp.add({ id: 'x', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: JSON.stringify(bigPayload).length });
@@ -46,7 +55,11 @@ describe('EventBatchProcessor', () => {
 
   it('deduplicates by id when enabled', async () => {
     const sent: Batch[] = [];
-    const bp = new EventBatchProcessor({ maxWait: 10, deduplication: true }, async (b) => { sent.push(b); });
+    const bp = new EventBatchProcessor(
+      applyBatchingDefaults({ maxWait: 10, deduplication: true }),
+      applyRetryDefaults(),
+      async (b) => { sent.push(b); }
+    );
 
     bp.add({ id: 'dup', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: 10 });
     bp.add({ id: 'dup', timestamp: Date.now(), payload: { url: '', body: { b: 2 }}, size: 10 });
@@ -64,7 +77,8 @@ describe('EventBatchProcessor', () => {
     let attempts = 0;
 
     const bp = new EventBatchProcessor(
-      { maxWait: 1, retry: { maxAttempts: 3, initialDelay: 100, multiplier: 2, maxDelay: 1000, jitter: false } },
+      applyBatchingDefaults({ maxWait: 1 }),
+      applyRetryDefaults({ maxAttempts: 3, initialDelay: 100, multiplier: 2, maxDelay: 1000, jitter: false }),
       async (b) => {
         attempts++;
         sent.push({ id: b.id, attempt: attempts });
@@ -95,13 +109,16 @@ describe('EventBatchProcessor', () => {
 
   it('does not retry non-retryable errors', async () => {
     let attempts = 0;
-    const bp = new EventBatchProcessor({ maxWait: 1, retry: { maxAttempts: 3, initialDelay: 100, jitter: false } },
+    const bp = new EventBatchProcessor(
+      applyBatchingDefaults({ maxWait: 1 }),
+      applyRetryDefaults({ maxAttempts: 3, initialDelay: 100, jitter: false }),
       async () => {
         attempts++;
         const err: any = new Error('Bad Request');
         err.status = 400; // not retryable
         throw err;
-      });
+      }
+    );
 
     bp.add({ id: 'bad', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: 10 });
 
