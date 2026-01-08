@@ -1,4 +1,5 @@
 
+import { vi } from 'vitest';
 import { createAnalytics, denyConsent, grantConsent, init } from '../../src';
 import type { ConsentCategory, ConsentStatus } from '../../src/consent/types';
 import { DEFAULT_ERROR_HANDLER } from '../../src/constants';
@@ -11,6 +12,21 @@ import type { AnalyticsOptions, PageContext } from '../../src/types';
 
 const DEFAULT_ANALYTICS_MODE: AnalyticsMode = 'factory';
 
+type IdentifyCalls = Array<string | null>;
+type PageviewCalls = Array<PageContext | undefined>;
+type EventCalls = Array<{
+  name: string;
+  props?: Record<string, unknown>;
+  url?: string;
+  category?: ConsentCategory;
+  pageContext?: PageContext;
+}>;
+type Diagnostics = {
+  identifyCalls: IdentifyCalls;
+  pageviewCalls: PageviewCalls;
+  eventCalls: EventCalls;
+};
+
 export const TEST_SITE_ID = {
     umami: '9e1e6d6e-7c0e-4b0e-8f0a-5c5b5b5b5b5b',
     plausible: 'test.com',
@@ -18,20 +34,14 @@ export const TEST_SITE_ID = {
 };
 
 export interface TestProvider extends ProviderInstance {
-  diagnostics: Record<string, any>;
+  diagnostics: Diagnostics;
 }
 
 export class MockProvider implements TestProvider {
   name = 'mock';
-  identifyCalls: Array<string | null> = [];
-  pageviewCalls: Array<PageContext | undefined> = [];
-  eventCalls: Array<{
-    name: string;
-    props?: Record<string, unknown>;
-    url?: string;
-    category?: ConsentCategory;
-    pageContext?: PageContext;
-  }> = [];
+  identifyCalls: IdentifyCalls = [];
+  pageviewCalls: PageviewCalls = [];
+  eventCalls: EventCalls = [];
 
   diagnostics = {
     identifyCalls: this.identifyCalls,
@@ -67,6 +77,25 @@ export class MockProvider implements TestProvider {
     // no-op
   }
 }
+
+
+/**
+ * Mock sender for testing dispatch.
+ */
+export const mockSender = {
+  type: 'smart' as const,
+  override: false,
+  send: vi.fn(() => Promise.resolve(new Response(null, { status: 204 }))),
+};
+
+export function getMockCall(sender: any) {
+  return sender.send.mock.calls[0]?.[0];
+}
+
+export function getMockCalls(sender: any) {
+  return sender.send.mock.calls.map((call: any) => call[0]);
+}
+
 
 /**
  * Build a real StatefulProvider that wraps our ProviderDouble.

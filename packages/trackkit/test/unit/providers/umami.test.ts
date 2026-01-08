@@ -3,8 +3,11 @@ import { describe, it, expect, vi, beforeAll, afterAll, afterEach, beforeEach } 
 import { server } from '../../setup/msw';
 import { http, HttpResponse } from 'msw';
 import type { PageContext } from '../../../src';
-import { TEST_SITE_ID } from '../../helpers/providers';
+import { getMockCall, mockSender, TEST_SITE_ID } from '../../helpers/providers';
 import { resetTests } from '../../helpers/core';
+import { makeDispatcherSender, Sender } from '../../../src/providers/base/transport';
+import { applyBatchingDefaults, applyResilienceDefaults } from '../../../src/facade/normalize';
+import { DEFAULT_HEADERS, DEFAULT_TRANSPORT_MODE } from '../../../src/constants';
 
 // @vitest-environment jsdom
 
@@ -12,6 +15,7 @@ beforeAll(() => server.listen());
 afterAll(() => server.close());
 
   beforeEach(() => {
+    mockSender.send.mockClear();
     resetTests(vi);
   });
 
@@ -22,12 +26,11 @@ afterAll(() => server.close());
 
 describe('Umami provider / client', () => {
   it('pageview maps ctx → payload (no window reads)', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('ok', { status: 202 })
-    );
-
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: { name: 'umami', website: TEST_SITE_ID.umami }});
+    const instance = umami.create({
+      provider: { name: 'umami', website: TEST_SITE_ID.umami },
+      factory: { bustCache: false, debug: false, sender: mockSender },
+    });
     const ctx: PageContext = {
       url: '/a',
       title: 'T',
@@ -40,11 +43,9 @@ describe('Umami provider / client', () => {
 
     instance.pageview(ctx);
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [, options] = fetchSpy.mock.calls[0];
-    const body = JSON.parse(options!.body as string);
+    expect(mockSender.send).toHaveBeenCalledTimes(1);
 
-    expect(body).toMatchObject({
+    expect(getMockCall(mockSender).body).toMatchObject({
       type: 'event',
       payload: {
         name: 'pageview',
@@ -57,21 +58,14 @@ describe('Umami provider / client', () => {
         hostname: 'localhost',
       },
     });
-
-    fetchSpy.mockRestore();
   });
 
   it('track maps event + props → payload', async () => {
-    let captured: any;
-    server.use(
-      http.post('*', async ({ request }) => {
-        captured = await request.json();
-        return HttpResponse.json({ ok: true });
-      })
-    );
-
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: { name: 'umami', website: TEST_SITE_ID.umami } });
+    const instance = umami.create({
+      provider: { name: 'umami', website: TEST_SITE_ID.umami },
+      factory: { bustCache: false, debug: false, sender: mockSender },
+    });
 
     // Provide ctx with an explicit url + viewport to avoid 0x0 defaults
     const ctx: PageContext = {
@@ -80,9 +74,13 @@ describe('Umami provider / client', () => {
       viewportSize: { width: 1, height: 1 },
     };
 
-    await instance.track('button_click', { button_id: 'cta-hero', value: 42 }, ctx);
+    await instance.track(
+      'button_click',
+      { button_id: 'cta-hero', value: 42 },
+      ctx,
+    );
 
-    expect(captured).toMatchObject({
+    expect(getMockCall(mockSender).body).toMatchObject({
       type: 'event',
       payload: {
         website: TEST_SITE_ID.umami,
@@ -94,93 +92,101 @@ describe('Umami provider / client', () => {
   });
 
   it('uses custom host when provided', async () => {
-    let postUrl = '';
-    server.use(
-      http.post('*', ({ request }) => {
-        postUrl = request.url;
-        return HttpResponse.json({ ok: true });
-      })
-    );
-
     const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({
       provider: { 
         name: 'umami',
         website: TEST_SITE_ID.umami,
         host: 'https://analytics.example.com',
-      }
+      },
+      factory: { bustCache: false, debug: false, sender: mockSender },
     });
 
-    await instance.track('test', {}, { url: '/', viewportSize: { width: 1, height: 1 } });
-
-    expect(postUrl).toContain('analytics.example.com');
-  });
-
-  it('rejects on network failure', async () => {
-    server.use(
-      http.post('*', () => new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' }))
+    await instance.track(
+      'test',
+      {},
+      { url: '/', viewportSize: { width: 1, height: 1 } },
     );
 
+    expect(getMockCall(mockSender).url).toContain('analytics.example.com');
+  });
+
+
+  it('maps non-ok responses from sender into provider errors', async () => {
+    const failingSender: Sender = {
+      type: 'smart',
+      override: false,
+      send: async () =>
+      new Response('boom', { status: 500, statusText: 'Internal Server Error' })
+    };
+
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: { name: 'umami', website: TEST_SITE_ID.umami } });
+
+    const instance = umami.create({
+      provider: { name: 'umami', website: TEST_SITE_ID.umami },
+      factory: {
+        bustCache: false,
+        debug: false,
+        sender: failingSender,
+      },
+    });
 
     await expect(
       instance.track('oops', {}, { url: '/', viewportSize: { width: 1, height: 1 } })
     ).rejects.toThrow(/(Provider request failed|500)/);
   });
 
-  it('adds cache-busting param when cache=true (transport-level)', async () => {
+  it('does not reject on HTTP 500 when using dispatcher sender (best-effort path)', async () => {
     server.use(
-      http.post('*', () => {
-        return HttpResponse.json({ ok: true });
-      })
+      http.post('*', () => new HttpResponse(null, {
+        status: 500,
+        statusText: 'Internal Server Error',
+      }))
     );
 
+    const sender = makeDispatcherSender({
+      batching: applyBatchingDefaults(),
+      resilience: applyResilienceDefaults(),
+      bustCache: false,
+      transportMode: DEFAULT_TRANSPORT_MODE,
+      defaultHeaders: DEFAULT_HEADERS,
+    });
+
+    const umami = (await import('../../../src/providers/umami')).default;
+
+    const instance = umami.create({
+      provider: { name: 'umami', website: TEST_SITE_ID.umami },
+      factory: {
+        bustCache: false,
+        debug: false,
+        sender,
+      },
+    });
+
+    await expect(
+      instance.track('oops', {}, { url: '/', viewportSize: { width: 1, height: 1 } })
+    ).resolves.toBeUndefined();
+  });
+
+  it('adds cache-busting param when cache=true (transport-level)', async () => {
     const umami = (await import('../../../src/providers/umami')).default;
     const instance = umami.create({
       provider: { name: 'umami', website: TEST_SITE_ID.umami },
-      factory: { bustCache: true },
-    });
-
-    const sendBeaconSpy = vi.fn(() => true);
-    Object.defineProperty(global.navigator, 'sendBeacon', {
-      value: sendBeaconSpy,
-      configurable: true,
+      factory: { bustCache: true, debug: true, sender: mockSender },
     });
 
     await instance.track('test', { value: 42 }, { url: '/', viewportSize: { width: 1, height: 1 } });
 
-    expect(sendBeaconSpy).toHaveBeenCalledTimes(1);
-    // @ts-expect-error
-    const [urlArg] = sendBeaconSpy.mock.calls[0];
-    expect(urlArg).toContain('?cache=');
+    expect(mockSender.send).toHaveBeenCalledTimes(1);
+    expect(getMockCall(mockSender).bustCache).toBe(true);
   });
-
-  it('adds no-store headers when cache=true and using fetch', async () => {
-    // Ensure no beacon so AUTO → fetch
-    Object.defineProperty(global.navigator, 'sendBeacon', {
-      value: undefined,
-      configurable: true,
-    });
-
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
-
-    const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({
-      provider: { name: 'umami', website: TEST_SITE_ID.umami },
-      factory: { bustCache: true },
-    });
-    await instance.track('test', { value: 42 }, { url: '/', viewportSize: { width: 1, height: 1 } });
-
-    const [, init] = fetchSpy.mock.calls[0];
-    expect((init!.headers as Record<string, string>)['Cache-Control']).toBe('no-store, max-age=0');
-    expect((init!.headers as Record<string, string>).Pragma).toBe('no-cache');
-  });
-
 
   it('identify is a safe no-op', async () => {
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: { name: 'umami', website: TEST_SITE_ID.umami }});
+    const instance = umami.create({
+      provider: { name: 'umami', website: TEST_SITE_ID.umami },
+      factory: { bustCache: false, debug: false, sender: mockSender },
+    });
     const ctx: PageContext = {
         url: '/a',
         title: 'T',
@@ -195,7 +201,10 @@ describe('Umami provider / client', () => {
 
   it('destroy() is idempotent', async () => {
     const umami = (await import('../../../src/providers/umami')).default;
-    const instance = umami.create({ provider: { name: 'umami', website: TEST_SITE_ID.umami }});
+    const instance = umami.create({
+      provider: { name: 'umami', website: TEST_SITE_ID.umami },
+      factory: { bustCache: false, debug: false, sender: mockSender },
+    });
     expect(() => instance.destroy()).not.toThrow();
     expect(() => instance.destroy()).not.toThrow();
   });

@@ -2,7 +2,7 @@ import { UMAMI_ENDPOINT, UMAMI_HOST } from '../../constants';
 import type { EventType, PageContext } from '../../types';
 import { displaySizeFromContext } from '../browser';
 import { createConfigProvider, type ProviderSpec } from '../base/adapter';
-import type { UmamiOptions, UmamiPayload, UmamiSendBody } from './types';
+import type { ResolvedUmamiOptions, UmamiOptions, UmamiPayload, UmamiSendBody } from './types';
 
 
 function normalizeHost(host?: string): string {
@@ -24,12 +24,12 @@ export function getUmamiPageContext(pageContext: PageContext): Record<string, un
   return umamiPageContext;
 }
 
-const umamiSpec: ProviderSpec<UmamiOptions> = {
+const umamiSpec: ProviderSpec<ResolvedUmamiOptions> = {
   name: 'umami',
 
   version: '1.0.0',
 
-  defaults: (options: UmamiOptions) => {
+  defaults: (options: ResolvedUmamiOptions) => {
     const website = options.website?.trim();
     if (!website) throw new Error('[umami] "website" is required');
     return {

@@ -18,19 +18,23 @@ const providerRegistry = new Map(
   Object.entries(providers).map(([name, loader]) => [name as ProviderType, loader])
 );
 
-export async function loadProvider(
-  providerConfig: ProviderOptions,
-  batching: ResolvedBatchingOptions,
-  resilience: ResolvedResilienceOptions,
-  transportMode: TransportMode,
-  defaultHeaders: Record<string, string>,
-  bustCache: boolean,
-  debug: boolean,
-  onError: (error: AnalyticsError) => void,
-  diagnostics: DiagnosticsService | null,
-  performanceTracker?: PerformanceTracker | null,
-): Promise<StatefulProvider> {
-  const name = providerConfig.name;
+
+export type LoadProviderOptions = {
+  providerConfig: ProviderOptions;
+  batching: ResolvedBatchingOptions;
+  resilience: ResolvedResilienceOptions;
+  transportMode: TransportMode;
+  defaultHeaders: Record<string, string | undefined>;
+  bustCache: boolean;
+  debug: boolean;
+  onError: (error: AnalyticsError) => void;
+  diagnostics?: DiagnosticsService | null;
+  performanceTracker?: PerformanceTracker | null;
+};
+
+
+export async function loadProvider(options: LoadProviderOptions): Promise<StatefulProvider> {
+  const name = options.providerConfig.name;
   logger.debug('Loading provider:', name);
 
   const loader = providerRegistry.get(name);
@@ -51,26 +55,18 @@ export async function loadProvider(
       throw new Error(msg);
     }
 
-    const sender = makeDispatcherSender({
-      batching,
-      resilience,
-      bustCache,
-      transportMode,
-      defaultHeaders,
-      diagnostics,
-      performanceTracker,
-    } satisfies NetworkDispatcherOptions);
+    const sender = makeDispatcherSender(options satisfies NetworkDispatcherOptions);
 
     const provider = factory.create({
-      provider: providerConfig,
-      factory: { bustCache, debug, sender },
+      provider: options.providerConfig,
+      factory: { bustCache: options.bustCache, debug: options.debug, sender },
     });
-    const stateful = new StatefulProvider(provider, onError);
+    const stateful = new StatefulProvider(provider, options.onError);
 
     // Init without blocking; surface errors
     void stateful.init().catch((err) => {
       logger.error('Provider initialization failed', err);
-      onError(err);
+      options.onError(err);
     });
 
     logger.info('Provider loaded:', name, { version: factory.meta?.version ?? 'unknown' });

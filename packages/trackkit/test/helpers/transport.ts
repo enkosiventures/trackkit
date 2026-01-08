@@ -2,11 +2,12 @@ import type { Transport } from "../../src/dispatcher";
 import { NetworkDispatcher } from "../../src/dispatcher";
 import type { DispatchPayload, NetworkDispatcherOptions } from "../../src/dispatcher/types";
 import type { Sender } from "../../src/providers/base/transport";
+import { getId } from "../../src/util";
 
 export type SendRecord = { url: string; body: any; init?: RequestInit };
 
 export class TestTransport implements Transport {
-  id = 'test_' + Math.random().toString(36).substring(2, 8);
+  id = 'test_' + getId();
 
   public sends: SendRecord[] = [];
   private remainingFailures = 0;
@@ -29,6 +30,7 @@ export class TestTransport implements Transport {
   }
 }
 
+// TODO: fix and use or remove
 export function makeTestDispatcherSender(opts: NetworkDispatcherOptions): Sender {
   const dispatcher = new NetworkDispatcher(opts);
   const RESPONSE_OK = { ok: true, status: 204, statusText: 'OK' } as unknown as Response;

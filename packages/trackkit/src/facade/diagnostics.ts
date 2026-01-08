@@ -1,4 +1,4 @@
-import type { ProviderType, ResolvedFacadeOptions } from '../types';
+import type { ProviderType, ResolvedAnalyticsOptions, ResolvedFacadeOptions } from '../types';
 import { type QueueService, getSSRQueueLength } from '../queues';
 import type { ContextService } from './context';
 import type { ProviderManager } from './provider-manager';
@@ -6,7 +6,7 @@ import type { ConsentStatus, ConsentStoredState } from '../consent/types';
 import type { ProviderState } from '../providers/types';
 import type { ProviderStateHistory } from '../util/state';
 import type { PerformanceTracker } from '../performance/tracker';
-import { ResolvedBatchingOptions, ResolvedDispatcherOptions } from '../dispatcher/types';
+import { ResolvedBatchingOptions, ResolvedDispatcherOptions, TransportMode } from '../dispatcher/types';
 import { PolicyDiagnostics, SendDecision } from './policy-gate';
 
 export interface ProviderStateSnapshot {
@@ -24,13 +24,16 @@ export interface DiagnosticsSnapshot {
   timestamp: number;
   instanceId: string;
   config: {
-    debug: boolean;
-    queueSize: number;
+    allowWhenHidden: boolean;
     autoTrack: boolean;
-    doNotTrack: boolean;
-    trackLocalhost: boolean;
-    includeHash: boolean;
+    bustCache: boolean;
+    debug: boolean;
     domains: string[];
+    doNotTrack: boolean;
+    exclude: string[];
+    includeHash: boolean;
+    queueSize: number;
+    trackLocalhost: boolean;
   };
   consent: {
     status?: ConsentStatus;
@@ -38,6 +41,7 @@ export interface DiagnosticsSnapshot {
     method?: string;
   };
   dispatcher: {
+    transportMode: TransportMode;
     batching: ResolvedBatchingOptions & CurrentBatchMetrics;
     resilience: {
       detectBlockers: boolean;
@@ -70,6 +74,7 @@ export interface DiagnosticsSnapshot {
   provider: {
     key: string | null;
     state: ProviderState;
+    events: number;
     history: ProviderStateHistory;
   };
   queue: {
@@ -112,7 +117,6 @@ export class DiagnosticsService {
     private queues: QueueService,
     private context: ContextService | null,
     private provider: ProviderManager,
-    private providerKey: ProviderType,
     private performanceTracker: PerformanceTracker | null,
   ) {
     this.policy = {
@@ -148,26 +152,30 @@ export class DiagnosticsService {
     const capacity = this.facade.queueSize;
     const provider = this.provider.get();
     const providerSnapshot =
-      provider && typeof (provider as any).getSnapshot === 'function'
-        ? (provider as any).getSnapshot()
-        : { state: 'unknown' as ProviderState, history: [] as ProviderStateHistory };
+      provider
+        ? provider.getSnapshot()
+        : { key: 'unknown', state: 'unknown' as ProviderState, events: 0, history: [] as ProviderStateHistory };
 
     return {
       timestamp: Date.now(),
       instanceId: this.id,
       config: {
-        debug: this.facade.debug,
-        queueSize: this.facade.queueSize,
+        allowWhenHidden: this.facade.allowWhenHidden,
         autoTrack: this.facade.autoTrack,
-        doNotTrack: this.facade.doNotTrack,
-        trackLocalhost: this.facade.trackLocalhost,
-        includeHash: this.facade.includeHash,
+        bustCache: this.facade.bustCache,
+        debug: this.facade.debug,
         domains: this.facade.domains,
+        doNotTrack: this.facade.doNotTrack,
+        exclude: this.facade.exclude,
+        includeHash: this.facade.includeHash,
+        queueSize: this.facade.queueSize,
+        trackLocalhost: this.facade.trackLocalhost,
       },
       consent: {
         ...this.consent.snapshot(),
       },
       dispatcher: {
+        transportMode: this.dispatcher.transportMode,
         batching: {
           ...this.dispatcher.batching,
           ...this.currentBatchMetrics,
@@ -202,10 +210,7 @@ export class DiagnosticsService {
           }
         : undefined,
       policy: this.policy,
-      provider: {
-        key: this.providerKey,
-        ...providerSnapshot,
-      },
+      provider: providerSnapshot,
       queue: {
         totalBuffered: this.queues.size() + getSSRQueueLength(),
         ssrQueueBuffered: getSSRQueueLength(),

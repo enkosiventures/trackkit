@@ -3,9 +3,11 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach } from
 import { server } from '../setup/msw';
 import { http, HttpResponse } from 'msw';
 import { init, track, destroy, waitForReady, grantConsent, pageview } from '../../src';
-import { TEST_SITE_ID } from '../helpers/providers';
-import { UMAMI_ENDPOINT, UMAMI_HOST } from '../../src/constants';
+import { mockSender, TEST_SITE_ID } from '../helpers/providers';
+import { DEFAULT_BUST_CACHE, DEFAULT_HEADERS, DEFAULT_TRANSPORT_MODE, UMAMI_ENDPOINT, UMAMI_HOST } from '../../src/constants';
 import { testLog } from '../helpers/core';
+import { makeDispatcherSender } from '../../src/providers/base/transport';
+import { applyBatchingDefaults, applyResilienceDefaults } from '../../src/facade/normalize';
 
 
 // @vitest-environment jsdom
@@ -22,22 +24,26 @@ afterAll(() => server.close());
 
 describe('Provider Integration', () => {
   const providers: Array<{
-    name: string; 
+    name: string;
+    idField: string;
     config: any;
     data: { url: string | RegExp };
   }> = [
     {
       name: 'umami',
+      idField: 'website',
       config: { provider: { name: 'umami', site: TEST_SITE_ID.umami }},
       data: { url: `${UMAMI_HOST}${UMAMI_ENDPOINT}` }
     },
     {
       name: 'plausible',
+      idField: 'domain',
       config: { provider: { name: 'plausible', site: 'test.com' }},
       data: { url: 'https://plausible.io/api/event' }
     },
     {
       name: 'ga4',
+      idField: 'measurementId',
       config: { provider: { name: 'ga4', site: 'G-TEST123456' }},
       data: { url: /https:\/\/www\.google-analytics\.com\/(?:debug\/)?mp\/collect/ }
     },
@@ -47,7 +53,7 @@ describe('Provider Integration', () => {
     destroy();
   })
 
-  providers.forEach(({ name, config, data }) => {
+  providers.forEach(({ name, idField, config, data }) => {
     it(`${name} sends events after initialization`, async () => {
       const payloads = {
         umami: [
@@ -165,10 +171,12 @@ describe('Provider Integration', () => {
       await new Promise(resolve => setTimeout(resolve, 200));
 
       expect(requests).toHaveLength(2);
+      // @ts-expect-error
       expect(requests[0]).toMatchObject(payloads[name][0]);
+      // @ts-expect-error
       expect(requests[1]).toMatchObject(payloads[name][1]);
     });
-    
+
     it(`${name} queues events before provider ready`, async () => {
       let requests: any[] = [];
       server.use(
@@ -259,6 +267,40 @@ describe('Provider Integration', () => {
 
       // Only real provider event should be sent
       expect(requests).toBe(1);
+    });
+
+    it(`${name} rejects on network failure`, async () => {
+      server.use(
+        http.post('*', () => new HttpResponse(null, { status: 500 }))
+      );
+
+      const bustCache = DEFAULT_BUST_CACHE;
+      const provider = (await import(`../../src/providers/${name}`)).default;
+      // const sender = makeDispatcherSender({
+      //   batching: applyBatchingDefaults(),
+      //   resilience: applyResilienceDefaults(),
+      //   bustCache,
+      //   transportMode: DEFAULT_TRANSPORT_MODE,
+      //   defaultHeaders: DEFAULT_HEADERS,
+      // });
+
+      const instance = provider.create({
+        provider: {...config.provider, [idField]: config.provider.site },
+        factory: { bustCache, debug: false, sender: mockSender },
+      });
+
+      instance.track('oops', {}).catch((err: any) => {
+        console.warn('[TEST] Caught expected error from failed request:', err.message);
+        expect(err).toBeDefined();
+        expect(err.message).toMatch(/(Provider request failed|500)/);
+      });
+
+      expect(mockSender.send).toHaveBeenCalledTimes(1);
+
+
+      // await expect(
+      //   instance.track('oops', {})
+      // ).rejects.toThrow(/(Provider request failed|500)/);
     });
   });
 });

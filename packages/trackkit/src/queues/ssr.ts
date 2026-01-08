@@ -1,5 +1,6 @@
 import type { ConsentCategory } from '../consent/types';
 import type { EventType, PageContext } from '../types';
+import { getDatedId } from '../util';
 import { hasDOM, isClient, isServer } from '../util/env';
 import type { IQueue, QueuedEventUnion } from './types';
 
@@ -39,7 +40,7 @@ export function enqueueSSREvent(
   }
 
   globalThis.__TRACKKIT_SSR_QUEUE__.push({
-    id: `ssr_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    id: `ssr_${getDatedId()}`,
     type,
     timestamp: Date.now(),
     // @ts-ignore allow dynamic

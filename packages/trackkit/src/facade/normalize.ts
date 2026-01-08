@@ -73,13 +73,12 @@ export const applyDispatcherDefaults = (combined: DispatcherOptions = {}): Resol
   resilience: applyResilienceDefaults(combined.resilience),
 } as const);
 
-
 export function applyFacadeDefaults(
   combined: AnalyticsOptions, // merged env+user
   providerName: ProviderType,
 ): ResolvedFacadeOptions {
   const providerDefaults = PROVIDER_DEFAULTS[providerName] || PROVIDER_BASE_DEFAULTS;
-  const trackLocalhost = providerName === 'noop' ? true :
+  const trackLocalhost = 
     combined.trackLocalhost ?? providerDefaults.trackLocalhost ?? FACADE_BASE_DEFAULTS.trackLocalhost;
 
   return {

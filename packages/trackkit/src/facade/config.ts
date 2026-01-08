@@ -1,34 +1,73 @@
 import { readEnvConfig } from '../util/env';
-import { AnalyticsError } from '../errors';
-import type { AnalyticsOptions, ProviderOptions, ResolvedAnalyticsOptions } from '../types';
-import { normalizeProviderOptions } from '../providers/normalize';
+import { AnalyticsError, dispatchError } from '../errors';
+import type { AnalyticsOptions, ProviderOptions, ResolvedAnalyticsOptions, ResolvedProviderOptions } from '../types';
 import { applyDispatcherDefaults, applyFacadeDefaults } from './normalize';
 import { logger } from '../util/logger';
-import { DEFAULT_PROVIDER_OPTIONS } from '../constants';
+import { DEFAULT_PROVIDER_OPTIONS, GA_HOST, PLAUSIBLE_HOST, UMAMI_HOST } from '../constants';
 import { deepMerge } from '../util';
 
 
-function mergeOptions(env: AnalyticsOptions, user: AnalyticsOptions): AnalyticsOptions {
-  const { provider: envProvider, ...envRest } = env;
-  const { provider: userProvider, ...userRest } = user;
+function mergeProviderOptions(
+  envProvider?: ProviderOptions,
+  userProvider?: ProviderOptions
+): ProviderOptions | undefined {
+  if (!envProvider && !userProvider) return undefined;
+  if (!envProvider) return userProvider;
+  if (!userProvider) return envProvider as ProviderOptions;
 
-  const mergedRest = deepMerge(envRest, userRest);
+  if (envProvider.name !== userProvider.name) {
+    return userProvider;
+  }
+
+  return deepMerge(envProvider, userProvider);
+}
+
+export function mergeOptions(env: AnalyticsOptions, user: AnalyticsOptions): AnalyticsOptions {
+  const { provider: envProvider, dispatcher: envDispatcher, ...envRest } = env;
+  const { provider: userProvider, dispatcher: userDispatcher, ...userRest } = user;
+
+  console.warn('Env options:', env);
+  console.warn('User options:', user);
+
+  const mergedFacade = deepMerge(envRest, userRest);
+  const mergedDispatcher = deepMerge(envDispatcher, userDispatcher);
+  const mergedProvider = mergeProviderOptions(envProvider, userProvider); 
 
   return {
-    ...mergedRest,
-    provider: userProvider ?? envProvider ?? DEFAULT_PROVIDER_OPTIONS,
+    // ...FACADE_BASE_DEFAULTS,
+    ...mergedFacade,
+    dispatcher: mergedDispatcher,
+    provider: mergedProvider ?? DEFAULT_PROVIDER_OPTIONS,
   };
 }
 
-export function resolveConfig(userOptions: AnalyticsOptions = {}): ResolvedAnalyticsOptions {
-  const env = readEnvConfig();
-  const combined = mergeOptions(env, userOptions);
 
-  const rawProvider = extractProviderOptions(combined);
-  const provider = normalizeProviderOptions(rawProvider);
-  const dispatcher = applyDispatcherDefaults(combined.dispatcher);
-  const facade = applyFacadeDefaults(combined, provider.name);
-  
+// function mergeOptions(env: RawAnalyticsOptions, user: AnalyticsOptions): AnalyticsOptions {
+//   const { provider: envProvider, ...envRest } = env;
+//   const { provider: userProvider, ...userRest } = user;
+
+//   const mergedRest = deepMerge(envRest, userRest);
+
+//   return {
+//     ...mergedRest,
+//     provider: userProvider ?? envProvider ?? DEFAULT_PROVIDER_OPTIONS,
+//   };
+// }
+
+export function resolveConfig(userOptions: AnalyticsOptions = {}): ResolvedAnalyticsOptions {
+  const completeUserOptions = mergeOptions(readEnvConfig(), userOptions);
+
+  const rawProvider = extractProviderOptions(completeUserOptions);
+  const dispatcher = applyDispatcherDefaults(completeUserOptions.dispatcher);
+  const facade = applyFacadeDefaults(completeUserOptions, rawProvider.name);
+  let provider = DEFAULT_PROVIDER_OPTIONS;
+
+  try {
+    provider = validateProviderConfig(rawProvider);
+  } catch (e) {
+    dispatchError(e, 'INVALID_CONFIG', provider.name ?? 'unknown');
+  }
+
   return { facade, provider, dispatcher } as const;
 }
 
@@ -44,26 +83,27 @@ export function extractProviderOptions(options: AnalyticsOptions): ProviderOptio
     case 'plausible':
       return {
         name: 'plausible',
+        defaultProps: provider.defaultProps,
         domain: provider.domain ?? provider.site!,
-        host: provider.host,
+        host: provider.host ?? PLAUSIBLE_HOST,
         revenue: provider.revenue,
       };
     case 'umami':
       return {
         name: 'umami',
         website: provider.website ?? provider.site!,
-        host: provider.host,
+        host: provider.host ?? UMAMI_HOST,
       };
     case 'ga4':
       return {
         name: 'ga4',
         measurementId: provider.measurementId ?? provider.site!,
-        host: provider.host,
+        host: provider.host ?? GA_HOST,
         apiSecret: provider.apiSecret,
         customDimensions: provider.customDimensions,
         customMetrics: provider.customMetrics,
         debugEndpoint: provider.debugEndpoint,
-        debugMode: provider.debugMode,
+        debugMode: provider.debugMode ?? false,
       };
     case 'noop':
     default:
@@ -71,7 +111,7 @@ export function extractProviderOptions(options: AnalyticsOptions): ProviderOptio
   }
 }
 
-export function validateProviderConfig(providerOptions: ProviderOptions): void {
+export function validateProviderConfig(providerOptions: ProviderOptions): ResolvedProviderOptions {
   const { name } = providerOptions;
 
   let field;
@@ -109,10 +149,13 @@ export function validateProviderConfig(providerOptions: ProviderOptions): void {
 
   if (errorMessage) {
     logger.error(`Invalid config: ${errorMessage}`);
-    throw new AnalyticsError(
+    dispatchError(new AnalyticsError(
       errorMessage,
       'INVALID_CONFIG',
       name,
-    );
+    ));
+    return DEFAULT_PROVIDER_OPTIONS as ResolvedProviderOptions;
+  } else {
+    return providerOptions as ResolvedProviderOptions;
   }
 }

@@ -328,6 +328,7 @@ import type {
 } from './consent/types';
 import type {
   DispatcherOptions,
+  RawDispatcherOptions,
   ResolvedDispatcherOptions,
 } from './dispatcher/types';
 import type { AnalyticsError } from './errors';
@@ -544,7 +545,7 @@ export interface FacadeOptions {
    * When `false`, events may be skipped while the tab is backgrounded to
    * avoid noisy data.
    */
-  allowWhenHidden: boolean;
+  allowWhenHidden?: boolean;
 
   /**
    * Automatically track page views.
@@ -552,7 +553,7 @@ export interface FacadeOptions {
    * When `true`, navigation events detected by the facade will emit
    * `pageview()` calls without you needing to call them manually.
    */
-  autoTrack: boolean;
+  autoTrack?: boolean;
 
   /**
    * Enable cache-busting for provider HTTP requests.
@@ -560,7 +561,7 @@ export interface FacadeOptions {
    * When `true`, Trackkit adds query params / headers to avoid accidental
    * caching of analytics requests.
    */
-  bustCache: boolean;
+  bustCache?: boolean;
 
   /**
    * Enable debug logging to the console.
@@ -568,7 +569,7 @@ export interface FacadeOptions {
    * When `true`, the facade and dispatcher emit verbose logs under a
    * Trackkit-specific logger namespace.
    */
-  debug: boolean;
+  debug?: boolean;
 
   /**
    * Whitelist of domains to track.
@@ -584,7 +585,7 @@ export interface FacadeOptions {
    * When `true` and DNT is enabled, non-essential events will be blocked
    * by policy.
    */
-  doNotTrack: boolean;
+  doNotTrack?: boolean;
 
   /**
    * Exclude paths from tracking.
@@ -599,19 +600,19 @@ export interface FacadeOptions {
    *
    * Useful for hash-based SPAs that encode route state in `#...`.
    */
-  includeHash: boolean;
+  includeHash?: boolean;
 
   /**
    * Maximum number of events to hold in the in-memory queue.
    *
    * When this limit is exceeded, oldest events are dropped first.
    */
-  queueSize: number;
+  queueSize?: number;
 
   /**
    * Whether to track events on `localhost` and similar development hosts.
    */
-  trackLocalhost: boolean;
+  trackLocalhost?: boolean;
 
   // OPTION COLLECTIONS
 
@@ -728,6 +729,19 @@ export interface AnalyticsOptions extends Partial<FacadeOptions> {
    */
   dispatcher?: DispatcherOptions;
 }
+
+/**
+ * Raw analytics options with partial nested configs.
+ *
+ * This type is used during environment variable parsing, where nested
+ * provider and dispatcher options may be incomplete.
+ *
+ * @internal
+ */
+export type RawAnalyticsOptions = Partial<Omit<AnalyticsOptions, 'provider' | 'dispatcher'>> & {
+  provider?: Partial<ProviderOptions>;
+  dispatcher?: RawDispatcherOptions;
+};
 
 /**
  * Internal resolved configuration after applying defaults and validation.

@@ -1,6 +1,6 @@
 import type { PageContext } from '../../types';
 import { createConfigProvider, type ProviderSpec } from '../base/adapter';
-import type { PlausibleEventPayload, PlausibleOptions } from './types';
+import type { PlausibleEventPayload, PlausibleOptions, ResolvedPlausibleOptions } from './types';
 
 /**
  * Plausible spec.
@@ -13,12 +13,12 @@ function normalizeHost(host?: string): string {
   return host.replace(/\/+$/, '');
 }
 
-const plausibleSpec: ProviderSpec<PlausibleOptions> = {
+const plausibleSpec: ProviderSpec<ResolvedPlausibleOptions> = {
   name: 'plausible',
 
   version: '1.0.0',
 
-  defaults: (options: PlausibleOptions) => {
+  defaults: (options: ResolvedPlausibleOptions) => {
     const domain = options.domain?.trim();
     if (!domain) throw new Error('[plausible] "domain" is required');
     return {
@@ -39,7 +39,7 @@ const plausibleSpec: ProviderSpec<PlausibleOptions> = {
   limits: { maxBeaconBytes: 64_000 },
 
   payload: {
-    pageview: (pageContext: PageContext, options: PlausibleOptions): PlausibleEventPayload => {
+    pageview: (pageContext: PageContext, options: ResolvedPlausibleOptions): PlausibleEventPayload => {
       const body: PlausibleEventPayload = {
         name: 'pageview',
         url: pageContext.url,
@@ -54,7 +54,7 @@ const plausibleSpec: ProviderSpec<PlausibleOptions> = {
       name: string,
       props: Record<string, unknown>,
       pageContext: PageContext,
-      options: PlausibleOptions
+      options: ResolvedPlausibleOptions
     ): PlausibleEventPayload => {
       const body: PlausibleEventPayload = {
         name,

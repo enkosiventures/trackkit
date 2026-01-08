@@ -11,11 +11,10 @@ describe('EventBatchProcessor', () => {
 
   it('splits batches by maxSize', async () => {
     const sent: Batch[] = [];
-    const bp = new EventBatchProcessor(
-      applyBatchingDefaults({ maxSize: 2, maxWait: 10 }),
-      applyRetryDefaults(),
-      async (b) => { sent.push(b); },
-    );
+    const bp = new EventBatchProcessor({
+      batching: applyBatchingDefaults({ maxSize: 2, maxWait: 10 }),
+      sendFn: async (b) => { sent.push(b); },
+    });
 
     bp.add({ id: 'a', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: 10 });
     bp.add({ id: 'b', timestamp: Date.now(), payload: { url: '', body: { b: 2 }}, size: 10 });
@@ -36,11 +35,10 @@ describe('EventBatchProcessor', () => {
 
   it('splits batches by maxBytes', async () => {
     const sent: Batch[] = [];
-    const bp = new EventBatchProcessor(
-      applyBatchingDefaults({ maxBytes: 100, maxWait: 10 }),
-      applyRetryDefaults(),
-      async (b) => { sent.push(b); },
-    );
+    const bp = new EventBatchProcessor({
+      batching: applyBatchingDefaults({ maxBytes: 100, maxWait: 10 }),
+      sendFn: async (b) => { sent.push(b); },
+    });
 
     const bigPayload = { data: 'x'.repeat(150) }; // > 100 bytes after JSON
     bp.add({ id: 'x', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: JSON.stringify(bigPayload).length });
@@ -55,11 +53,10 @@ describe('EventBatchProcessor', () => {
 
   it('deduplicates by id when enabled', async () => {
     const sent: Batch[] = [];
-    const bp = new EventBatchProcessor(
-      applyBatchingDefaults({ maxWait: 10, deduplication: true }),
-      applyRetryDefaults(),
-      async (b) => { sent.push(b); }
-    );
+    const bp = new EventBatchProcessor({
+      batching: applyBatchingDefaults({ maxWait: 10, deduplication: true }),
+      sendFn: async (b) => { sent.push(b); }
+    });
 
     bp.add({ id: 'dup', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: 10 });
     bp.add({ id: 'dup', timestamp: Date.now(), payload: { url: '', body: { b: 2 }}, size: 10 });
@@ -70,62 +67,5 @@ describe('EventBatchProcessor', () => {
 
     expect(sent.length).toBe(1);
     expect(sent[0].events.map(e => e.id)).toEqual(['dup']);
-  });
-
-  it('retries failed batches with backoff (retryable error)', async () => {
-    const sent: { id: string; attempt: number }[] = [];
-    let attempts = 0;
-
-    const bp = new EventBatchProcessor(
-      applyBatchingDefaults({ maxWait: 1 }),
-      applyRetryDefaults({ maxAttempts: 3, initialDelay: 100, multiplier: 2, maxDelay: 1000, jitter: false }),
-      async (b) => {
-        attempts++;
-        sent.push({ id: b.id, attempt: attempts });
-        // fail the first 2 attempts; succeed on 3rd
-        if (attempts < 3) {
-          const err: any = new Error('Service unavailable');
-          err.status = 503; // retryable
-          throw err;
-        }
-      }
-    );
-
-    bp.add({ id: 'r1', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: 10 });
-
-    vi.advanceTimersByTime(5);
-    await vi.runOnlyPendingTimersAsync(); // processes timers + microtasks in between steps
-    vi.advanceTimersByTime(100);
-    await vi.runOnlyPendingTimersAsync();
-    vi.advanceTimersByTime(200);
-    await vi.runOnlyPendingTimersAsync();
-    await bp.flush();
-
-    expect(attempts).toBe(3);
-    expect(sent[0].attempt).toBe(1);
-    expect(sent[1].attempt).toBe(2);
-    expect(sent[2].attempt).toBe(3);
-  });
-
-  it('does not retry non-retryable errors', async () => {
-    let attempts = 0;
-    const bp = new EventBatchProcessor(
-      applyBatchingDefaults({ maxWait: 1 }),
-      applyRetryDefaults({ maxAttempts: 3, initialDelay: 100, jitter: false }),
-      async () => {
-        attempts++;
-        const err: any = new Error('Bad Request');
-        err.status = 400; // not retryable
-        throw err;
-      }
-    );
-
-    bp.add({ id: 'bad', timestamp: Date.now(), payload: { url: '', body: { a: 1 }}, size: 10 });
-
-    vi.advanceTimersByTime(5);
-    await microtick();
-    await bp.flush();
-
-    expect(attempts).toBe(1);
   });
 });

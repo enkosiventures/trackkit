@@ -15,11 +15,24 @@ vi.mock('../../../src/providers/noop', () => ({
   },
 }));
 
-import { loadProvider } from '../../../src/providers/loader';
+import { loadProvider, LoadProviderOptions } from '../../../src/providers/loader';
 import { StatefulProvider } from '../../../src/providers/stateful-wrapper';
 import * as Log from '../../../src/util/logger';
 import { resetTests } from '../../helpers/core';
+import { applyBatchingDefaults, applyResilienceDefaults } from '../../../src/facade/normalize';
+import { DEFAULT_HEADERS, DEFAULT_TRANSPORT_MODE } from '../../../src/constants';
 
+
+const defaultLoadProviderOptions: LoadProviderOptions = {
+  providerConfig: { name: 'noop' },
+  batching: applyBatchingDefaults(),
+  resilience: applyResilienceDefaults(),
+  transportMode: DEFAULT_TRANSPORT_MODE,
+  defaultHeaders: DEFAULT_HEADERS,
+  bustCache: false,
+  debug: false,
+  onError: vi.fn(),
+};
 
 function mkProvider(name = 'p') {
   return {
@@ -59,7 +72,7 @@ describe('provider loader', () => {
     });
 
     it('loads provider via SYNC factory and returns StatefulProvider', async () => {
-      const sp = await loadProvider();
+      const sp = await loadProvider(defaultLoadProviderOptions);
       expect(sp).toBeInstanceOf(StatefulProvider);
 
       const infoCalls = logger.mock.results?.[0]?.value?.info?.mock?.calls ?? [];
@@ -67,7 +80,7 @@ describe('provider loader', () => {
     });
 
     it('loads provider via ASYNC factory (promise)', async () => {
-      const sp = await loadProvider({ providerOptions: null });
+      const sp = await loadProvider(defaultLoadProviderOptions);
       expect(sp).toBeInstanceOf(StatefulProvider);
       const infoCalls = logger.mock.results?.[0]?.value?.info?.mock?.calls ?? [];
       expect(infoCalls).toEqual([['Provider loaded:', 'noop', { version: '1.2.3' }]]);
@@ -75,12 +88,15 @@ describe('provider loader', () => {
   });
 
   it('throws on unknown provider name', async () => {
-    await expect(loadProvider({ providerOptions: { name: 'unknown' } as any })).rejects.toThrow(/Unknown analytics provider/i);
+    await expect(loadProvider({
+      ...defaultLoadProviderOptions,
+      providerConfig: { name: 'unknown' } as any,
+    })).rejects.toThrow(/Unknown analytics provider/i);
   });
 
   it('throws on invalid factory (missing create)', async () => {
     currentNoopFactory = {}; // no create
-    await expect(loadProvider()).rejects.toThrow(/Invalid provider factory/i);
+    await expect(loadProvider(defaultLoadProviderOptions)).rejects.toThrow(/Invalid provider factory/i);
   });
 
   it('init failure is caught and forwarded to onError (no unhandled rejections)', async () => {
@@ -91,6 +107,7 @@ describe('provider loader', () => {
     const onError = vi.fn();
 
     await loadProvider({
+      ...defaultLoadProviderOptions,
       bustCache: false,
       debug: false,
       onError,

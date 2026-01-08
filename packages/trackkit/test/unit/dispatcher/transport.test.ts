@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { FetchTransport, ProxiedTransport, BeaconTransport } from '../../../src/dispatcher/transports';
+import { FetchTransport, ProxiedTransport, BeaconTransport, NoopTransport } from '../../../src/dispatcher/transports';
 
 
 const g = globalThis as any;
@@ -38,6 +38,45 @@ describe('Transport', () => {
     const [url, blob] = beaconSpy.mock.calls[0];
     expect(url).toBe('/endpoint');
     expect(blob).toBeInstanceOf(Blob);
+  });
+});
+
+describe('NoopTransport', () => {
+  it('resolves successfully and warns to console', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const t = new NoopTransport();
+    const payload = { url: '/track', body: { a: 1 } };
+
+    await expect(t.send(payload)).resolves.toBeUndefined();
+    
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[NoopTransport]'), 
+      payload
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('calls onSend callback when provided', async () => {
+    const onSend = vi.fn();
+    const t = new NoopTransport(onSend);
+    const payload = { url: '/track', body: { a: 1 } };
+
+    await t.send(payload);
+
+    expect(onSend).toHaveBeenCalledTimes(1);
+    expect(onSend).toHaveBeenCalledWith(payload);
+  });
+
+  it('swallows errors thrown in onSend callback', async () => {
+    const onSend = vi.fn().mockImplementation(() => {
+      throw new Error('Callback crash');
+    });
+    const t = new NoopTransport(onSend);
+    const payload = { url: '/track', body: {} };
+
+    // Should not reject promise despite callback error
+    await expect(t.send(payload)).resolves.toBeUndefined();
+    expect(onSend).toHaveBeenCalled();
   });
 });
 

@@ -1,5 +1,5 @@
-import type { EventType, AnalyticsOptions, Props, ResolvedFacadeOptions, ResolvedProviderOptions } from '../types';
-import { resolveConfig, validateProviderConfig } from './config';
+import type { EventType, AnalyticsOptions, Props, ResolvedFacadeOptions, ResolvedProviderOptions, RawAnalyticsOptions } from '../types';
+import { mergeOptions, resolveConfig, validateProviderConfig } from './config';
 import { ConsentManager } from '../consent/ConsentManager';
 import type { ConsentCategory, ConsentStatus, ConsentStoredState } from '../consent/types';
 import { PolicyGate } from './policy-gate';
@@ -12,12 +12,13 @@ import { AnalyticsError, dispatchError, setUserErrorHandler } from '../errors';
 import { DiagnosticsService } from './diagnostics';
 import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { QueueService, EventQueue, type QueuedEventUnion } from '../queues';
-import { isServer } from '../util/env';
+import { isServer, readEnvConfig } from '../util/env';
 import { ConnectionMonitor } from '../connection/monitor';
 import { OfflineStore } from '../connection/offline-store';
 import { PerformanceTracker } from '../performance/tracker';
 import { ResolvedDispatcherOptions } from '../dispatcher/types';
 import { TransportRequest } from '../providers/base/transport';
+import { getId } from '../util';
 
 /**
  * Wraps a promise and rejects on timeout.
@@ -43,7 +44,7 @@ function returnIfInitialized<T>(obj: T | null, name?: string): T {
 }
 
 export class AnalyticsFacade {
-  readonly id = `AF_${Math.random().toString(36).slice(2,10)}`;
+  readonly id = `AF_${getId()}`;
 
   private config: {
     facade: ResolvedFacadeOptions;
@@ -111,6 +112,11 @@ export class AnalyticsFacade {
 
   init(opts: AnalyticsOptions = {}): this {
     if (this.initPromise) return this;
+    if (opts.onError) {
+      // Attempt to set user error handler early to catch
+      // any errors before defaults are resolved
+      setUserErrorHandler(opts.onError);
+    }
 
     this.config = resolveConfig(opts);
     const { facade, provider, dispatcher } = this.config;
@@ -139,13 +145,7 @@ export class AnalyticsFacade {
       this.performanceTracker.markInitStart();
     }
 
-    try {
-      validateProviderConfig(provider);
-      this.setupProviderDependencies();
-    } catch (e) {
-      dispatchError(e, 'INVALID_CONFIG', provider.name ?? 'unknown');
-      this.setupFallbackNoopProvider();
-    }
+    this.setupProviderDependencies();
 
     // Consent transitions — attach ONCE per init (not in initialize)
     this.consent?.onChange((to, from) => {
@@ -185,10 +185,16 @@ export class AnalyticsFacade {
     try {
       this.attachProviderReadyHandlers();
       await this.provider.load(this.diagnostics, this.performanceTracker);
-    } catch (e) {
+    } catch (error) {
       // Try to recover by falling back to noop
       try {
-        await this.fallbackToNoop(e);
+        logger.warn('Invalid provider config - falling back to noop', { error });
+        this.setupFallbackNoopProvider();
+        this.attachProviderReadyHandlers();
+        await this.provider.load(
+          this.diagnostics,
+          this.performanceTracker,
+        );
       } catch (fallbackErr) {
         // Hard failure: make waiters fail fast
         this.config?.facade.onError?.(
@@ -302,7 +308,7 @@ export class AnalyticsFacade {
     return withTimeout(p, opts?.timeoutMs);
   }
 
-  getQueueSize(): number { return this.queues?.size() ?? this.preInitBuffer.size; }
+  getQueueSize(): number { return this._queues?.size() ?? this.preInitBuffer.size; }
 
   hasQueuedEvents(): boolean { return this.getQueueSize() > 0; }
 
@@ -328,7 +334,7 @@ export class AnalyticsFacade {
   async flushIfReady(): Promise<number> {
     if (!this.providerIsReady) return 0;
 
-    const status = this.consent?.getStatus?.();
+    const status = this._consent?.getStatus();
 
     let processed = 0;
     switch (status) {
@@ -372,6 +378,7 @@ export class AnalyticsFacade {
   // === Internals ===
 
   private execute({ type, args = [], url, category = DEFAULT_CATEGORY }: { type: EventType; args?: unknown[]; url?: string; category?: ConsentCategory; }) {
+    console.warn('execute', { type, args, url, category });
     // If init() hasn’t run yet, we don’t have context/queues. Buffer per instance.
 
     if (!this.contextService) {
@@ -404,7 +411,9 @@ export class AnalyticsFacade {
       return;
     }
 
+    console.warn("Track localhost:", this.config?.facade.trackLocalhost);
     const decision = this.policy.shouldSend(type, category, resolvedUrl);
+    console.warn("Policy decision", decision);
     const providerReady = this.isProviderReady();
     const transient = !providerReady || decision.reason === 'consent-pending';
     this.diagnostics.updatePolicyDiagnostics(decision.reason, transient);
@@ -418,6 +427,7 @@ export class AnalyticsFacade {
         this.contextService.markPlanned(resolvedUrl);
       }
 
+      console.warn('calling provider', { type, args, ctx });
       this.provider.call(type, args, ctx)
         ?.then(() => {
           if (type === 'pageview') this.contextService!.markSent(resolvedUrl);
@@ -504,7 +514,7 @@ export class AnalyticsFacade {
     this._diagnostics = new DiagnosticsService(
       this.id, facade, dispatcher, this.consent,
       this.queues, this.contextService, this.provider,
-      provider.name, this.performanceTracker,
+      this.performanceTracker,
     );
   }
 
@@ -584,16 +594,6 @@ export class AnalyticsFacade {
     }
 
     this.setupProviderDependencies();
-  }
-
-  private async fallbackToNoop(error: unknown) {
-    logger.warn('Invalid provider config – falling back to noop', { error });
-    this.setupFallbackNoopProvider();
-    await this.provider.load(
-      this.diagnostics,
-      this.performanceTracker,
-    );
-    this.attachProviderReadyHandlers();
   }
 
   /** @internal test-only */

@@ -68,7 +68,6 @@ describe('Error handling (Facade)', () => {
     const onError = vi.fn();
 
     init({
-      // @ts-expect-error missing required option to emit INVALID_CONFIG
       provider: { name: 'umami' },      // umami spec requires website; we omit it
       debug: true,
       onError,

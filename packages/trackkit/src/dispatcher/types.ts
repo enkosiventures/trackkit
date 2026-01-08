@@ -441,7 +441,7 @@ export type ProxyTransportOptions = {
   /**
    * Additional static headers to include in proxy requests.
    */
-  headers?: Record<string, string>;
+  headers?: Record<string, string | undefined>;
 
   /**
    * If `true`, use `fetch({ keepalive: true })` for nicer unload semantics.
@@ -469,7 +469,7 @@ export type ProxyTransportOptions = {
  */
 export interface BatchingOptions {
   /** Enable event batching to reduce network requests. */
-  enabled: boolean;
+  enabled?: boolean;
 
   /**
    * Maximum number of events per batch.
@@ -783,7 +783,7 @@ export interface DispatcherOptions {
    * Default HTTP headers applied to every outgoing request before
    * provider-specific headers.
    */
-  defaultHeaders?: Record<string, string>;
+  defaultHeaders?: Record<string, string | undefined>;
 
   /**
    * Event batching configuration to optimise network usage.
@@ -815,9 +815,24 @@ export interface DispatcherOptions {
 }
 
 /**
+ * Partial dispatcher options as provided by external callers.
+ *
+ * Used internally for merging user options with defaults.
+ *
+ * See {@link DispatcherOptions}
+ * @internal
+ */
+export type RawDispatcherOptions = Partial<Pick<DispatcherOptions, 'transportMode' | 'defaultHeaders'>> & {
+  batching?: Partial<BatchingOptions>;
+  connection?: Partial<ConnectionOptions>;
+  performance?: Partial<PerformanceOptions>;
+  resilience?: Partial<ResilienceOptions>;
+};
+
+/**
  * Fully resolved dispatcher options with all defaults applied.
  *
- * @see DispatcherOptions
+ * See {@link DispatcherOptions}
  * @internal
  */
 export interface ResolvedDispatcherOptions
@@ -880,6 +895,8 @@ export type Batch = {
   attempts: number;
   /** Current batch status. */
   status: 'pending' | 'sending' | 'sent' | 'failed';
+  /** Last error seen when sending this batch. */
+  lastError?: unknown;
 };
 
 // ---------------------- Network Dispatcher Types ----------------------
@@ -922,7 +939,7 @@ export interface NetworkDispatcherOptions {
   resilience: ResolvedResilienceOptions;
   bustCache: boolean;
   transportMode: TransportMode;
-  defaultHeaders: Record<string, string>;
+  defaultHeaders: Record<string, string | undefined>;
   diagnostics?: DiagnosticsService | null;
   performanceTracker?: PerformanceTracker | null;
   /**

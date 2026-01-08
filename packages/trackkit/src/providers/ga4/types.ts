@@ -208,7 +208,7 @@ export type GA4Options = BaseProviderOptions & {
    *
    * @example 'G-XXXXXXXXXX'
    */
-  measurementId: string;
+  measurementId?: string;
 
   /**
    * Custom API secret for server-side tracking using the GA4
@@ -226,7 +226,7 @@ export type GA4Options = BaseProviderOptions & {
    *
    * @example { plan_type: 'custom_dimension_1' }
    */
-  customDimensions?: Record<string, string>;
+  customDimensions?: Record<string, string | undefined>;
 
   /**
    * Custom metrics mapping.
@@ -235,7 +235,7 @@ export type GA4Options = BaseProviderOptions & {
    *
    * @example { engagement_score: 'custom_metric_1' }
    */
-  customMetrics?: Record<string, string>;
+  customMetrics?: Record<string, string | undefined>;
 
   /**
    * When `true`, send events to the GA4 validation endpoint

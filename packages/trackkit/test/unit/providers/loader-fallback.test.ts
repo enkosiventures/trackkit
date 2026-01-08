@@ -43,9 +43,8 @@ describe('Provider loader fallback', () => {
     const facade = new AnalyticsFacade();
     facade.init({
       debug: true,
-      site: TEST_SITE_ID.plausible,
-      // @ts-expect-error from missing domain to trigger loader failure
-      provider: { name: 'plausible' }, // simulate failing provider
+      // site: TEST_SITE_ID.plausible,
+      provider: { name: 'plausible', }, // simulate failing provider
       domains: ['localhost'],
       consent: { initialStatus: 'granted', disablePersistence: true },
     });

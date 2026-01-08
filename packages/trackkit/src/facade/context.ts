@@ -48,6 +48,6 @@ export class ContextService {
   getLastPlannedUrl() { return this.lastPlannedUrl; }
   getLastSentUrl() { return this.lastSentUrl; }
   markPlanned(url: string) { this.lastPlannedUrl = url; }
-  markSent(url: string) { console.warn(`Send: ${url}`); this.lastPlannedUrl = url; this.lastSentUrl = url; }
+  markSent(url: string) { this.lastPlannedUrl = url; this.lastSentUrl = url; }
   reset() { this.lastPlannedUrl = null; this.lastSentUrl = null; }
 }

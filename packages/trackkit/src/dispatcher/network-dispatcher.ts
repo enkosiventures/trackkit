@@ -1,12 +1,14 @@
 import { DEFAULT_HEADERS, DEFAULT_TRANSPORT_MODE } from '../constants';
+import { AnalyticsError, dispatchError } from '../errors';
 import { DiagnosticsService } from '../facade/diagnostics';
 import { applyBatchingDefaults, applyResilienceDefaults } from '../facade/normalize';
 import type { PerformanceTracker } from '../performance/tracker';
-import { stripEmptyFields } from '../util';
+import { getDatedId, getId, stripEmptyFields } from '../util';
 import { EventBatchProcessor } from './batch-processor';
+import { isRetryableError, RetryManager } from './retry';
 import type { Transport } from './transports';
 import { resolveTransport } from './transports';
-import type { DispatchPayload, NetworkDispatcherOptions } from './types';
+import type { Batch, DispatchPayload, NetworkDispatcherOptions } from './types';
 
 
 function mergeHeaders(
@@ -41,6 +43,7 @@ export class NetworkDispatcher {
   private batcher: EventBatchProcessor | null = null;
   private diagnostics: DiagnosticsService | null = null;
   private performanceTracker: PerformanceTracker | null = null;
+  private retryManager: RetryManager;
   private readonly batchingEnabled: boolean;
 
   constructor(private readonly options: NetworkDispatcherOptions) {
@@ -53,20 +56,20 @@ export class NetworkDispatcher {
     }
     this.diagnostics = options.diagnostics || null;
     this.performanceTracker = options.performanceTracker || null;
+    this.retryManager = new RetryManager(this.options.resilience.retry);
     this.batchingEnabled = !!options.batching.enabled;
     if (this.batchingEnabled) {
       // Construct the batcher now so providers can enqueue immediately.
-      this.batcher = new EventBatchProcessor(
-        this.options.batching,
-        this.options.resilience.retry,
-        (batch) => this.sendBatch(batch.events),
-        (_, batch) => {
+      this.batcher = new EventBatchProcessor({
+        batching: this.options.batching,
+        sendFn: this.handleBatch.bind(this),
+        onAdd: (_event, batch) => {
           this.diagnostics?.updateCurrentBatchMetrics(
             batch.totalSize || 0,
             batch.events.length || 0,
           )
         }
-      );
+      });
     }
   }
 
@@ -102,8 +105,6 @@ export class NetworkDispatcher {
 
     if (m === 'GET') return undefined;
     if (body == null) return undefined;
-
-    if (typeof body === 'string') return body;
 
     // Treat any non-null object (including arrays) as JSON-ish and clean it
     if (typeof body === 'object') {
@@ -142,19 +143,88 @@ export class NetworkDispatcher {
     return {
       ...payload,
       url: finalUrl,
-
-      // Make the stripped body the canonical one seen by transports
       body: processedBody,
-
       init: {
         ...payload.init,
         headers,
-        // optional: you *can* mirror it here for convenience if your transports prefer it:
-        // body: processedBody,
       },
     };
   }
 
+  private async dispatchOnce(
+    payload: DispatchPayload,
+    label: 'network-send' | 'network-batch-send',
+  ): Promise<void> {
+    console.warn("Dispatching payload:", payload);
+    const transport = await this.getTransport();
+    const headers = mergeHeaders(this.options.defaultHeaders, payload.init?.headers);
+    const finalPayload = this.prepareFinalPayload({ ...payload, init: { ...(payload.init || {}), headers }});
+
+    console.warn("Transporting via:", transport.id, finalPayload);
+    const sendFn = () => transport.send(finalPayload);
+
+    const result = this.performanceTracker
+      ? await this.performanceTracker.trackNetworkRequest(label, sendFn)
+      : await sendFn();
+
+    console.warn("Dispatch result:", result);
+
+    // Beacon / noop transports may return void
+    if (!(result instanceof Response)) return;
+
+    if (!result.ok) {
+      const err: any = new Error(
+        `Provider request failed: ${result.status} ${result.statusText}`,
+      );
+      err.status = result.status;
+      throw err;
+    }
+  }
+
+  private async dispatchWithRetry(
+    key: string,
+    payload: DispatchPayload,
+    label: 'network-send' | 'network-batch-send',
+  ): Promise<void> {
+    const config = this.options.resilience.retry;
+
+    if (config.maxAttempts <= 1) {
+      await this.dispatchOnce(payload, label);
+      return;
+    }
+
+    try {
+      await this.dispatchOnce(payload, label);
+    } catch (err) {
+      // Decide whether you want to surface this to the caller or not.
+      // For analytics, it's usually better to *not* reject for transient failures:
+      if (!isRetryableError(err, config)) {
+        // report then swallow:
+        dispatchError(err, 'NETWORK_ERROR');
+        return;
+      }
+
+      // Transient failure: schedule a background retry and resolve the call.
+      this.retryManager.scheduleRetry(key, () => this.dispatchOnce(payload, label));
+    }
+  }
+
+  /**
+   * Invoked by EventBatchProcessor when a batch is ready.
+   * We *do not* coalesce to one POST – different endpoints/headers may exist.
+   * Instead, send each payload with backoff controlled by the batcher’s retry config.
+   */
+  private async handleBatch(batch: Batch): Promise<void> {
+    // Send sequentially to preserve order within the batch; the batcher controls overall concurrency.
+    for (const event of batch.events) {
+      console.warn("Sending event: ", event);
+      await this.dispatchWithRetry(
+        `batch:${event.id}`,
+        event.payload,
+        'network-batch-send',
+      );
+    }
+  }
 
   /**
    * Public API for providers/adapters to queue network requests.
@@ -162,24 +232,17 @@ export class NetworkDispatcher {
    */
   async send(payload: DispatchPayload): Promise<void> {
     if (!this.batchingEnabled || !this.batcher) {
-      // immediate send path
-      const transport = await this.getTransport();
-      const headers = mergeHeaders(this.options.defaultHeaders, payload.init?.headers);
-      const finalPayload = this.prepareFinalPayload({ ...payload, init: { ...(payload.init || {}), headers }});
-
-      const sendFn = () => transport.send(finalPayload);
-
-      if (this.performanceTracker) {
-        await this.performanceTracker.trackNetworkRequest('network-send', sendFn);
-      } else {
-        await sendFn();
-      }
-
+      // direct path: one event, potentially retried
+      await this.dispatchWithRetry(
+        `single:${Date.now()}:${getId()}`,
+        payload,
+        'network-send',
+      );
       return;
     }
 
     this.batcher.add({
-      id: String(Date.now()) + Math.random().toString(36).slice(2),
+      id: getDatedId(),
       timestamp: Date.now(),
       size: estimateSize(payload),
       payload,
@@ -192,32 +255,5 @@ export class NetworkDispatcher {
 
   destroy(): void {
     this.batcher?.destroy();
-  }
-
-  /**
-   * Invoked by EventBatchProcessor when a batch is ready.
-   * We *do not* coalesce to one POST – different endpoints/headers may exist.
-   * Instead, send each payload with backoff controlled by the batcher’s retry config.
-   */
-  private async sendBatch(
-    events: Array<{
-      id: string;
-      payload: DispatchPayload;
-    }>
-  ): Promise<void> {
-    const transport = await this.getTransport();
-
-    // Send sequentially to preserve order within the batch; the batcher controls overall concurrency.
-    for (const event of events) {
-      const headers = mergeHeaders(this.options.defaultHeaders, event.payload.init?.headers);
-      const finalPayload = this.prepareFinalPayload({ ...event.payload, init: { ...(event.payload.init || {}), headers }});
-      const sendFn = () => transport.send(finalPayload);
-
-      if (this.performanceTracker) {
-        await this.performanceTracker.trackNetworkRequest('network-batch-send', sendFn);
-      } else {
-        await sendFn();
-      }
-    }
   }
 }

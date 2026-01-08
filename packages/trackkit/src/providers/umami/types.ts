@@ -54,7 +54,7 @@ export type UmamiOptions = BaseProviderOptions & {
    *
    * @example '9e1e6d6e-7c0e-4b0e-8f0a-5c5b5b5b5b5b'
    */
-  website: string;
+  website?: string;
 };
 
 /**

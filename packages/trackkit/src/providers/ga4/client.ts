@@ -1,23 +1,7 @@
 import type { PageContext, ProviderInstance, ProviderOptions } from '../../types';
 import { Sender, type TransportMethod } from '../base/transport';
-import type { GA4Options } from './types';
+import type { ResolvedGA4Options } from './types';
 
-/**
- * Minimal GA4 client.
- * - Uses Measurement Protocol (MP) endpoint by default.
- * - Optionally uses the /debug endpoint when debug is true.
- * - Leaves full session/campaign handling to your facade (or add here if you prefer).
- */
-// export type GA4Options = {
-//   /** Required: GA4 Measurement ID, e.g. 'G-XXXXXXX' */
-//   measurementId: string;
-//   /** Optional: API secret if using server-side proxy or MP secret. */
-//   apiSecret?: string;
-//   /** Debug mode: sends to debug endpoint for validation. */
-//   debug?: boolean;
-//   /** Host override (rare) */
-//   host?: string; // defaults to 'https://www.google-analytics.com'
-// };
 
 function normalizeHost(h?: string): string {
   return (h ?? 'https://www.google-analytics.com').replace(/\/+$/, '');
@@ -51,10 +35,16 @@ function getOrCreateSessionId(): number {
   }
 }
 
+/**
+ * Minimal GA4 client.
+ * - Uses Measurement Protocol (MP) endpoint by default.
+ * - Optionally uses the /debug endpoint when debug is true.
+ * - Leaves full session/campaign handling to your facade (or add here if you prefer).
+ */
 export function createGA4Client(
   options: { provider: ProviderOptions, factory: { sender: Sender } },
 ): ProviderInstance {
-  const ga4Options = options.provider as GA4Options;
+  const ga4Options = options.provider as ResolvedGA4Options;
   const measurementId = ga4Options.measurementId?.trim();
   if (!measurementId) throw new Error('[ga4] "measurementId" is required');
 

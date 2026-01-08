@@ -21,18 +21,18 @@ export class ProviderManager {
     diagnostics: DiagnosticsService | null,
     performanceTracker?: PerformanceTracker | null): Promise<StatefulProvider> {
     if (this.injected && this.provider) return this.provider;
-    const loaded = await loadProvider(
-      this.providerConfig,
-      this.dispatcherConfig.batching,
-      this.dispatcherConfig.resilience,
-      this.dispatcherConfig.transportMode,
-      this.dispatcherConfig.defaultHeaders,
-      this.facadeConfig.bustCache,
-      this.facadeConfig.debug,
-      this.facadeConfig.onError,
+    const loaded = await loadProvider({
+      providerConfig: this.providerConfig,
+      batching: this.dispatcherConfig.batching,
+      resilience: this.dispatcherConfig.resilience,
+      transportMode: this.dispatcherConfig.transportMode,
+      defaultHeaders: this.dispatcherConfig.defaultHeaders,
+      bustCache: this.facadeConfig.bustCache,
+      debug: this.facadeConfig.debug,
+      onError: this.facadeConfig.onError,
       diagnostics,
       performanceTracker,
-    );
+    });
     this.provider = loaded;
 
     const current = this.provider;
