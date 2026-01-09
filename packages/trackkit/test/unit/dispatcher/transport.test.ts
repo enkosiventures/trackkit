@@ -42,20 +42,6 @@ describe('Transport', () => {
 });
 
 describe('NoopTransport', () => {
-  it('resolves successfully and warns to console', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const t = new NoopTransport();
-    const payload = { url: '/track', body: { a: 1 } };
-
-    await expect(t.send(payload)).resolves.toBeUndefined();
-    
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[NoopTransport]'), 
-      payload
-    );
-    warnSpy.mockRestore();
-  });
-
   it('calls onSend callback when provided', async () => {
     const onSend = vi.fn();
     const t = new NoopTransport(onSend);

@@ -280,7 +280,6 @@ describe('Provider Integration', () => {
       });
 
       instance.track('oops', {}).catch((err: any) => {
-        console.warn('[TEST] Caught expected error from failed request:', err.message);
         expect(err).toBeDefined();
         expect(err.message).toMatch(/(Provider request failed|500)/);
       });

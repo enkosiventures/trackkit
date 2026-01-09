@@ -329,7 +329,6 @@ describe('GA4 client (transport behavior)', () => {
     await tick(100);
 
     expect(requests).toHaveLength(1);
-    console.warn('Requests received:', requests);
     const { url, method } = requests[0];
     expect(url).toContain('/mp/collect?measurement_id=G-TEST123');
     expect(method).toBe('POST');

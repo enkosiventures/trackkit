@@ -26,9 +26,6 @@ export function mergeOptions(env: AnalyticsOptions, user: AnalyticsOptions): Ana
   const { provider: envProvider, dispatcher: envDispatcher, ...envRest } = env;
   const { provider: userProvider, dispatcher: userDispatcher, ...userRest } = user;
 
-  console.warn('Env options:', env);
-  console.warn('User options:', user);
-
   const mergedFacade = deepMerge(envRest, userRest);
   const mergedDispatcher = deepMerge(envDispatcher, userDispatcher);
   const mergedProvider = mergeProviderOptions(envProvider, userProvider); 
@@ -42,7 +39,6 @@ export function mergeOptions(env: AnalyticsOptions, user: AnalyticsOptions): Ana
 }
 
 export function resolveConfig(userOptions: AnalyticsOptions = {}): ResolvedAnalyticsOptions {
-  console.warn('Resolving config');
   const completeUserOptions = mergeOptions(readEnvConfig(), userOptions);
 
   const rawProvider = extractProviderOptions(completeUserOptions);
@@ -62,7 +58,6 @@ export function resolveConfig(userOptions: AnalyticsOptions = {}): ResolvedAnaly
 
 export function extractProviderOptions(options: AnalyticsOptions): ProviderOptions {
   const provider = options.provider;
-  console.warn('Extracting provider options from:', provider);
   
   // Handle missing provider gracefully
   if (!provider) {

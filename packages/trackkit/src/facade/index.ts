@@ -378,7 +378,7 @@ export class AnalyticsFacade {
   // === Internals ===
 
   private execute({ type, args = [], url, category = DEFAULT_CATEGORY }: { type: EventType; args?: unknown[]; url?: string; category?: ConsentCategory; }) {
-    console.warn('execute', { type, args, url, category });
+    logger.debug('facade executing', { type, args, url, category });
     // If init() hasn’t run yet, we don’t have context/queues. Buffer per instance.
 
     if (!this.contextService) {
@@ -411,9 +411,8 @@ export class AnalyticsFacade {
       return;
     }
 
-    console.warn("Track localhost:", this.config?.facade.trackLocalhost);
     const decision = this.policy.shouldSend(type, category, resolvedUrl);
-    console.warn("Policy decision", decision);
+    logger.debug("Policy gate decision:", decision);
     const providerReady = this.isProviderReady();
     const transient = !providerReady || decision.reason === 'consent-pending';
     this.diagnostics.updatePolicyDiagnostics(decision.reason, transient);
@@ -427,31 +426,41 @@ export class AnalyticsFacade {
         this.contextService.markPlanned(resolvedUrl);
       }
 
-      console.warn('calling provider', { type, args, ctx });
+      logger.debug('Facade calling provider', { type });
       this.provider.call(type, args, ctx)
         ?.then(() => {
           if (type === 'pageview') this.contextService!.markSent(resolvedUrl);
         })
-        .catch(err => this.signalProviderError(type, err));
+        .catch(err => {
+          logger.error('Provider call failed', { type, error: err });
+          this.signalProviderError(type, err);
+        });
       return;
     }
 
     if (transient && decision.reason !== 'consent-denied') {
+      logger.warn('Queuing event due to transient policy block', { reason: decision.reason });
       this.queues.enqueue(type, args as any, category, ctx);
-      if (type === 'track' && decision.reason === 'consent-pending') this.consent?.promoteImplicitIfAllowed?.();
+      if (type === 'track' && decision.reason === 'consent-pending') {
+        logger.debug('Promoting implicit consent if allowed');
+        this.consent?.promoteImplicitIfAllowed?.();
+      }
       return;
     }
-    // blocked
+
+    logger.warn("Policy gate blocked:", decision.reason);
     this.signalPolicyBlocked(decision.reason);
   }
 
   private drainPreInitBuffer() {
+    logger.debug('Draining pre-init buffer');
     const buffered = this.preInitBuffer.flush();
     return this.executeQueuedEvents(buffered);
   }
 
   private flushQueues(policy: 'execute-all' | 'execute-essential' = 'execute-all'): number {
     let events = this.queues.flushAll();
+    logger.debug('Queues flushed by facade', { count: events.length, policy });
     if (policy === 'execute-essential') {
       events = events.filter(e => e.category === 'essential');
     }
@@ -530,6 +539,8 @@ export class AnalyticsFacade {
     }
 
     this.provider.onReady(() => {
+      logger.info('Provider is ready');
+
       // Provider is now safe to talk to
       this.providerIsReady = true;
 

@@ -84,7 +84,7 @@ export class NetworkDispatcher {
     };
 
     const flush = () => {
-      console.warn("Flushing NetworkDispatcher before unload");
+      logger.debug("Flushing NetworkDispatcher before unload");
       this.batcher?.flush().catch((err) => {
         // Suppress flush errors during unload to prevent popup alerts
         logger.error('Flush failed', err);
@@ -93,7 +93,7 @@ export class NetworkDispatcher {
 
     // Standard for modern browsers: flush when user switches tabs or closes
     document.addEventListener('visibilitychange', () => {
-      console.warn("Document visibility changed:", document.visibilityState);
+      logger.debug("Document visibility changed:", document.visibilityState);
       if (document.visibilityState === 'hidden') {
         flush();
       }
@@ -185,19 +185,18 @@ export class NetworkDispatcher {
     payload: DispatchPayload,
     label: 'network-send' | 'network-batch-send',
   ): Promise<void> {
-    console.warn("Dispatching payload:", payload);
     const transport = await this.getTransport();
     const headers = mergeHeaders(this.options.defaultHeaders, payload.init?.headers);
     const finalPayload = this.prepareFinalPayload({ ...payload, init: { ...(payload.init || {}), headers }});
 
-    console.warn("Transporting via:", transport.id, finalPayload);
+    logger.debug("Transporting via:", transport.id, finalPayload);
     const sendFn = () => transport.send(finalPayload);
 
     const result = this.performanceTracker
       ? await this.performanceTracker.trackNetworkRequest(label, sendFn)
       : await sendFn();
 
-    console.warn("Dispatch result:", result);
+    logger.debug("Dispatch result:", result);
 
     // Beacon / noop transports may return void
     if (!(result instanceof Response)) return;
@@ -247,7 +246,6 @@ export class NetworkDispatcher {
   private async handleBatch(batch: Batch): Promise<void> {
     // Send sequentially to preserve order within the batch; the batcher controls overall concurrency.
     for (const event of batch.events) {
-      console.warn("Sending event: ", event);
       await this.dispatchWithRetry(
         `batch:${event.id}`,
         event.payload,

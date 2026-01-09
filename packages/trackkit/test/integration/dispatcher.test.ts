@@ -43,12 +43,6 @@ describe('Dispatcher integration', () => {
     facade!.track('C', { i: 3 });
     await tick(100);
 
-    const diag = facade!.getDiagnostics();
-    console.warn('Diagnostics:', diag);
-    console.warn('Events', diag.provider.events);
-    console.warn('History', diag.provider.history);
-
-    console.warn('Requests:', requests);
     expect(requests).toHaveLength(2);
   });
 
@@ -115,7 +109,6 @@ describe('Dispatcher integration', () => {
   it('applies cache-busting headers for POST', async () => {
     let observedHeaders: Headers | null = null;
     server.use(http.post('*', async ({ request }) => {
-      console.warn('Observing request headers:', request.headers);
       observedHeaders = request.headers;
       return HttpResponse.json({});
     }));

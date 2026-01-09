@@ -1,3 +1,4 @@
+import { logger } from '../../util/logger';
 import type { DispatchPayload, Transport } from '../types';
 
 export class NoopTransport implements Transport {
@@ -8,8 +9,7 @@ export class NoopTransport implements Transport {
   ) {}
 
   async send(payload: DispatchPayload): Promise<void> {
-    console.warn('[NoopTransport] send() called with payload:', payload);
-    // Optional: invoke callback for diagnostics/playground log
+    logger.debug('[NoopTransport] send() called with payload:', payload);
     if (this.onSend) {
       try { this.onSend(payload); } catch { /* swallow */ }
     }

@@ -42,7 +42,6 @@ describe('Environment configuration', () => {
     process.env.TRACKKIT_QUEUE_SIZE = '7';
 
     const cfg = readEnvConfig();
-    console.warn('Config from env:', cfg);
     expect(cfg.autoTrack).toBe(true);
     expect(cfg.includeHash).toBe(true);
     expect(cfg.queueSize).toBe(7);
@@ -71,7 +70,6 @@ describe('Environment configuration', () => {
     process.env.TRACKKIT_DOMAINS = JSON.stringify(['a.com','b.com']);
     process.env.TRACKKIT_EXCLUDE = JSON.stringify(['^/private', '/admin']);
     const cfg = readEnvConfig();
-    console.warn('Domains from env config:', cfg);
     expect(cfg.domains).toEqual(['a.com', 'b.com']);
     expect(cfg.exclude).toEqual(['^/private', '/admin']);
   });
@@ -86,7 +84,6 @@ describe('Environment configuration', () => {
     });
 
     const cfg = readEnvConfig();
-    console.warn('Dispatcher config from env:', cfg);
     expect(cfg.dispatcher?.batching).toEqual({ enabled: true, maxSize: 2, maxWait: 10 });
     expect(cfg.dispatcher?.resilience?.detectBlockers).toBe(true);
     expect(cfg.dispatcher?.resilience?.retry?.maxAttempts).toBe(5);

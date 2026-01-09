@@ -5,7 +5,7 @@ import type { FacadeOptions } from '../types';
 export class ContextService {
   private lastPlannedUrl: string | null = null;
   private lastSentUrl: string | null = null;
-  constructor(private cfg: FacadeOptions) { console.warn('ContextService initialized with config:', cfg); }
+  constructor(private cfg: FacadeOptions) {}
 
   normalizeUrl(url: string): string {
     let out = url ?? '/';

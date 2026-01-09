@@ -140,7 +140,6 @@ function formatFacadeConfig(): FacadeOptions | undefined {
       trackLocalhost: toBoolean(tryParseEnvVar('TRACK_LOCALHOST')),
     });
   } catch (e) {
-    console.warn('Failed to parse facade config from environment variable', e);
     dispatchError(
       new AnalyticsError(
         'Failed to parse facade config from environment variable',
@@ -233,7 +232,6 @@ function formatDispatcherConfig(value: string | undefined): DispatcherOptions | 
       }),
     });
   } catch (e) {
-    console.warn('Failed to parse dispatcher config from environment variable', e);
     dispatchError(
       new AnalyticsError(
         'Failed to parse dispatcher config from environment variable',
@@ -292,7 +290,6 @@ function formatProviderConfig(value: string | undefined): ProviderOptions | unde
         return undefined;
     }
   } catch (e) {
-    console.warn('Failed to parse provider config from environment variable', e);
     dispatchError(
       new AnalyticsError(
         'Failed to parse provider config from environment variable',

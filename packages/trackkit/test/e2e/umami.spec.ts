@@ -71,7 +71,6 @@ test.describe('Umami Provider E2E', () => {
     
     const request = await requestPromise;
     const body = request.postDataJSON();
-    console.warn("Body:", body);
     
     expect(body.type).toBe('event');
     expect(body.payload).toMatchObject({
@@ -113,7 +112,6 @@ test.describe('Umami Provider E2E', () => {
 
     // 3. Trigger the new listener we added to NetworkDispatcher
     await page.evaluate(() => {
-      console.warn("Simulating document hidden to trigger unload flush");
       Object.defineProperty(document, 'visibilityState', { value: 'hidden', writable: true });
       document.dispatchEvent(new Event('visibilitychange'));
     });
