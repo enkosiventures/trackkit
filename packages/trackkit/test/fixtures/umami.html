@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Trackkit E2E</title>
+</head>
+<body>
+    <h1>Trackkit Test</h1>
+    <!-- Load directly from dist as a module -->
+    <script type="module">
+        import { createAnalytics } from '/dist/index.js';
+        
+        // Attach to window just for test control
+        window.Trackkit = { createAnalytics };
+    </script>
+</body>
+</html>

@@ -274,14 +274,6 @@ describe('Provider Integration', () => {
 
       const bustCache = DEFAULT_BUST_CACHE;
       const provider = (await import(`../../src/providers/${name}`)).default;
-      // const sender = makeDispatcherSender({
-      //   batching: applyBatchingDefaults(),
-      //   resilience: applyResilienceDefaults(),
-      //   bustCache,
-      //   transportMode: DEFAULT_TRANSPORT_MODE,
-      //   defaultHeaders: DEFAULT_HEADERS,
-      // });
-
       const instance = provider.create({
         provider: {...config.provider, [idField]: config.provider.site },
         factory: { bustCache, debug: false, sender: mockSender },
@@ -294,11 +286,6 @@ describe('Provider Integration', () => {
       });
 
       expect(mockSender.send).toHaveBeenCalledTimes(1);
-
-
-      // await expect(
-      //   instance.track('oops', {})
-      // ).rejects.toThrow(/(Provider request failed|500)/);
     });
   });
 });

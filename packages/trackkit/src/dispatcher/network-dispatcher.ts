@@ -4,6 +4,7 @@ import type { DiagnosticsService } from '../facade/diagnostics';
 import { applyBatchingDefaults, applyResilienceDefaults } from '../facade/normalize';
 import type { PerformanceTracker } from '../performance/tracker';
 import { getDatedId, getId, stripEmptyFields } from '../util';
+import { logger } from '../util/logger';
 import { EventBatchProcessor } from './batch-processor';
 import { isRetryableError, RetryManager } from './retry';
 import type { Transport } from './transports';
@@ -70,7 +71,36 @@ export class NetworkDispatcher {
           )
         }
       });
+
+      this.setupLifecycleListeners();
     }
+  }
+
+  private setupLifecycleListeners() {
+    // SSR guard
+    if (typeof document === 'undefined') {
+      logger.warn('NetworkDispatcher lifecycle listeners not set up: no document object');
+      return;
+    };
+
+    const flush = () => {
+      console.warn("Flushing NetworkDispatcher before unload");
+      this.batcher?.flush().catch((err) => {
+        // Suppress flush errors during unload to prevent popup alerts
+        logger.error('Flush failed', err);
+      });
+    };
+
+    // Standard for modern browsers: flush when user switches tabs or closes
+    document.addEventListener('visibilitychange', () => {
+      console.warn("Document visibility changed:", document.visibilityState);
+      if (document.visibilityState === 'hidden') {
+        flush();
+      }
+    });
+
+    // Backup for older browsers
+    window.addEventListener('pagehide', flush);
   }
 
   private async getTransport(): Promise<Transport> {

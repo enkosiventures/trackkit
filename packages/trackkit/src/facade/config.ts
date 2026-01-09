@@ -41,20 +41,8 @@ export function mergeOptions(env: AnalyticsOptions, user: AnalyticsOptions): Ana
   };
 }
 
-
-// function mergeOptions(env: RawAnalyticsOptions, user: AnalyticsOptions): AnalyticsOptions {
-//   const { provider: envProvider, ...envRest } = env;
-//   const { provider: userProvider, ...userRest } = user;
-
-//   const mergedRest = deepMerge(envRest, userRest);
-
-//   return {
-//     ...mergedRest,
-//     provider: userProvider ?? envProvider ?? DEFAULT_PROVIDER_OPTIONS,
-//   };
-// }
-
 export function resolveConfig(userOptions: AnalyticsOptions = {}): ResolvedAnalyticsOptions {
+  console.warn('Resolving config');
   const completeUserOptions = mergeOptions(readEnvConfig(), userOptions);
 
   const rawProvider = extractProviderOptions(completeUserOptions);
@@ -65,6 +53,7 @@ export function resolveConfig(userOptions: AnalyticsOptions = {}): ResolvedAnaly
   try {
     provider = validateProviderConfig(rawProvider);
   } catch (e) {
+    logger.error('Error validating provider config:', e);
     dispatchError(e, 'INVALID_CONFIG', provider.name ?? 'unknown');
   }
 
@@ -73,6 +62,7 @@ export function resolveConfig(userOptions: AnalyticsOptions = {}): ResolvedAnaly
 
 export function extractProviderOptions(options: AnalyticsOptions): ProviderOptions {
   const provider = options.provider;
+  console.warn('Extracting provider options from:', provider);
   
   // Handle missing provider gracefully
   if (!provider) {

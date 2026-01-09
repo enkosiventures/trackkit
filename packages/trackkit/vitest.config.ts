@@ -22,12 +22,16 @@ export default defineConfig({
       all: true,
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
+        '**/e2e/**',
         '**/dist/**',
         '**/*.d.ts',
+        'src/**/e2e/**',
         'src/**/index.ts',
         'src/**/types.ts',
+        'src/**/fixtures/**',
         'src/**/__mocks__/**',
         'src/**/__fixtures__/**',
+        '**/node_modules/**',
       ],
       thresholds: {
         statements: 90,

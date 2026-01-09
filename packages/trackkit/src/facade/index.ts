@@ -111,18 +111,19 @@ export class AnalyticsFacade {
 
   init(opts: AnalyticsOptions = {}): this {
     if (this.initPromise) return this;
+    setGlobalLogger(createLogger(!!opts.debug));
     if (opts.onError) {
       // Attempt to set user error handler early to catch
       // any errors before defaults are resolved
       setUserErrorHandler(opts.onError);
     }
 
+    logger.debug("Resolving user configuration");
     this.config = resolveConfig(opts);
     const { facade, provider, dispatcher } = this.config;
-
-    setGlobalLogger(createLogger(!!facade.debug));
     logger.debug("Initializing analytics", { provider: provider.name });
 
+    // Sets error handler to resolved one (user or default)
     setUserErrorHandler(facade.onError);
 
     this.contextService = new ContextService(facade);
