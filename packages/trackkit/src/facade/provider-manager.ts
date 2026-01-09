@@ -2,8 +2,8 @@ import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { loadProvider } from '../providers/loader';
 import type { ProviderOptions, EventType, PageContext, ResolvedFacadeOptions } from '../types';
 import type { PerformanceTracker } from '../performance/tracker';
-import { ResolvedDispatcherOptions } from '../dispatcher/types';
-import { DiagnosticsService } from './diagnostics';
+import type { ResolvedDispatcherOptions } from '../dispatcher/types';
+import type { DiagnosticsService } from './diagnostics';
 
 
 export class ProviderManager {

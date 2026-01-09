@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventBatchProcessor } from '../../../src/dispatcher/batch-processor';
 import { microtick } from '../../helpers/core';
 import { Batch } from '../../../src/dispatcher/types';
-import { applyBatchingDefaults, applyRetryDefaults } from '../../../src/facade/normalize';
+import { applyBatchingDefaults } from '../../../src/facade/normalize';
 
 
 describe('EventBatchProcessor', () => {

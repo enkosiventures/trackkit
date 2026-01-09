@@ -1,6 +1,6 @@
 import type { ConsentCategory, ResolvedConsentOptions } from "./consent/types";
 import type { AnalyticsError } from "./errors";
-import type { FacadeOptions, ProviderOptions, ProviderType, ResolvedFacadeOptions, ResolvedProviderOptions } from "./types";
+import type { ProviderType, ResolvedFacadeOptions, ResolvedProviderOptions } from "./types";
 import type { 
   FallbackStrategy, ResolvedBatchingOptions, ResolvedConnectionOptions,
   ResolvedPerformanceOptions, ResolvedResilienceOptions, ResolvedRetryOptions,

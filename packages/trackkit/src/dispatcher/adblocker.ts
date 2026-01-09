@@ -1,4 +1,4 @@
-import { FallbackStrategy } from "./types";
+import type { FallbackStrategy } from "./types";
 
 export type BlockerDetection = { blocked: boolean; method?: 'fetch'|'script'|'dns'|'unknown'; confidence: number; fallback?: FallbackStrategy; };
 

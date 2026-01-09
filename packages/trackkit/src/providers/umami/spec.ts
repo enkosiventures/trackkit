@@ -2,7 +2,7 @@ import { UMAMI_ENDPOINT, UMAMI_HOST } from '../../constants';
 import type { EventType, PageContext } from '../../types';
 import { displaySizeFromContext } from '../browser';
 import { createConfigProvider, type ProviderSpec } from '../base/adapter';
-import type { ResolvedUmamiOptions, UmamiOptions, UmamiPayload, UmamiSendBody } from './types';
+import type { ResolvedUmamiOptions, UmamiPayload, UmamiSendBody } from './types';
 
 
 function normalizeHost(host?: string): string {

@@ -1,4 +1,4 @@
-import { BaseProviderOptions } from "../types";
+import type { BaseProviderOptions } from "../types";
 
 
 /** Normalized alias: accept `site` at input, but canonicalize below and drop `site`. */

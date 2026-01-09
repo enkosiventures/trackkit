@@ -1,5 +1,5 @@
-import type { EventType, AnalyticsOptions, Props, ResolvedFacadeOptions, ResolvedProviderOptions, RawAnalyticsOptions } from '../types';
-import { mergeOptions, resolveConfig, validateProviderConfig } from './config';
+import type { EventType, AnalyticsOptions, Props, ResolvedFacadeOptions, ResolvedProviderOptions } from '../types';
+import { resolveConfig } from './config';
 import { ConsentManager } from '../consent/ConsentManager';
 import type { ConsentCategory, ConsentStatus, ConsentStoredState } from '../consent/types';
 import { PolicyGate } from './policy-gate';
@@ -8,16 +8,15 @@ import { ProviderManager } from './provider-manager';
 import { NavigationService } from './navigation';
 import { logger, createLogger, setGlobalLogger } from '../util/logger';
 import { DEFAULT_CATEGORY, DEFAULT_PROVIDER_OPTIONS, ESSENTIAL_CATEGORY, FACADE_BASE_DEFAULTS } from '../constants';
-import { AnalyticsError, dispatchError, setUserErrorHandler } from '../errors';
+import { AnalyticsError, setUserErrorHandler } from '../errors';
 import { DiagnosticsService } from './diagnostics';
 import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { QueueService, EventQueue, type QueuedEventUnion } from '../queues';
-import { isServer, readEnvConfig } from '../util/env';
+import { isServer } from '../util/env';
 import { ConnectionMonitor } from '../connection/monitor';
 import { OfflineStore } from '../connection/offline-store';
 import { PerformanceTracker } from '../performance/tracker';
-import { ResolvedDispatcherOptions } from '../dispatcher/types';
-import { TransportRequest } from '../providers/base/transport';
+import type { ResolvedDispatcherOptions } from '../dispatcher/types';
 import { getId } from '../util';
 
 /**

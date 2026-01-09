@@ -1,6 +1,6 @@
 import type { NetworkDispatcherOptions } from "../../dispatcher";
 import { NetworkDispatcher } from "../../dispatcher";
-import { TransportMode } from "../../dispatcher/types";
+import type { TransportMode } from "../../dispatcher/types";
 
 /**
  * Shared transport layer used by all providers.

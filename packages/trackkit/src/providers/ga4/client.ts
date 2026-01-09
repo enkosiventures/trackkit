@@ -1,5 +1,6 @@
 import type { PageContext, ProviderInstance, ProviderOptions } from '../../types';
-import { Sender, type TransportMethod } from '../base/transport';
+import type { Sender} from '../base/transport';
+import { type TransportMethod } from '../base/transport';
 import type { ResolvedGA4Options } from './types';
 
 

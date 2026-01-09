@@ -7,7 +7,7 @@ import { makeDispatcherSender } from './base/transport';
 import type { NetworkDispatcherOptions } from '../dispatcher';
 import type { ResolvedBatchingOptions, ResolvedResilienceOptions, TransportMode } from '../dispatcher/types';
 import type { PerformanceTracker } from '../performance/tracker';
-import { DiagnosticsService } from '../facade/diagnostics';
+import type { DiagnosticsService } from '../facade/diagnostics';
 
 
 /**

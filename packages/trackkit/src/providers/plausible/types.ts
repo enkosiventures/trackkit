@@ -1,5 +1,5 @@
-import { RequiredExcept } from '../../util/types';
-import { BaseProviderOptions } from '../types';
+import type { RequiredExcept } from '../../util/types';
+import type { BaseProviderOptions } from '../types';
 
 /**
  * Configuration options for the Plausible provider.

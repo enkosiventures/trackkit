@@ -1,4 +1,4 @@
-import type { ProviderType, ResolvedAnalyticsOptions, ResolvedFacadeOptions } from '../types';
+import type { ResolvedFacadeOptions } from '../types';
 import { type QueueService, getSSRQueueLength } from '../queues';
 import type { ContextService } from './context';
 import type { ProviderManager } from './provider-manager';
@@ -6,8 +6,8 @@ import type { ConsentStatus, ConsentStoredState } from '../consent/types';
 import type { ProviderState } from '../providers/types';
 import type { ProviderStateHistory } from '../util/state';
 import type { PerformanceTracker } from '../performance/tracker';
-import { ResolvedBatchingOptions, ResolvedDispatcherOptions, TransportMode } from '../dispatcher/types';
-import { PolicyDiagnostics, SendDecision } from './policy-gate';
+import type { ResolvedBatchingOptions, ResolvedDispatcherOptions, TransportMode } from '../dispatcher/types';
+import type { PolicyDiagnostics, SendDecision } from './policy-gate';
 
 export interface ProviderStateSnapshot {
   provider: string | null;

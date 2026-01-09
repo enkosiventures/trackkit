@@ -4,10 +4,8 @@ import { server } from '../setup/msw';
 import { http, HttpResponse } from 'msw';
 import { init, track, destroy, waitForReady, grantConsent, pageview } from '../../src';
 import { mockSender, TEST_SITE_ID } from '../helpers/providers';
-import { DEFAULT_BUST_CACHE, DEFAULT_HEADERS, DEFAULT_TRANSPORT_MODE, UMAMI_ENDPOINT, UMAMI_HOST } from '../../src/constants';
+import { DEFAULT_BUST_CACHE, UMAMI_ENDPOINT, UMAMI_HOST } from '../../src/constants';
 import { testLog } from '../helpers/core';
-import { makeDispatcherSender } from '../../src/providers/base/transport';
-import { applyBatchingDefaults, applyResilienceDefaults } from '../../src/facade/normalize';
 
 
 // @vitest-environment jsdom

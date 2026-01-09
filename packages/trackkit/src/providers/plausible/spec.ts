@@ -1,6 +1,6 @@
 import type { PageContext } from '../../types';
 import { createConfigProvider, type ProviderSpec } from '../base/adapter';
-import type { PlausibleEventPayload, PlausibleOptions, ResolvedPlausibleOptions } from './types';
+import type { PlausibleEventPayload, ResolvedPlausibleOptions } from './types';
 
 /**
  * Plausible spec.

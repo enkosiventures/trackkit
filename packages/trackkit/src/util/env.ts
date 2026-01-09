@@ -5,11 +5,11 @@
 
 import { isPlainObject, stripEmptyFields } from "../util";
 import type { AnalyticsOptions, FacadeOptions, ProviderOptions } from "../types";
-import { NoopOptions } from "../providers/noop/types";
-import { BatchingOptions, DispatcherOptions, ConnectionOptions, PerformanceOptions, ProxyTransportOptions, ResilienceOptions, RetryOptions, TransportMode } from "../dispatcher/types";
-import { PlausibleOptions } from "../providers/plausible";
+import type { NoopOptions } from "../providers/noop/types";
+import type { BatchingOptions, DispatcherOptions, ConnectionOptions, PerformanceOptions, ProxyTransportOptions, ResilienceOptions, RetryOptions, TransportMode } from "../dispatcher/types";
+import type { PlausibleOptions } from "../providers/plausible";
 import { AnalyticsError, dispatchError } from "../errors";
-import { ConsentOptions } from "../consent/types";
+import type { ConsentOptions } from "../consent/types";
 
 export interface EnvConfig {
   provider?: string;

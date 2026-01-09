@@ -1,4 +1,4 @@
-import type { EventType, ProviderType, ResolvedFacadeOptions } from '../types';
+import type { EventType, ResolvedFacadeOptions } from '../types';
 import { isBrowserMainThread } from '../util/env';
 import { isDoNotTrackEnabled, isLocalhost, isDomainAllowed, isUrlExcluded } from '../providers/browser';
 import { DEFAULT_CATEGORY } from '../constants';

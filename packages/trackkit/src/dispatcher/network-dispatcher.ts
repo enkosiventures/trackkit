@@ -1,6 +1,6 @@
 import { DEFAULT_HEADERS, DEFAULT_TRANSPORT_MODE } from '../constants';
-import { AnalyticsError, dispatchError } from '../errors';
-import { DiagnosticsService } from '../facade/diagnostics';
+import { dispatchError } from '../errors';
+import type { DiagnosticsService } from '../facade/diagnostics';
 import { applyBatchingDefaults, applyResilienceDefaults } from '../facade/normalize';
 import type { PerformanceTracker } from '../performance/tracker';
 import { getDatedId, getId, stripEmptyFields } from '../util';

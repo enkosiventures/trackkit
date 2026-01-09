@@ -90,14 +90,13 @@ describe('Error handling (Facade)', () => {
     const loudHandler = vi.fn(() => { throw new Error('boom'); });
 
     // Use provider with invalid config to trigger invalid-config path
-    // @ts-expect-error missing required option to emit INVALID_CONFIG
     init({ provider: { name: 'umami' }, debug: true, onError: loudHandler });
 
     // The handler was invoked (and threw), but we shouldn't crash.
     await new Promise(r => setTimeout(r, 0));
 
     // Assert: somewhere in error logs we note "Error in error handler" and include the thrown message.
-    const errorCalls = logger.mock.results?.[0]?.value?.error?.mock?.calls ?? [];
+    const errorCalls: any[] = logger.mock.results?.[0]?.value?.error?.mock?.calls ?? [];
     const hadHandlerFailureLog = errorCalls.some(call =>
       call.join(' ').includes('Error in error handler') &&
       call.join(' ').includes('"message":"boom"')
