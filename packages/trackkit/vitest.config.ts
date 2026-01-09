@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import { TextEncoder, TextDecoder } from 'util';
 
 Object.assign(global, { TextEncoder, TextDecoder });
@@ -15,6 +15,10 @@ export default defineConfig({
     clearMocks: true,
     unstubGlobals: true,
     unstubEnvs: true,
+    exclude: [
+      ...configDefaults.exclude,
+      '**/e2e/**',
+    ],
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage',
