@@ -73,7 +73,7 @@
     "deadcode:types": "node ../../scripts/deadcode-report.mjs --workspace --ensure-coverage --include-statementless",
     "deadcode:ci": "node ../../scripts/deadcode-report.mjs --ensure-coverage",
     "deadcode:gate": "node ../../scripts/deadcode-report.mjs --ensure-coverage --fail-on-unused --max-uncovered-files=0",
-    "verify": "pnpm -s test:coverage && pnpm -s coverage:check && pnpm -s deadcode:gate",
+    "verify": "pnpm run test:coverage && pnpm run coverage:check && pnpm run deadcode:gate",
     "knip": "knip",
     "size": "size-limit",
     "prepublishOnly": "pnpm run clean && pnpm run build && pnpm run defaults:inject && pnpm run defaults:assert"
