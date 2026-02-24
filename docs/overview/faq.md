@@ -176,7 +176,7 @@ There is a dedicated `trackkit/ssr` module for server-side usage. It:
 
 The key semantic points:
 
-- SSR functions (`track`, `pageview`, `identify` from `trackkit/ssr`) **do not** initialise providers on the server.
+- SSR functions (`ssrTrack`, `ssrPageview`, `ssrIdentify` from `trackkit/ssr`) **do not** initialise providers on the server.
 - The SSR queue is global per page render (e.g. exposed as `window.__TRACKKIT_SSR_QUEUE__`).
 - On the client, the facade hydrates that queue once and then treats it as drained.
 

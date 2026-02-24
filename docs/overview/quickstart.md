@@ -49,14 +49,16 @@ Under the hood, the instance will:
 
 ### Page views
 
+If `autoTrack: true` is set, pageviews are recorded automatically on navigation. You can also trigger them manually:
+
 ```ts
 import { analytics } from './analytics';
 
 // infer URL from window.location
 analytics.pageview();
 
-// or pass an explicit URL (useful for SPAs / routers)
-analytics.pageview('/pricing');
+// or pass an explicit URL (useful for virtual pages)
+analytics.pageview('/virtual/pricing');
 ```
 
 ### Custom events
