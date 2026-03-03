@@ -1,20 +1,39 @@
-// ---------------------- Transport Interface ----------------------
+import type { DiagnosticsService } from '../facade/diagnostics';
+import type { PerformanceTracker } from '../performance/tracker';
 
-import type { PerformanceTracker } from "../performance/tracker";
-
+/**
+ * Low-level transport contract used by the dispatcher.
+ *
+ * A transport is responsible for sending a single HTTP request described by
+ * a {@link DispatchPayload}. Concrete implementations include:
+ *
+ * - `FetchTransport`
+ * - `BeaconTransport`
+ * - `ProxiedTransport`
+ * - a `NoopTransport` used in playgrounds/tests
+ */
 export interface Transport {
+  /** Identifier for diagnostics (e.g. `"fetch"`, `"beacon"`, `"proxy"`). */
   id: string;
+
+  /**
+   * Send a single network payload.
+   *
+   * @param payload - Provider-agnostic HTTP payload (URL, body, init).
+   * @returns A `Response` (or `void` for beacon-like transports).
+   */
   send(payload: DispatchPayload): Promise<Response | void>;
 }
 
-
 /**
- * Sends analytics to a same-origin (or explicitly allowed) proxyUrl which
- * forwards to the real provider. This usually bypasses adblock filters that
- * target known analytics domains or third-party scripts.
+ * Sends analytics to a same-origin (or explicitly allowed) proxy URL which
+ * forwards to the real provider.
  *
- * Server contract (recommended):
- * 
+ * This usually bypasses ad blockers that target known analytics domains
+ * or third-party scripts.
+ *
+ * Recommended server contract:
+ *
  * ```http
  * POST {proxyUrl}
  * Headers:
@@ -24,138 +43,531 @@ export interface Transport {
  * Body: { "payload": any }
  * ```
  *
- * The server should validate the target against an allowlist and forward the
- * JSON payload to that URL, returning the provider response status.
+ * The server should validate the target against an allowlist and forward
+ * the JSON payload to that URL, returning the provider response status.
  */
 export type ProxyTransportOptions = {
-  proxyUrl: string;                          // e.g. "/api/trackkit"
-  token?: string;                            // optional bearer token
-  headers?: Record<string, string>;          // additional static headers
-  /** If true, use fetch({ keepalive: true }) for nicer unload semantics. */
+  /**
+   * URL of the proxy endpoint to send analytics through.
+   *
+   * @example "/api/trackkit"
+   */
+  proxyUrl: string;
+
+  /**
+   * Optional bearer token for proxy authorisation.
+   */
+  token?: string;
+
+  /**
+   * Additional static headers to include in proxy requests.
+   */
+  headers?: Record<string, string | undefined>;
+
+  /**
+   * If `true`, use `fetch({ keepalive: true })` for nicer unload semantics.
+   */
   keepalive?: boolean;
-  /** Optional allowlist enforcement client-side (defense-in-depth). */
-  allowlist?: Array<string | RegExp>;        // target URL must match one of these
-};
-
-// ---------------------- Dispatcher Options ----------------------
-
-export type DispatcherConfig = {
-  batching?: (BatchConfig & { enabled: boolean }) | undefined;
-  performance?: { enabled?: boolean; sampleRate?: number } | undefined;
 
   /**
-   * Optional resilience options used only for NetworkItem.
-   * If you never pass network items, this is ignored and the code path is dormant.
+   * Optional allowlist enforcement client-side (defence-in-depth).
+   *
+   * When set, the proxy target URL must match at least one entry in this
+   * list or the request will be blocked by the client.
    */
-  resilience?: ResilienceOptions;
-
-  /**
-   * Optional default headers merged into network sends (NetworkItem only).
-   * Per-item `init?.headers` takes precedence where keys overlap.
-   */
-  defaultHeaders?: Record<string, string>;
+  allowlist?: Array<string | RegExp>;
 };
 
+/**
+ * Controls how individual provider HTTP requests are grouped into batches.
+ *
+ * Batching happens inside the network dispatcher and is independent of the
+ * facade-level queue. It reduces network overhead by co-ordinating sends,
+ * but never changes the semantic ordering of events within a batch.
+ *
+ * All fields are optional except `enabled`. Unset fields fall back to
+ * library defaults.
+ */
+export interface BatchingOptions {
+  /** Enable event batching to reduce network requests. */
+  enabled?: boolean;
+
+  /**
+   * Maximum number of events per batch.
+   *
+   * When reached, the batch is flushed even if `maxWait` has not elapsed.
+   */
+  maxSize?: number;
+
+  /**
+   * Maximum time in milliseconds to wait before sending an incomplete batch.
+   */
+  maxWait?: number;
+
+  /**
+   * Maximum payload size in bytes per batch.
+   *
+   * Useful for staying under gateway/proxy limits.
+   */
+  maxBytes?: number;
+
+  /**
+   * Number of batches that can be in-flight simultaneously.
+   */
+  concurrency?: number;
+
+  /**
+   * Remove duplicate events within the same batch.
+   *
+   * Deduplication is based on dispatcher-level heuristics.
+   */
+  deduplication?: boolean;
+}
+
+/**
+ * Fully resolved batching options with defaults applied.
+ *
+ * @see BatchingOptions
+ * @internal
+ */
+export interface ResolvedBatchingOptions extends Required<BatchingOptions> {}
+
+/**
+ * Network connection and offline handling options.
+ */
+export interface ConnectionOptions {
+  /**
+   * Enable network connection monitoring.
+   *
+   * When `true`, the dispatcher may record reachability state and adapt
+   * behaviour when offline.
+   */
+  monitor?: boolean;
+
+  /**
+   * Store events offline when network is unavailable.
+   *
+   * Exact storage semantics are implementation-dependent.
+   */
+  offlineStorage?: boolean;
+
+  /**
+   * Interval in milliseconds to check network connection status.
+   */
+  checkInterval?: number;
+
+  /**
+   * Interval in milliseconds to sync offline events when back online.
+   */
+  syncInterval?: number;
+
+  /**
+   * Threshold in milliseconds to consider a request "slow".
+   *
+   * Used by performance monitoring / diagnostics.
+   */
+  slowThreshold?: number;
+}
+
+/**
+ * Fully resolved connection options with defaults applied.
+ *
+ * @see ConnectionOptions
+ * @internal
+ */
+export interface ResolvedConnectionOptions
+  extends Required<ConnectionOptions> {}
+
+/**
+ * Performance monitoring options for network sends.
+ */
+export interface PerformanceOptions {
+  /**
+   * Enable performance monitoring for analytics requests.
+   */
+  enabled?: boolean;
+
+  /**
+   * Sample rate from `0` to `1`.
+   *
+   * - `1`   – track every request
+   * - `0.1` – track ~10% of requests
+   */
+  sampleRate?: number;
+
+  /**
+   * Number of recent events to keep in memory for performance calculations.
+   */
+  windowSize?: number;
+}
+
+/**
+ * Fully resolved performance options with defaults applied.
+ *
+ * @see PerformanceOptions
+ * @internal
+ */
+export interface ResolvedPerformanceOptions
+  extends Required<PerformanceOptions> {}
+
+/**
+ * Retry/backoff configuration for failed requests.
+ */
 export interface RetryOptions {
+  /**
+   * Maximum number of retry attempts for a failed request.
+   */
   maxAttempts?: number;
+
+  /**
+   * Initial delay in milliseconds before the first retry.
+   */
   initialDelay?: number;
+
+  /**
+   * Maximum delay in milliseconds between retries.
+   */
   maxDelay?: number;
+
+  /**
+   * Multiplier for exponential backoff (e.g. `2.0` doubles delay each retry).
+   */
   multiplier?: number;
+
+  /**
+   * Add random jitter to retry delays to avoid thundering herd effects.
+   */
   jitter?: boolean;
+
+  /**
+   * HTTP status codes that should trigger a retry.
+   *
+   * @example [408, 429, 500, 502, 503, 504]
+   */
   retryableStatuses?: number[];
 }
 
-export interface BatchingOptions {
-  enabled: boolean;
-  maxSize?: number;
-  maxWait?: number;
-  maxBytes?: number;
-  concurrency?: number;
-  deduplication?: boolean;
+/**
+ * Fully resolved retry options with defaults applied.
+ *
+ * @see RetryOptions
+ * @internal
+ */
+export interface ResolvedRetryOptions extends Required<RetryOptions> {}
+
+/**
+ * Strategy for handling failed requests and network issues when a
+ * blocker is detected.
+ *
+ * See {@link TransportMode} for mode details.
+ */
+export type FallbackStrategy = Extract<TransportMode, 'proxy' | 'beacon'>;
+
+/**
+ * Network resilience configuration.
+ *
+ * These options control how the dispatcher:
+ * - detects ad blockers,
+ * - chooses fallbacks,
+ * - and configures proxy + retry behaviour.
+ */
+export interface ResilienceOptions {
+  /**
+   * Detect and handle ad blockers or network issues.
+   *
+   * When `true`, the dispatcher may probe the environment and adjust
+   * transport behaviour to work around blocking.
+   */
+  detectBlockers?: boolean;
+
+  /**
+   * Suggested fallback strategy to circumvent ad blockers.
+   *
+   * - `'proxy'`: Route through a server-side proxy (requires
+   *   {@link ResilienceOptions.proxy | proxy.proxyUrl}).
+   * - `'beacon'`: Use `navigator.sendBeacon` for best-effort delivery.
+   */
+  fallbackStrategy?: FallbackStrategy;
+
+  /**
+   * Proxy configuration for bypassing ad blockers.
+   *
+   * See {@link ProxyTransportOptions}.
+   */
+  proxy?: ProxyTransportOptions;
+
+  /**
+   * Retry configuration for failed requests.
+   *
+   * See {@link RetryOptions}.
+   */
   retry?: RetryOptions;
 };
 
-export interface ConnectionOptions {
-  monitor?: boolean;
-  offlineStorage?: boolean;
-  syncInterval?: number;
-  slowThreshold?: number;
-  checkInterval?: number;
-};
-
-export interface PerformanceOptions {
-  enabled?: boolean;
-  /** Sample rate 0–1; 1 = track every event. */
-  sampleRate?: number;
-  /** How many recent events to keep for averages. */
-  windowSize?: number;
-};
-
-export interface ResilienceOptions {
-  detectBlockers?: boolean;
+/**
+ * Fully resolved resilience options with defaults applied.
+ *
+ * @see ResilienceOptions
+ * @internal
+ */
+export interface ResolvedResilienceOptions
+  extends Required<Omit<ResilienceOptions, 'proxy' | 'retry'>> {
+  retry: ResolvedRetryOptions;
   proxy?: ProxyTransportOptions;
-  fallbackStrategy?: 'proxy'|'beacon'|'none';
+}
+
+/**
+ * Controls which low-level transport implementation Trackkit uses to send
+ * provider HTTP requests.
+ *
+ * The mode affects how the dispatcher chooses between `fetch`, `sendBeacon`,
+ * an optional proxy transport, or a no-op.
+ *
+ * See the docs for how each mode interacts with
+ * {@link ResilienceOptions.detectBlockers | detectBlockers} and
+ * {@link ResilienceOptions.fallbackStrategy | fallbackStrategy}.
+ */
+export type TransportMode =
+  /**
+   * Default: adaptive transport strategy.
+   *
+   * - If blocker detection is disabled, always uses `FetchTransport`.
+   * - If enabled and no blocker is detected, still uses `FetchTransport`.
+   * - If a blocker *is* detected, chooses a fallback based on:
+   *   - `resilience.fallbackStrategy` (if explicitly set),
+   *   - any hint provided by the ad-block detector,
+   *   - whether a proxy URL is configured.
+   */
+  | 'smart'
+  /**
+   * Always use `FetchTransport` for sends.
+   *
+   * Ignores ad-block detection and fallback strategy.
+   */
+  | 'fetch'
+  /**
+   * Prefer `BeaconTransport` when available, falling back to `FetchTransport`
+   * where `navigator.sendBeacon` is not supported.
+   *
+   * Ignores ad-block detection and fallback strategy.
+   */
+  | 'beacon'
+  /**
+   * Always use `ProxiedTransport`.
+   *
+   * Requires a configured proxy URL. Ignores ad-block detection and
+   * fallback strategy.
+   */
+  | 'proxy'
+  /**
+   * Never perform real network I/O.
+   *
+   * Events still flow through the dispatcher pipeline (queueing, batching,
+   * diagnostics, performance tracking), but the selected transport is a
+   * no-op.
+   *
+   * Intended for tests, local development and playgrounds.
+   */
+  | 'noop';
+
+/**
+ * Configuration for the low-level network dispatcher.
+ *
+ * This container controls how provider HTTP requests are sent, grouped,
+ * retried and measured. It wraps several option groups:
+ *
+ * - {@link TransportMode | transport}:
+ *   choose the low-level transport strategy.
+ * - {@link BatchingOptions | batching}:
+ *   control how events are grouped into batches.
+ * - {@link ResilienceOptions | resilience}:
+ *   retries, ad-block handling and proxy settings.
+ * - {@link ConnectionOptions | connection}:
+ *   reachability and offline monitoring.
+ * - {@link PerformanceOptions | performance}:
+ *   sampling and timing metrics.
+ *
+ * Most applications only set a small subset of these; everything else falls
+ * back to sensible defaults.
+ */
+export interface DispatcherOptions {
+  /**
+   * Low-level strategy to use for sending events.
+   *
+   * Defaults to `'smart'`, which adapts to ad-blockers and your
+   * {@link ResilienceOptions | resilience} configuration.
+   * See {@link TransportMode} for full semantics.
+   */
+  transportMode?: TransportMode;
+
+  /**
+   * Default HTTP headers applied to every outgoing request before
+   * provider-specific headers.
+   */
+  defaultHeaders?: Record<string, string | undefined>;
+
+  /**
+   * Event batching configuration to optimise network usage.
+   *
+   * See {@link BatchingOptions} for available knobs.
+   */
+  batching?: BatchingOptions;
+
+  /**
+   * Network connection monitoring and offline handling.
+   *
+   * See {@link ConnectionOptions} for details.
+   */
+  connection?: ConnectionOptions;
+
+  /**
+   * Performance monitoring and sampling configuration.
+   *
+   * See {@link PerformanceOptions}.
+   */
+  performance?: PerformanceOptions;
+
+  /**
+   * Network resilience and error recovery configuration.
+   *
+   * See {@link ResilienceOptions}.
+   */
+  resilience?: ResilienceOptions;
+}
+
+/**
+ * Partial dispatcher options as provided by external callers.
+ *
+ * Used internally for merging user options with defaults.
+ *
+ * See {@link DispatcherOptions}
+ * @internal
+ */
+export type RawDispatcherOptions = Partial<Pick<DispatcherOptions, 'transportMode' | 'defaultHeaders'>> & {
+  batching?: Partial<BatchingOptions>;
+  connection?: Partial<ConnectionOptions>;
+  performance?: Partial<PerformanceOptions>;
+  resilience?: Partial<ResilienceOptions>;
 };
+
+/**
+ * Fully resolved dispatcher options with all defaults applied.
+ *
+ * See {@link DispatcherOptions}
+ * @internal
+ */
+export interface ResolvedDispatcherOptions
+  extends Required<Pick<DispatcherOptions, 'defaultHeaders' | 'transportMode'>> {
+  batching: ResolvedBatchingOptions;
+  connection: ResolvedConnectionOptions;
+  performance: ResolvedPerformanceOptions;
+  resilience: ResolvedResilienceOptions;
+}
 
 // ---------------------- Batching Types ----------------------
 
+/**
+ * Provider-agnostic HTTP payload passed to the transport layer.
+ */
 export type DispatchPayload = {
+  /** Target URL (absolute or relative). */
   url: string;
+  /** Payload body (typically serialised to JSON). */
   body: unknown;
+  /** Additional `fetch`-style initialiser options. */
   init?: RequestInit;
-}
+};
 
+/**
+ * Internal representation of an event in the batching queue.
+ *
+ * @internal
+ */
 export type BatchedEvent = {
+  /** Stable identifier for the event within the batch. */
   id: string;
+  /** Timestamp when the event was enqueued (ms since epoch). */
   timestamp: number;
-  payload: DispatchPayload; // provider-agnostic closure or serializable payload
+  /** Provider-agnostic payload. */
+  payload: DispatchPayload;
+  /** Size estimate used for byte-based batching. */
   size: number;
+  /** Number of send attempts so far. */
   attempts?: number;
+  /** Last error seen while attempting to send. */
   lastError?: unknown;
 };
 
+/**
+ * Internal batching structure representing a group of events.
+ *
+ * @internal
+ */
 export type Batch = {
+  /** Stable batch identifier. */
   id: string;
+  /** Events contained within this batch. */
   events: BatchedEvent[];
+  /** Total estimated size of the batch in bytes. */
   totalSize: number;
+  /** Creation timestamp (ms since epoch). */
   createdAt: number;
+  /** Number of send attempts. */
   attempts: number;
+  /** Current batch status. */
   status: 'pending' | 'sending' | 'sent' | 'failed';
-};
-
-export type BatchConfig = {
-  maxSize?: number;
-  maxWait?: number;
-  maxBytes?: number;
-  concurrency?: number;
-  deduplication?: boolean;
-  retry?: RetryOptions;
+  /** Last error seen when sending this batch. */
+  lastError?: unknown;
 };
 
 // ---------------------- Network Dispatcher Types ----------------------
 
 /**
  * Shape for direct network work items produced by providers/adapters.
- * These are "fire this HTTP request" items – NOT the facade "pageview/track" closures.
+ *
+ * These are "fire this HTTP request" items – *not* the facade-level
+ * `"pageview"/"track"` closures.
  */
 export type NetworkItem = {
+  /** Stable request identifier. */
   id: string;
+  /** High-level operation type (pageview, track, identify). */
   type: 'track' | 'pageview' | 'identify';
+  /** Target URL for the request. */
   url: string;
+  /** Request body (typically serialised to JSON by the dispatcher). */
   body: unknown;
+  /** Optional fetch initialiser overrides. */
   init?: RequestInit;
   /**
-   * Optional estimate (bytes) used by byte-based batching. If omitted,
-   * we estimate from JSON length of the body (best-effort).
+   * Optional size estimate in bytes.
+   *
+   * If omitted, the dispatcher estimates size from `body` using JSON length.
    */
   size?: number;
 };
 
-export type NetworkBatching = BatchConfig & { enabled: boolean };
-
-export type NetworkDispatcherOptions = {
-  batching?: NetworkBatching;
-  resilience?: ResilienceOptions;                 // plumbed into resolveTransport
-  performanceTracker?: PerformanceTracker | null; // wraps sends for perf tracking
-  defaultHeaders?: Record<string, string>;        // headers applied to every send
-};
+/**
+ * Internal options passed to the {@link NetworkDispatcher}.
+ *
+ * These are already defaulted and normalised; external callers should use
+ * {@link DispatcherOptions} instead.
+ *
+ * @internal
+ */
+export interface NetworkDispatcherOptions {
+  batching: ResolvedBatchingOptions;
+  resilience: ResolvedResilienceOptions;
+  bustCache: boolean;
+  transportMode: TransportMode;
+  defaultHeaders: Record<string, string | undefined>;
+  diagnostics?: DiagnosticsService | null;
+  performanceTracker?: PerformanceTracker | null;
+  /**
+   * Optional explicit transport override.
+   *
+   * Primarily intended for tests and specialised use-cases; most callers
+   * should configure {@link transportMode} instead.
+   */
+  transportOverride?: Transport;
+}

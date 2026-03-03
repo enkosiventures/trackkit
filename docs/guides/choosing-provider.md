@@ -58,9 +58,11 @@ Need user-level analytics (user journeys, audiences)?
 **Trackkit config**
 ```ts
 createAnalytics({
-  provider: 'umami',
-  site: 'your-website-id',  // or website: '...'
-  host: 'https://analytics.yourdomain.com',  // your Umami host (if not cloud)
+  provider: {
+    name: 'umami',
+    site: 'your-website-id',  // or website: '...'
+    host: 'https://analytics.yourdomain.com',  // your Umami host (if not cloud)
+  },
   // autoTrack, domains, exclude, etc. as needed
 });
 ```
@@ -87,9 +89,11 @@ createAnalytics({
 
 ```ts
 createAnalytics({
-  provider: 'plausible',
-  site: 'yourdomain.com',  // or domain: '...'
-  // host: 'https://plausible.yourdomain.com',  // if self-hosted
+  provider: {
+    name: 'plausible',
+    site: 'yourdomain.com',  // or domain: '...'
+    // host: 'https://plausible.yourdomain.com',  // if self-hosted
+  },
   // If your Plausible setup uses revenue goals, send revenue props on events
 });
 ```
@@ -118,9 +122,11 @@ createAnalytics({
 
 ```ts
 createAnalytics({
-  provider: 'ga4',
-  measurementId: 'G-XXXXXXXXXX',  // or measurementId: '...',
-  // apiSecret: 'your-measurement-protocol-secret',  // optional (advanced)
+  provider: {
+    name: 'ga4',
+    site: 'G-XXXXXXXXXX',  // or measurementId: '...'
+    // apiSecret: 'your-measurement-protocol-secret',  // optional (advanced)
+  },
   // autoTrack, defaultProps, etc.
 });
 ```
@@ -140,8 +146,7 @@ import { createAnalytics } from 'trackkit';
 
 // Privacy baseline for all users
 const baseline = createAnalytics({
-  provider: 'plausible',
-  site: 'example.com',
+  provider: { name: 'plausible', site: 'example.com' },
 });
 
 // Marketing provider (created lazily once consent is granted)
@@ -150,8 +155,7 @@ let ga: ReturnType<typeof createAnalytics> | null = null;
 export function onMarketingConsent(status: 'pending' | 'granted' | 'denied') {
   if (status === 'granted' && !ga) {
     ga = createAnalytics({
-      provider: 'ga4',
-      site: 'G-XXXXXXXXXX',
+      provider: { name: 'ga4', site: 'G-XXXXXXXXXX' },
     });
   }
 
@@ -198,8 +202,10 @@ Other patterns:
 
 ```ts
 // A/B test providers (dev/stage only)
-const provider = Math.random() > 0.5 ? 'plausible' : 'umami';
-createAnalytics({ provider, site: 'your-site' });
+const providerConfig = Math.random() > 0.5
+  ? { name: 'plausible' as const, site: 'your-site' }
+  : { name: 'umami' as const, site: 'your-site' };
+createAnalytics({ provider: providerConfig });
 ```
 
 
@@ -249,7 +255,7 @@ Trackkit lazy-loads only the selected provider.
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'your-choice',
+  provider: { name: 'umami' },
   consent: {
     // Treat CCPA opt-out as "denied" from the start
     initialStatus: userIsCalifornia && userOptedOut ? 'denied' : 'pending',
@@ -261,7 +267,7 @@ const analytics = createAnalytics({
 You can also handle this imperatively:
 
 ```ts
-const analytics = createAnalytics({ provider: 'your-choice' });
+const analytics = createAnalytics({ provider: { name: 'umami' } });
 
 if (userIsCalifornia && userOptedOut) {
   analytics.denyConsent();
@@ -275,8 +281,7 @@ if (userIsCalifornia && userOptedOut) {
 
 ```ts
 createAnalytics({
-  provider: 'plausible',
-  site: 'example.com',
+  provider: { name: 'plausible', site: 'example.com' },
   domains: ['example.com', 'www.example.com'],     // allowlist
   exclude: ['/admin', '/preview'],                 // drop matches
   autoTrack: true,                                 // SPA nav
@@ -288,8 +293,7 @@ createAnalytics({
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'ga4',
-  measurementId: 'G-XXXX',
+  provider: { name: 'ga4', measurementId: 'G-XXXX' },
   // Respect browser DNT by default; override only if your policy allows:
   doNotTrack: true,
 });

@@ -1,36 +1,28 @@
 import type { PageContext } from '../../types';
 import { createConfigProvider, type ProviderSpec } from '../base/adapter';
-import type { PlausibleEventPayload, PlausibleOptions } from './types';
+import type { PlausibleEventPayload, ResolvedPlausibleOptions } from './types';
 
 /**
  * Plausible spec.
  * Only: normalize options, provide endpoints, map payloads.
  * No policy (consent/DNT/localhost/exclusions) and no navigation logic here.
  */
-// export type PlausibleOptions = {
-//   /** Required: the domain you configured in Plausible (e.g. example.com) */
-//   domain: string;
-//   /** API host; defaults to official cloud. Use your proxy if set. */
-//   host?: string; // e.g. 'https://plausible.io'
-//   /** Optional: revenue tracking configuration */
-//   revenue?: { currency: string; trackingEnabled: boolean };
-// };
 
 function normalizeHost(host?: string): string {
   if (!host) return 'https://plausible.io';
   return host.replace(/\/+$/, '');
 }
 
-const plausibleSpec: ProviderSpec<PlausibleOptions> = {
+const plausibleSpec: ProviderSpec<ResolvedPlausibleOptions> = {
   name: 'plausible',
 
   version: '1.0.0',
 
-  defaults: (options: PlausibleOptions) => {
+  defaults: (options: ResolvedPlausibleOptions) => {
     const domain = options.domain?.trim();
     if (!domain) throw new Error('[plausible] "domain" is required');
     return {
-      provider: 'plausible',
+      name: 'plausible',
       domain,
       host: normalizeHost(options.host),
       ...(options.revenue ? { revenue: options.revenue } : {}),
@@ -47,7 +39,7 @@ const plausibleSpec: ProviderSpec<PlausibleOptions> = {
   limits: { maxBeaconBytes: 64_000 },
 
   payload: {
-    pageview: (pageContext: PageContext, options: PlausibleOptions): PlausibleEventPayload => {
+    pageview: (pageContext: PageContext, options: ResolvedPlausibleOptions): PlausibleEventPayload => {
       const body: PlausibleEventPayload = {
         name: 'pageview',
         url: pageContext.url,
@@ -62,7 +54,7 @@ const plausibleSpec: ProviderSpec<PlausibleOptions> = {
       name: string,
       props: Record<string, unknown>,
       pageContext: PageContext,
-      options: PlausibleOptions
+      options: ResolvedPlausibleOptions
     ): PlausibleEventPayload => {
       const body: PlausibleEventPayload = {
         name,

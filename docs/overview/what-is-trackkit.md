@@ -100,7 +100,7 @@ Trackkit is written in TypeScript and designed to be:
 You can start with the basic factory:
 
 ```ts
-const analytics = createAnalytics({ provider: 'umami', site: 'my-site' });
+const analytics = createAnalytics({ provider: { name: 'umami', site: 'my-site' } });
 analytics.track('signup_completed', { plan: 'pro' });
 ```
 

@@ -8,6 +8,7 @@ export default [
   /* -------- Global ignore globs ---------------------------------- */
   {
     ignores: [
+      '**/.next/**',
       '**/cache/**',
       '**/dist/**',
       '**/*.d.ts',

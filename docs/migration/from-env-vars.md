@@ -16,9 +16,11 @@ Example (Umami, but applies similarly to Plausible/GA4):
 import { createAnalytics } from 'trackkit';
 
 export const analytics = createAnalytics({
-  provider: 'umami',
-  site: '94db1cb1-74f4-4a40-ad6c-962362670409',
-  host: 'https://analytics.example.com',
+  provider: {
+    name: 'umami',
+    site: '94db1cb1-74f4-4a40-ad6c-962362670409',
+    host: 'https://analytics.example.com',
+  },
   debug: false,
 });
 ```

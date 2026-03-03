@@ -28,7 +28,6 @@ vi.mock('../../src/providers/loader', () => {
 
 import { AnalyticsFacade } from '../../../src/facade';
 import { resetTests, tick } from '../../helpers/core';
-import { TEST_SITE_ID } from '../../helpers/providers';
 
 describe('Provider loader fallback', () => {
   beforeEach(() => {
@@ -43,8 +42,8 @@ describe('Provider loader fallback', () => {
     const facade = new AnalyticsFacade();
     facade.init({
       debug: true,
-      site: TEST_SITE_ID.plausible,
-      provider: 'plausible', // simulate failing provider
+      // site: TEST_SITE_ID.plausible,
+      provider: { name: 'plausible', }, // simulate failing provider
       domains: ['localhost'],
       consent: { initialStatus: 'granted', disablePersistence: true },
     });

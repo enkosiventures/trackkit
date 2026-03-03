@@ -20,7 +20,7 @@ with a **typed, consent-aware façade**:
 | Old (GA4)                             | Trackkit equivalent                                            |
 |--------------------------------------|----------------------------------------------------------------|
 | Global `gtag()` function             | `track()`, `pageview()`, `identify()` helpers or instance API |
-| `gtag('config', 'G-XXXX')`           | `createAnalytics({ provider: 'ga4', site: 'G-XXXX' })`        |
+| `gtag('config', 'G-XXXX')`           | `createAnalytics({ provider: { name: 'ga4', site: 'G-XXXX' } })`       |
 | `gtag('event', 'purchase', params)`  | `track('purchase', params)`                                   |
 | Script tag in `<head>`               | Env vars + app bootstrap                                      |
 | Consent logic around `gtag()`        | `consent.initialStatus`, `grantConsent()`, `denyConsent()`    |
@@ -79,8 +79,10 @@ Create a small module, e.g. `analytics.ts`:
 import { createAnalytics } from 'trackkit';
 
 export const analytics = createAnalytics({
-  provider: 'ga4',
-  site: 'G-XXXXXXXXXX',     // Measurement ID
+  provider: {
+    name: 'ga4',
+    site: 'G-XXXXXXXXXX',     // Measurement ID
+  },
   autoTrack: true,          // SPA pageviews
   doNotTrack: true,         // respect DNT
   trackLocalhost: true,     // keep DX-friendly
@@ -180,8 +182,7 @@ Example:
 import { createAnalytics } from 'trackkit';
 
 export const analytics = createAnalytics({
-  provider: 'ga4',
-  site: 'G-XXXXXXXXXX',
+  provider: { name: 'ga4', site: 'G-XXXXXXXXXX' },
   consent: {
     initialStatus: 'pending',
     requireExplicit: true,
@@ -258,7 +259,7 @@ const useTrackkit = location.search.includes('use-trackkit');
 
 if (useTrackkit) {
   import('trackkit').then(({ createAnalytics }) => {
-    createAnalytics({ provider: 'ga4', site: 'G-XXXXXXXXXX' });
+    createAnalytics({ provider: { name: 'ga4', site: 'G-XXXXXXXXXX' } });
   });
 } else {
   // leave gtag.js setup in place

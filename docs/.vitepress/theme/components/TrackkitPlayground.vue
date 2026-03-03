@@ -13,108 +13,37 @@
       <p>This playground is only available in the browser.</p>
     </div>
 
-    <div v-else class="tk-layout">
-      <!-- Left column: config + actions -->
-      <div class="tk-column">
-        <div class="tk-panel">
-          <h3>Instance configuration</h3>
-          <p class="tk-muted">
-            This recreates a single Trackkit instance with the given options.<br />
-            Provider is fixed to <code>noop</code> so the docs don’t hit any real endpoints.
-          </p>
-
-          <div class="tk-field">
-            <label for="queueSize">Queue size</label>
-            <div class="tk-field-row">
-              <input
-                id="queueSize"
-                type="range"
-                min="5"
-                max="100"
-                step="5"
-                v-model.number="config.queueSize"
-              />
-              <span class="tk-chip">{{ config.queueSize }}</span>
-            </div>
-            <p class="tk-help">
-              When the in-memory queue exceeds this size, oldest events are dropped first.
-            </p>
-          </div>
-
-          <div class="tk-field tk-checkbox-row">
-            <label>
-              <input type="checkbox" v-model="config.debug" />
-              Debug logs
-            </label>
-            <label>
-              <input type="checkbox" v-model="config.autoTrack" />
-              Auto pageview on navigation
-            </label>
-          </div>
-
-          <button class="tk-button" @click="recreateInstance">
-            Recreate instance
-          </button>
-
-          <p v-if="lastError" class="tk-error">
-            {{ lastError }}
-          </p>
-        </div>
-
-        <div class="tk-panel">
-          <h3>Consent controls</h3>
-          <p class="tk-muted">
-            These call the facade consent API on the current instance and show how the
-            queue reacts.
-          </p>
-
-          <div class="tk-chip-row">
-            <span class="tk-label">Current status:</span>
-            <span class="tk-status" :data-status="consentStatus">
-              {{ consentStatus }}
-            </span>
-          </div>
-
-          <div class="tk-button-row">
-            <button
-              class="tk-button tk-button-ghost"
-              :class="{ 'tk-button-active': consentStatus === 'pending' }"
-              @click="setConsent('pending')"
-            >
-              Pending
-            </button>
-            <button
-              class="tk-button tk-button-ghost"
-              :class="{ 'tk-button-active': consentStatus === 'granted' }"
-              @click="setConsent('grant')"
-            >
-              Grant
-            </button>
-            <button
-              class="tk-button tk-button-ghost"
-              :class="{ 'tk-button-active': consentStatus === 'denied' }"
-              @click="setConsent('deny')"
-            >
-              Deny
-            </button>
-          </div>
-
-          <ul class="tk-hints">
-            <li><strong>pending</strong>: non-essential events are queued in memory.</li>
-            <li><strong>granted</strong>: queue flushes and new events send immediately.</li>
-            <li>
-              <strong>denied</strong>:
-              non-essential events are dropped at the policy gate.
-            </li>
-          </ul>
-        </div>
-
+    <div v-else class="tk-layout-row">
+      <div class="tk-row">
         <div class="tk-panel">
           <h3>Send events</h3>
           <p class="tk-muted">
             These are thin wrappers around <code>pageview()</code> and
             <code>track()</code> on the same instance. Watch the queue metrics as you click.
           </p>
+
+          <div class="tk-field">
+            <label for="pvPreset">Pageview URL</label>
+            <div class="tk-field-row">
+              <select id="pvPreset" v-model="config.pageviewPreset" @change="onChangePreset" class="tk-select">
+                <option value="playground">/docs/playground</option>
+                <option value="home">/</option>
+                <option value="docs-root">/docs/</option>
+                <option value="faq">/overview/faq#section</option>
+                <option value="custom">Custom…</option>
+              </select>
+              <input
+                class="tk-input"
+                :disabled="config.pageviewPreset !== 'custom'"
+                v-if="config.pageviewPreset === 'custom'"
+                v-model="config.pageviewUrl"
+                placeholder="/docs/playground"
+              />
+            </div>
+            <p class="tk-help">
+              Pick a preset, or choose <em>Custom…</em> to type your own.
+            </p>
+          </div>
 
           <div class="tk-button-row">
             <button class="tk-button" @click="sendEvent('pageview')">
@@ -128,99 +57,274 @@
           <p class="tk-help">
             Try filling the queue by lowering the queue size and spamming events while
             consent is <strong>pending</strong>, then switching to
-            <strong>granted</strong>.
+            <strong>granted</strong>. Duplicate pageviews are filtered out automatically.
           </p>
         </div>
       </div>
 
-      <!-- Right column: state + log -->
-      <div class="tk-column">
-        <div class="tk-panel">
-          <h3>Runtime state</h3>
-          <div v-if="snapshot" class="tk-grid">
-            <div class="tk-grid-item">
-              <h4>Consent</h4>
-              <dl>
-                <div>
-                  <dt>Status</dt>
-                  <dd>{{ snapshot.consent?.status ?? 'pending' }}</dd>
+      <div class="tk-row">
+        <div class="tk-layout-column">
+          <!-- Left column: config + actions -->
+          <div class="tk-column">
+            <div class="tk-panel">
+              <h3>Instance configuration</h3>
+              <p class="tk-muted">
+                This recreates a single Trackkit instance with the given options.<br />
+                Provider is fixed to <code>noop</code> to avoid hitting real endpoints.<br />
+                Recreate the instance to apply changes.
+              </p>
+
+              <div class="tk-field">
+                <label for="queueSize">Queue size</label>
+                <div class="tk-field-row">
+                  <input
+                    id="queueSize"
+                    type="range"
+                    min="2"
+                    max="18"
+                    step="1"
+                    v-model.number="config.queueSize"
+                  />
+                  <span class="tk-chip">{{ config.queueSize }}</span>
                 </div>
-                <div>
-                  <dt>Version</dt>
-                  <dd>{{ snapshot.consent?.version ?? '—' }}</dd>
+                <p class="tk-help">
+                  When the in-memory queue exceeds this size, oldest events are dropped first.
+                </p>
+              </div>
+
+              <div class="tk-field tk-checkbox-row">
+                <label>
+                  <input type="checkbox" v-model="config.debug" />
+                  Debug logs
+                </label>
+                <label>
+                  <input type="checkbox" v-model="config.autoTrack" />
+                  Auto pageview on navigation
+                </label>
+                <label>
+                  <input type="checkbox" v-model="config.dnt" />
+                  Respect DNT
+                </label>
+                <label>
+                  <input type="checkbox" v-model="config.includeHash" />
+                  includeHash
+                </label>
+              </div>
+
+              <div class="tk-field">
+                <label>Batching</label>
+                <div class="tk-field-row">
+                  <label class="tk-checkbox-row" style="margin:0">
+                    <input type="checkbox" v-model="config.batchingEnabled" />
+                    Enable batching
+                  </label>
                 </div>
-              </dl>
+                <div class="tk-field-row" :style="{ opacity: config.batchingEnabled ? 1 : 0.55 }">
+                  <label style="min-width: 80px;">maxSize</label>
+                  <input class="tk-input" type="number" min="1" v-model.number="config.batchMaxSize" :disabled="!config.batchingEnabled">
+                </div>
+                <div class="tk-field-row" :style="{ opacity: config.batchingEnabled ? 1 : 0.55 }">
+                  <label style="min-width: 80px;">maxWait</label>
+                  <input class="tk-input" type="number" min="0" v-model.number="config.batchMaxWait" :disabled="!config.batchingEnabled">
+                  <span class="tk-chip">ms</span>
+                </div>
+              </div>
+
+              <button class="tk-button" @click="recreateInstance">
+                Recreate instance
+              </button>
+
+              <p v-if="lastError" class="tk-error">
+                {{ lastError }}
+              </p>
             </div>
 
-            <div class="tk-grid-item">
-              <h4>Queue</h4>
-              <dl>
-                <div>
-                  <dt>Buffered total</dt>
-                  <dd>{{ snapshot.queue?.totalBuffered ?? 0 }}</dd>
-                </div>
-                <div>
-                  <dt>Runtime capacity</dt>
-                  <dd>{{ snapshot.queue?.capacity ?? config.queueSize }}</dd>
-                </div>
-              </dl>
-            </div>
+            <div class="tk-panel">
+              <h3>Consent controls</h3>
+              <p class="tk-muted">
+                These call the facade consent API on the current instance and show how the
+                queue reacts.
+              </p>
 
-            <div class="tk-grid-item">
-              <h4>URLs</h4>
-              <dl>
-                <div>
-                  <dt>Last planned</dt>
-                  <dd>{{ snapshot.urls?.lastPlanned ?? '—' }}</dd>
-                </div>
-                <div>
-                  <dt>Last sent</dt>
-                  <dd>{{ snapshot.urls?.lastSent ?? '—' }}</dd>
-                </div>
-              </dl>
+              <div class="tk-chip-row">
+                <span class="tk-label">Current status:</span>
+                <span class="tk-status" :data-status="consentStatus">
+                  {{ consentStatus }}
+                </span>
+              </div>
+
+              <div class="tk-button-row">
+                <button
+                  class="tk-button tk-button-ghost"
+                  :class="{ 'tk-button-active': consentStatus === 'pending' }"
+                  @click="setConsent('pending')"
+                >
+                  Pending
+                </button>
+                <button
+                  class="tk-button tk-button-ghost"
+                  :class="{ 'tk-button-active': consentStatus === 'granted' }"
+                  @click="setConsent('grant')"
+                >
+                  Grant
+                </button>
+                <button
+                  class="tk-button tk-button-ghost"
+                  :class="{ 'tk-button-active': consentStatus === 'denied' }"
+                  @click="setConsent('deny')"
+                >
+                  Deny
+                </button>
+              </div>
+
+              <ul class="tk-hints">
+                <li><strong>pending</strong>: non-essential events are queued in memory.</li>
+                <li><strong>granted</strong>: queue flushes and new events send immediately.</li>
+                <li>
+                  <strong>denied</strong>:
+                  non-essential events are dropped at the policy gate.
+                </li>
+              </ul>
             </div>
           </div>
 
-          <p v-else class="tk-muted">
-            Waiting for diagnostics snapshot…
-          </p>
-        </div>
+          <div class="tk-column">
+            <div class="tk-panel">
+              <h3>Runtime state</h3>
 
-        <div class="tk-panel">
-          <h3>Event log (playground only)</h3>
-          <p class="tk-muted">
-            This log is local to the playground UI – it doesn’t come from Trackkit. It just
-            mirrors the calls you make so you can connect actions to queue state.
-          </p>
+              <div v-if="snapshot" class="tk-metric-groups">
+                <!-- Dispatch -->
+                <div class="tk-metric-group">
+                  <h4>Dispatch</h4>
+                  <dl class="tk-metric-list">
+                    <div class="tk-metric-row">
+                      <dt>Total dispatched</dt>
+                      <dd>{{ snapshot.performance?.totalSends ?? 0 }}</dd>
+                    </div>
+                  </dl>
+                </div>
 
-          <div class="tk-log">
-            <div
-              v-for="item in log"
-              :key="item.id"
-              class="tk-log-row"
-            >
-              <span class="tk-log-label">{{ item.label }}</span>
-              <span v-if="item.detail" class="tk-log-detail">{{ item.detail }}</span>
+                <!-- Policy gate -->
+                <div class="tk-metric-group">
+                  <h4>Policy gate</h4>
+                  <dl class="tk-metric-list">
+                    <div class="tk-metric-row">
+                      <dt>Evaluated</dt>
+                      <dd>{{ snapshot.policy?.eventsEvaluated ?? 0 }}</dd>
+                    </div>
+                    <div class="tk-metric-row">
+                      <dt>Blocked</dt>
+                      <dd>{{ snapshot.policy?.eventsBlocked ?? 0 }}</dd>
+                    </div>
+                    <div class="tk-metric-row">
+                      <dt>Last decision</dt>
+                      <dd>{{ snapshot.policy?.lastDecision ?? '—' }}</dd>
+                    </div>
+                    <div class="tk-metric-row">
+                      <dt>Last reason</dt>
+                      <dd>{{ snapshot.policy?.lastReason ?? '—' }}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <!-- Queue -->
+                <div class="tk-metric-group">
+                  <h4>Queue</h4>
+                  <dl class="tk-metric-list">
+                    <div class="tk-metric-row">
+                      <dt>Buffered total</dt>
+                      <dd>{{ snapshot.queue?.totalBuffered ?? 0 }}</dd>
+                    </div>
+                    <div class="tk-metric-row">
+                      <dt>Runtime capacity</dt>
+                      <dd>{{ snapshot.queue?.capacity ?? config.queueSize }}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <!-- Batching -->
+                <div class="tk-metric-group">
+                  <h4>Batching</h4>
+                  <dl class="tk-metric-list">
+                    <div class="tk-metric-row">
+                      <dt>Status</dt>
+                      <dd>{{ config.batchingEnabled ? 'on' : 'off' }}</dd>
+                    </div>
+                    <div v-if="config.batchingEnabled" class="tk-metric-row">
+                      <dt>Size / wait</dt>
+                      <dd>{{ config.batchMaxSize }} / {{ config.batchMaxWait }}ms</dd>
+                    </div>
+                    <div v-if="config.batchingEnabled" class="tk-metric-row">
+                      <dt>Current batch size</dt>
+                      <dd>{{ snapshot.dispatcher?.batching.currentBatchSize ?? 0 }} bytes</dd>
+                    </div>
+                    <div v-if="config.batchingEnabled" class="tk-metric-row">
+                      <dt>Current batch quantity</dt>
+                      <dd>{{ snapshot.dispatcher?.batching.currentBatchQuantity ?? 0 }}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <!-- URLs -->
+                <div class="tk-metric-group">
+                  <h4>URLs</h4>
+                  <dl class="tk-metric-list">
+                    <div class="tk-metric-row">
+                      <dt>Last planned</dt>
+                      <dd>{{ snapshot.urls?.lastPlanned ?? '—' }}</dd>
+                    </div>
+                    <div class="tk-metric-row">
+                      <dt>Last sent</dt>
+                      <dd>{{ snapshot.urls?.lastSent ?? '—' }}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+
+              <p v-else class="tk-muted">
+                Waiting for diagnostics snapshot…
+              </p>
             </div>
-            <p v-if="!log.length" class="tk-muted">
-              No events yet. Try sending a pageview or track event.
-            </p>
+
+            <div class="tk-panel">
+              <h3>Event log (playground only)</h3>
+              <p class="tk-muted">
+                This log is local to the playground UI – it doesn’t come from Trackkit. It just
+                mirrors the calls you make so you can connect actions to queue state.
+              </p>
+
+              <div class="tk-log">
+                <div
+                  v-for="item in log"
+                  :key="item.id"
+                  class="tk-log-row"
+                >
+                  <span class="tk-log-label">{{ item.label }}</span>
+                  <span v-if="item.detail" class="tk-log-detail">{{ item.detail }}</span>
+                </div>
+                <p v-if="!log.length" class="tk-muted">
+                  No events yet. Try sending a pageview or track event.
+                </p>
+              </div>
+
+              <button
+                class="tk-button tk-button-ghost"
+                :disabled="!log.length"
+                @click="clearLog"
+              >
+                Clear log
+              </button>
+            </div>
+
+            <div class="tk-panel tk-panel-muted" v-if="snapshot">
+              <details>
+                <summary>Raw diagnostics snapshot</summary>
+                <pre>{{ formattedSnapshot }}</pre>
+              </details>
+            </div>
           </div>
 
-          <button
-            class="tk-button tk-button-ghost"
-            :disabled="!log.length"
-            @click="clearLog"
-          >
-            Clear log
-          </button>
-        </div>
 
-        <div class="tk-panel tk-panel-muted" v-if="snapshot">
-          <details>
-            <summary>Raw diagnostics snapshot</summary>
-            <pre>{{ formattedSnapshot }}</pre>
-          </details>
         </div>
       </div>
     </div>
@@ -247,6 +351,14 @@ const config = reactive({
   queueSize: 10,
   debug: true,
   autoTrack: false,
+  dnt: false,
+  includeHash: false,
+  batchingEnabled: true,
+  batchMaxSize: 3,
+  batchMaxWait: 10000,
+  // pageview URL controls
+  pageviewPreset: 'playground',
+  pageviewUrl: '/docs/playground',
 });
 
 const snapshot = ref<any | null>(null);
@@ -263,9 +375,15 @@ const formattedSnapshot = computed(() =>
   snapshot.value ? JSON.stringify(snapshot.value, null, 2) : '',
 );
 
-function refreshSnapshot() {
+async function refreshSnapshot() {
   if (!analytics || typeof analytics.getDiagnostics !== 'function') return;
-  snapshot.value = analytics.getDiagnostics();
+  const s = analytics.getDiagnostics();
+  // Support both sync and async implementations
+  if (s && typeof (s as any).then === 'function') {
+    snapshot.value = await (s as Promise<any>);
+  } else {
+    snapshot.value = s as any;
+  }
 }
 
 function logEvent(label: string, detail?: string) {
@@ -279,6 +397,17 @@ function logEvent(label: string, detail?: string) {
   }
 }
 
+function onChangePreset() {
+  switch (config.pageviewPreset) {
+    case 'playground': config.pageviewUrl = '/docs/playground'; break;
+    case 'home':       config.pageviewUrl = '/'; break;
+    case 'docs-root':  config.pageviewUrl = '/docs/'; break;
+    case 'faq':        config.pageviewUrl = '/overview/faq#section'; break;
+    case 'custom':     /* leave user's value */ break;
+    default:           config.pageviewUrl = '/docs/playground';
+  }
+}
+
 function createInstance() {
   if (!isClient.value) return;
 
@@ -287,10 +416,23 @@ function createInstance() {
 
   try {
     analytics = createAnalytics({
-      provider: 'noop',
       debug: config.debug,
       autoTrack: config.autoTrack,
+      doNotTrack: config.dnt,
+      includeHash: config.includeHash,
       queueSize: config.queueSize,
+      provider: { name: 'noop' },
+      dispatcher: {
+        transportMode: 'noop',
+        batching: {
+          enabled: config.batchingEnabled,
+          maxSize: config.batchingEnabled ? config.batchMaxSize : 1,
+          maxWait: config.batchingEnabled ? config.batchMaxWait : 0,
+        },
+        performance: {
+          enabled: true,
+        },
+      },
       consent: {
         initialStatus: 'pending',
         requireExplicit: true,
@@ -339,15 +481,15 @@ function setConsent(action: 'pending' | 'grant' | 'deny') {
       break;
   }
 
-  refreshSnapshot();
+  return refreshSnapshot();
 }
 
-function sendEvent(kind: 'pageview' | 'track') {
+async function sendEvent(kind: 'pageview' | 'track') {
   if (!analytics) return;
 
   if (kind === 'pageview') {
-    analytics.pageview?.('/docs/playground');
-    logEvent('pageview()', '/docs/playground');
+    analytics.pageview?.(config.pageviewUrl);
+    logEvent('pageview()', config.pageviewUrl);
   } else {
     analytics.track?.('playground_event', {
       surface: 'playground',
@@ -356,7 +498,7 @@ function sendEvent(kind: 'pageview' | 'track') {
     logEvent('track()', 'playground_event');
   }
 
-  refreshSnapshot();
+  await refreshSnapshot();
 }
 
 function clearLog() {
@@ -402,14 +544,19 @@ onBeforeUnmount(() => {
   color: var(--vp-c-text-2);
 }
 
-.tk-layout {
+.tk-layout-row {
+  display: grid;
+  gap: 1rem;
+}
+
+.tk-layout-column {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
   gap: 1rem;
 }
 
 @media (max-width: 960px) {
-  .tk-layout {
+  .tk-layout-column {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -451,6 +598,16 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.tk-select, .tk-input {
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+  width: 100%;
 }
 
 .tk-chip {
@@ -577,37 +734,49 @@ onBeforeUnmount(() => {
   margin-top: 0.15rem;
 }
 
-.tk-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+/* Runtime state metric layout */
+
+.tk-metric-groups {
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
 }
 
-@media (max-width: 960px) {
-  .tk-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.tk-grid-item h4 {
+.tk-metric-group h4 {
   margin: 0 0 0.25rem;
   font-size: 0.9rem;
 }
 
-.tk-grid-item dl {
+/* Reset dl defaults and style rows as label/value pairs */
+.tk-metric-list {
   margin: 0;
+  padding: 0;
+}
+
+.tk-metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
   font-size: 0.8rem;
 }
 
-.tk-grid-item dt {
+.tk-metric-row + .tk-metric-row {
+  margin-top: 0.15rem;
+}
+
+.tk-metric-row dt {
+  margin: 0;
   font-weight: 500;
   color: var(--vp-c-text-2);
 }
 
-.tk-grid-item dd {
-  margin: 0 0 0.15rem;
+.tk-metric-row dd {
+  margin: 0;
+  text-align: right;
   word-break: break-word;
 }
+
 
 .tk-log {
   max-height: 180px;

@@ -27,7 +27,6 @@ describe('Public API wrappers', () => {
 
   it('init() + pending consent queues, then grant flushes', async () => {
     init({
-      provider: 'noop',
       consent: { disablePersistence: true },
       queueSize: 10,
       domains: ['localhost'],
@@ -49,7 +48,6 @@ describe('Public API wrappers', () => {
 
   it('denyConsent() drops new analytics events but allows identify (essential)', async () => {
     init({
-      provider: 'noop',
       trackLocalhost: true,
       consent: { initialStatus: 'denied', disablePersistence: true, allowEssentialOnDenied: true },
       domains: ['localhost'],
@@ -72,7 +70,6 @@ describe('Public API wrappers', () => {
 
   it('resetConsent() returns to pending', () => {
     init({
-      provider: 'noop',
       consent: { initialStatus: 'granted', disablePersistence: true },
       domains: ['localhost'],
     });
@@ -87,7 +84,6 @@ describe('Public API wrappers', () => {
 
   it('waitForReady() resolves once provider is ready', async () => {
     init({
-      provider: 'noop',
       consent: { initialStatus: 'granted', disablePersistence: true },
       domains: ['localhost'],
     });
@@ -96,7 +92,6 @@ describe('Public API wrappers', () => {
 
   it('identify() + destroy() do not throw via wrappers', async () => {
     init({
-      provider: 'noop',
       consent: { initialStatus: 'granted', disablePersistence: true },
       domains: ['localhost'],
     });

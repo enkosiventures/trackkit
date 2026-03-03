@@ -79,8 +79,7 @@ On the client:
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'plausible',
-  site: 'example.com',
+  provider: { name: 'plausible', site: 'example.com' },
   // same config as on the server
 });
 

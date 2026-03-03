@@ -25,7 +25,7 @@ describe('Singleton behavior', () => {
 
 
   it('reuses the same internal instance after multiple init calls', async () => {
-    init({ provider: 'noop', autoTrack: false, consent: { disablePersistence: true } });
+    init({ autoTrack: false, consent: { disablePersistence: true } });
     grantConsent();
     await waitForReady();
     const facade1 = getFacade();

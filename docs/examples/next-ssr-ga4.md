@@ -107,8 +107,10 @@ import { createAnalytics } from 'trackkit';
 
 export const analytics = typeof window !== 'undefined'
   ? createAnalytics({
-      provider: 'ga4',
-      measurementId: process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID,
+      provider: {
+        name: 'ga4',
+        measurementId: process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID,
+      },
       autoTrack: true,
       debug: true
     })

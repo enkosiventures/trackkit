@@ -39,8 +39,7 @@ Trackkit exposes a small facade API with both instance and singleton usage style
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'umami',
-  site: 'your-site-id',
+  provider: { name: 'umami', site: 'your-site-id' },
 });
 
 analytics.pageview();
@@ -70,10 +69,10 @@ type Events = {
 Trackkit ships a dedicated SSR entry:
 
 ```ts
-import { ssrTrack } from 'trackkit/ssr';
+import { ssrPageview } from 'trackkit/ssr';
 
 export function render() {
-  ssrTrack('pageview', { url: '/home' });
+  ssrPageview('/home');
 }
 ```
 

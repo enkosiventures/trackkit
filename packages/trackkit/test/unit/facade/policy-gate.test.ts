@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AnalyticsFacade } from '../../../src/facade';
 import { tick } from '../../helpers/core';
-import { createFacade, createSpyProvider } from '../../helpers/providers';
+import { createFacade, createSpyProvider, setupAnalytics } from '../../helpers/providers';
 
 
 describe('AnalyticsFacade policy gates', () => {
@@ -28,17 +28,26 @@ describe('AnalyticsFacade policy gates', () => {
   });
 
   it('blocks when trackLocalhost=false on localhost', async () => {
-    const facade = createFacade({ trackLocalhost: false, doNotTrack: false });
-    const spy = createSpyProvider();
-    facade.setProvider(spy);
+    // const facade = createFacade({ trackLocalhost: false, doNotTrack: false });
 
-    facade.pageview();
-    facade.track('ev');
+    const { facade, provider } = await setupAnalytics({
+      trackLocalhost: false,
+      doNotTrack: false,
+      consent: { disablePersistence: true, initialStatus: 'granted' },
+    });
+
+
+    // const spy = createSpyProvider();
+    // facade.setProvider(spy);
+
+    facade!.pageview();
+    facade!.track('ev');
 
     await tick(5);
-    const calls = spy._get();
-    expect(calls.pageviewCalls.length).toBe(0);
-    expect(calls.eventCalls.length).toBe(0);
+    const { eventCalls, pageviewCalls } = provider!.diagnostics;
+
+    expect(pageviewCalls.length).toBe(0);
+    expect(eventCalls.length).toBe(0);
   });
 
   it('domain allowlist blocks non-matching host', async () => {

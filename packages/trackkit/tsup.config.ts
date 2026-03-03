@@ -11,7 +11,7 @@ export default defineConfig({
     'providers/noop': 'src/providers/noop/index.ts',
   },
   format: ['esm', 'cjs'],
-  dts: false,
+  dts: true,
   splitting: true,
   treeshake: true,
   minify: true,

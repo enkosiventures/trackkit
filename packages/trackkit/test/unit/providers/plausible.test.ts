@@ -2,10 +2,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import plausible from '../../../src/providers/plausible';
 import type { PageContext } from '../../../src/types';
-import { resetTests, getMockCall } from '../../helpers/core';
+import { resetTests } from '../../helpers/core';
+import { getMockCall, mockSender } from '../../helpers/providers';
 
-
-const mockSender = vi.fn(() => Promise.resolve(new Response(null, { status: 204 })));
 
 function ctx(overrides: Partial<PageContext> = {}): PageContext {
   return {
@@ -22,8 +21,8 @@ function ctx(overrides: Partial<PageContext> = {}): PageContext {
 
 describe('Plausible provider (spec adapter)', () => {
   beforeEach(() => {
+    mockSender.send.mockClear();
     resetTests(vi);
-    mockSender.mockClear();
   });
 
   afterEach(() => {
@@ -33,29 +32,32 @@ describe('Plausible provider (spec adapter)', () => {
   // --- defaults / validation ---
 
   it('throws when domain is missing', () => {
-    expect(() => plausible.create({ provider: {} as any, factory: {}})).toThrow('[plausible] "domain" is required');
+    expect(() => plausible.create({
+      provider: {} as any,
+      factory: { bustCache: false, debug: false, sender: mockSender },
+    })).toThrow('[plausible] "domain" is required');
   });
 
   it('normalizes host (default + custom, stripping trailing slashes)', async () => {
     const p1 = plausible.create({
       provider: { domain: 'example.com' } as any,
-      factory: { sender: mockSender }
+      factory: { bustCache: false, debug: false, sender: mockSender }
     });
     await p1.pageview(ctx());
-    expect(mockSender).toHaveBeenCalledTimes(1);
+    expect(mockSender.send).toHaveBeenCalledTimes(1);
     expect(getMockCall(mockSender)).toMatchObject({
       url: 'https://plausible.io/api/event',
       method: 'AUTO',
     });
 
-    mockSender.mockClear();
+    mockSender.send.mockClear();
 
     const p2 = plausible.create({
       provider: { domain: 'example.com', host: 'https://analytics.example.com///' } as any,
-      factory: { sender: mockSender }
+      factory: { bustCache: false, debug: false, sender: mockSender }
     });
     await p2.pageview(ctx());
-    expect(mockSender).toHaveBeenCalledTimes(1);
+    expect(mockSender.send).toHaveBeenCalledTimes(1);
     expect(getMockCall(mockSender)).toMatchObject({
       url: 'https://analytics.example.com/api/event',
       method: 'AUTO',
@@ -67,7 +69,7 @@ describe('Plausible provider (spec adapter)', () => {
   it('maps pageview payload from PageContext', async () => {
     const instance = plausible.create({
       provider: { domain: 'example.com' } as any,
-      factory: { sender: mockSender },
+      factory: { bustCache: false, debug: false, sender: mockSender },
     });
     await instance.pageview(
       ctx({
@@ -97,7 +99,7 @@ describe('Plausible provider (spec adapter)', () => {
   it('omits optional fields when absent on pageview', async () => {
     const instance = plausible.create({
       provider: { domain: 'example.com' } as any,
-      factory: { sender: mockSender },
+      factory: { bustCache: false, debug: false, sender: mockSender },
     });
     await instance.pageview(ctx({ url: '/only-url', referrer: undefined, title: undefined }));
 
@@ -114,7 +116,7 @@ describe('Plausible provider (spec adapter)', () => {
   it('maps event payload with props + referrer', async () => {
     const instance = plausible.create({
       provider: { domain: 'example.com' } as any,
-      factory: { sender: mockSender }
+      factory: { bustCache: false, debug: false, sender: mockSender }
     });
     await instance.track('Signup', { plan: 'pro' }, ctx({ url: '/u', referrer: '/r' }));
 
@@ -131,7 +133,7 @@ describe('Plausible provider (spec adapter)', () => {
   it('omits props when empty', async () => {
     const instance = plausible.create({
       provider: { domain: 'example.com' } as any,
-      factory: { sender: mockSender },
+      factory: { bustCache: false, debug: false, sender: mockSender },
     });
     await instance.track('Ping', {}, ctx({ url: '/u' }));
 
@@ -151,7 +153,7 @@ describe('Plausible provider (spec adapter)', () => {
         domain: 'example.com',
         revenue: { currency: 'EUR', trackingEnabled: true },
       } as any,
-      factory: { sender: mockSender },
+      factory: { bustCache: false, debug: false, sender: mockSender },
     });
 
     const props = { plan: 'pro', revenue: { value: 2999, currency: 'USD' } };
@@ -173,7 +175,7 @@ describe('Plausible provider (spec adapter)', () => {
         domain: 'example.com',
         revenue: { currency: 'GBP', trackingEnabled: true },
       } as any,
-      factory: { sender: mockSender },
+      factory: { bustCache: false, debug: false, sender: mockSender },
     });
 
     await instance.track('Purchase', { revenue: { value: 1000 } } as any, ctx({ url: '/c' }));
@@ -194,7 +196,7 @@ describe('Plausible provider (spec adapter)', () => {
         domain: 'example.com',
         revenue: { currency: 'USD', trackingEnabled: false },
       } as any,
-      factory: { sender: mockSender },
+      factory: { bustCache: false, debug: false, sender: mockSender },
     });
 
     await instance.track('Purchase', { revenue: { value: 1234, currency: 'USD' }, foo: 1 } as any, ctx({ url: '/c' }));
@@ -216,7 +218,7 @@ describe('Plausible provider (spec adapter)', () => {
   it('passes maxBeaconBytes=64000 to transport (limits)', async () => {
     const instance = plausible.create({
       provider: { domain: 'example.com' } as any,
-      factory: { sender: mockSender },
+      factory: { bustCache: false, debug: false, sender: mockSender },
     });
     await instance.track('Event', { a: 1 }, ctx({ url: '/x' }));
     expect(getMockCall(mockSender).maxBeaconBytes).toBe(64_000);
@@ -225,7 +227,7 @@ describe('Plausible provider (spec adapter)', () => {
   it('identify and destroy are safe no-ops', () => {
     const instance = plausible.create({
       provider: { domain: 'example.com' } as any,
-      factory: { sender: mockSender },
+      factory: { bustCache: false, debug: false, sender: mockSender },
     });
     const ctx: PageContext = {
       url: '/a',
@@ -243,10 +245,10 @@ describe('Plausible provider (spec adapter)', () => {
 
   // (Optional) show that adapter propagates non-ok responses via parseError
   it('rejects when transport response is not ok', async () => {
-    mockSender.mockResolvedValueOnce(new Response('nope', { status: 500, statusText: 'Server Error' }));
+    mockSender.send.mockResolvedValueOnce(new Response('nope', { status: 500, statusText: 'Server Error' }));
     const instance = plausible.create({
       provider: { domain: 'example.com' } as any,
-      factory: { sender: mockSender }
+      factory: { bustCache: false, debug: false, sender: mockSender }
     });
     await expect(instance.track('Bad', {}, ctx({ url: '/err' }))).rejects.toThrow(
       /Provider request failed: 500 Server Error/i

@@ -1,4 +1,8 @@
 
+export const getId = (): string => Math.random().toString(36).slice(2);
+
+export const getDatedId = (): string => `${Date.now().toString(36)}-${getId()}`;
+
 // Prefer structuredClone when available (preserves Dates, Maps, etc.)
 export function deepClone<T>(value: T): T {
   const sc: any = globalThis.structuredClone;
@@ -53,8 +57,49 @@ export function stripEmptyFields<T>(input: T): T {
   return out as unknown as T;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== 'object') return false;
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
+}
+
+/**
+ * Deep merges two objects, with values from `override` taking precedence.
+ * Handles nested objects recursively while preserving type safety.
+ * 
+ * @param base - Base object with default values
+ * @param override - Override object with user-provided values
+ * @returns Merged object with override values taking precedence
+ */
+export function deepMerge<T extends Record<string, any>>(
+  base: T | undefined,
+  override: Partial<T> | undefined
+): T {
+  if (!base && !override) return {} as T;
+  if (!base) return deepClone(override ?? {}) as T;
+  if (!override) return deepClone(base);
+
+  const result = deepClone(base);
+
+  for (const key in override) {
+    const k = key as keyof T;
+    const overrideValue = override[k];
+
+    if (overrideValue === undefined) continue;
+
+    const baseValue = result[k];
+
+    if (isPlainObject(baseValue) && isPlainObject(overrideValue)) {
+      // recursive merge on nested objects
+      (result as any)[k] = deepMerge(
+        baseValue as Record<string, any>,
+        overrideValue as Record<string, any>
+      );
+    } else {
+      // primitive / array / other → direct override
+      (result as any)[k] = overrideValue;
+    }
+  }
+
+  return result;
 }

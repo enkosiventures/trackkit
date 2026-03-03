@@ -1,12 +1,11 @@
 import type { Transport } from "../../src/dispatcher";
-import { NetworkDispatcher } from "../../src/dispatcher";
-import type { DispatchPayload, NetworkDispatcherOptions } from "../../src/dispatcher/types";
-import type { Sender } from "../../src/providers/base/transport";
+import type { DispatchPayload } from "../../src/dispatcher/types";
+import { getId } from "../../src/util";
 
 export type SendRecord = { url: string; body: any; init?: RequestInit };
 
 export class TestTransport implements Transport {
-  id = 'test_' + Math.random().toString(36).substring(2, 8);
+  id = 'test_' + getId();
 
   public sends: SendRecord[] = [];
   private remainingFailures = 0;
@@ -27,21 +26,4 @@ export class TestTransport implements Transport {
     }
     this.sends.push(payload);
   }
-}
-
-export function makeTestDispatcherSender(opts: NetworkDispatcherOptions, transport: Transport): Sender {
-  const dispatcher = new NetworkDispatcher(opts);
-  dispatcher._setTransportForTests(transport);
-  const RESPONSE_OK = { ok: true, status: 204, statusText: 'OK' } as unknown as Response;
-
-  return async ({ method, url, headers, body }) => {
-    // Respect method nuances only to the extent your dispatcher/resolveTransport supports.
-    // Common case: POST/AUTO. For BEACON, resolveTransport will choose beacon when applicable.
-    const init: RequestInit = {
-      method: method === 'GET' ? 'GET' : 'POST',
-      headers,
-    };
-    await dispatcher.send({ url, body, init });
-    return RESPONSE_OK; // no per-event response in batched path
-  };
 }

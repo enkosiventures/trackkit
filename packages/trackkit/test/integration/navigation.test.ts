@@ -149,7 +149,7 @@ describe('Integration: real history + sandbox', () => {
       }
 
       await navigate('/after-destroy');
-      expect(provider!.diagnostics.pageviewCalls.length).toBe(0);
+      expect(provider!.diagnostics.pageviewCalls.map(c => c?.url)).toEqual(['/']);
     });
   });
 });

@@ -1,4 +1,5 @@
 
+import { vi } from 'vitest';
 import { createAnalytics, denyConsent, grantConsent, init } from '../../src';
 import type { ConsentCategory, ConsentStatus } from '../../src/consent/types';
 import { DEFAULT_ERROR_HANDLER } from '../../src/constants';
@@ -6,10 +7,25 @@ import { AnalyticsFacade } from '../../src/facade';
 import { injectProviderForTests, waitForReady } from '../../src/facade/singleton';
 import { StatefulProvider } from '../../src/providers/stateful-wrapper';
 import type { AnalyticsMode, ProviderInstance } from '../../src/types';
-import type { InitOptions, PageContext } from '../../src/types';
+import type { AnalyticsOptions, PageContext } from '../../src/types';
 
 
 const DEFAULT_ANALYTICS_MODE: AnalyticsMode = 'factory';
+
+type IdentifyCalls = Array<string | null>;
+type PageviewCalls = Array<PageContext | undefined>;
+type EventCalls = Array<{
+  name: string;
+  props?: Record<string, unknown>;
+  url?: string;
+  category?: ConsentCategory;
+  pageContext?: PageContext;
+}>;
+type Diagnostics = {
+  identifyCalls: IdentifyCalls;
+  pageviewCalls: PageviewCalls;
+  eventCalls: EventCalls;
+};
 
 export const TEST_SITE_ID = {
     umami: '9e1e6d6e-7c0e-4b0e-8f0a-5c5b5b5b5b5b',
@@ -18,20 +34,14 @@ export const TEST_SITE_ID = {
 };
 
 export interface TestProvider extends ProviderInstance {
-  diagnostics: Record<string, any>;
+  diagnostics: Diagnostics;
 }
 
 export class MockProvider implements TestProvider {
   name = 'mock';
-  identifyCalls: Array<string | null> = [];
-  pageviewCalls: Array<PageContext | undefined> = [];
-  eventCalls: Array<{
-    name: string;
-    props?: Record<string, unknown>;
-    url?: string;
-    category?: ConsentCategory;
-    pageContext?: PageContext;
-  }> = [];
+  identifyCalls: IdentifyCalls = [];
+  pageviewCalls: PageviewCalls = [];
+  eventCalls: EventCalls = [];
 
   diagnostics = {
     identifyCalls: this.identifyCalls,
@@ -68,6 +78,25 @@ export class MockProvider implements TestProvider {
   }
 }
 
+
+/**
+ * Mock sender for testing dispatch.
+ */
+export const mockSender = {
+  type: 'smart' as const,
+  override: false,
+  send: vi.fn(() => Promise.resolve(new Response(null, { status: 204 }))),
+};
+
+export function getMockCall(sender: any) {
+  return sender.send.mock.calls[0]?.[0];
+}
+
+export function getMockCalls(sender: any) {
+  return sender.send.mock.calls.map((call: any) => call[0]);
+}
+
+
 /**
  * Build a real StatefulProvider that wraps our ProviderDouble.
  * Returns both so tests can assert on the double’s recorded calls.
@@ -103,18 +132,18 @@ export function createSpyProvider() {
   return api;
 }
 
-export function createFacade(base?: Partial<Parameters<AnalyticsFacade['init']>[0]>) {
+export function createFacade(base?: AnalyticsOptions) {
   const f = new AnalyticsFacade();
   f.init({
     debug: true,
     domains: ['localhost'],
     consent: { initialStatus: 'granted', disablePersistence: true },
     ...base,
-  });
+  } as AnalyticsOptions);
   return f;
 }
 
-export async function createMockFacade(opts: Partial<InitOptions> = {}) {
+export async function createMockFacade(opts: AnalyticsOptions = {}) {
   const { stateful, provider } = await createStatefulMock();
 
   const facade = init({
@@ -123,7 +152,7 @@ export async function createMockFacade(opts: Partial<InitOptions> = {}) {
     trackLocalhost: true,
     consent: { disablePersistence: true },
     ...opts,
-  });
+  } as AnalyticsOptions);
 
   // Attach stub provider (adapt if your facade builds it internally)
   facade.setProvider(stateful);
@@ -138,7 +167,7 @@ type SetupConfig = {
 };
 
 export async function setupAnalytics(
-  opts?: Partial<InitOptions>,
+  opts?: AnalyticsOptions,
   config: SetupConfig = {},
 ): Promise<{ facade?: AnalyticsFacade; provider?: TestProvider }> {
   let facade: AnalyticsFacade | undefined;
@@ -165,10 +194,10 @@ export async function setupAnalytics(
   if (mode === 'factory') {
     facade = createAnalytics();
     if (withMockProvider && statefulToInject) facade.setProvider(statefulToInject);
-    facade.init(options);
+    facade.init(options as AnalyticsOptions);
   } else {
     if (withMockProvider && statefulToInject) injectProviderForTests(statefulToInject);
-    init(options);
+    init(options as AnalyticsOptions);
   }
 
   if (setConsent === 'granted' || setConsent === 'denied') {

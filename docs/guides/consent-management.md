@@ -15,8 +15,7 @@ If you haven’t seen it yet, skim **Configuration → Consent** for env-based c
 import { init, grantConsent, denyConsent, onConsentChange, getConsent } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'umami',
-  site: 'your-site-id',
+  provider: { name: 'umami', site: 'your-site-id' },
   consent: {
     initialStatus: 'pending',          // 'pending' | 'granted' | 'denied'
     requireExplicit: true,       // if true, we never auto-promote to granted
@@ -221,8 +220,7 @@ Hook your CMP’s callbacks straight into your analytics instance:
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'ga4',
-  site: 'G-XXXXXXXXXX',
+  provider: { name: 'ga4', site: 'G-XXXXXXXXXX' },
   consent: { initialStatus: 'pending', requireExplicit: true },
 });
 

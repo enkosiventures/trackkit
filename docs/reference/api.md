@@ -14,13 +14,12 @@ Core functions are imported from `trackkit`, the main entrypoint:
 | `createAnalytics(opts)` | ✔️ | — | Creates an isolated facade instance. Preferred for modern apps. |
 | `init(opts)` | — | ✔️ | Initializes the global singleton façade. |
 | `destroy()` | ✔️ | ✔️ | Tears down listeners, clears queues. |
-| `track(name, props?, url?)` | ✔️ | ✔️ | Sends a custom analytics event. |
+| `track(name, props?, category?)` | ✔️ | ✔️ | Sends a custom analytics event. |
 | `pageview(url?)` | ✔️ | ✔️ | Sends a pageview (or inferred URL). |
 | `identify(userId?)` | ✔️ | ✔️ | Identifies a user; provider-specific behaviour applies. |
 | `grantConsent()` | ✔️ | ✔️ | Set consent → `granted`, flush queue. |
 | `denyConsent()` | ✔️ | ✔️ | Set consent → `denied`, drop analytics items. |
 | `resetConsent()` | ✔️ | ✔️ | Return consent to `pending`. |
-| `setConsent(status)` | ✔️ | ✔️ | Directly set status. |
 | `getConsent()` | ✔️ | ✔️ | Return current consent snapshot. |
 | `waitForReady()` | ✔️ | ✔️ | Promise that resolves when provider is ready. |
 | `flushIfReady()` | ✔️ | ✔️ | Flush queue if provider + consent allow. |
@@ -41,7 +40,7 @@ TypeScript types are also exported from the main module:
 
 ```ts
 import type {
-  InitOptions,
+  AnalyticsOptions,
   ProviderType,
   AnalyticsInstance,
   EventMap,
@@ -56,7 +55,7 @@ import type {
 
 ### Initialization
 
-#### `createAnalytics<E extends EventMap = EventMap>(opts?: InitOptions): AnalyticsInstance<E>`
+#### `createAnalytics<E extends EventMap = EventMap>(opts?: AnalyticsOptions): AnalyticsInstance<E>`
 
 Factory API. Creates a **new analytics instance**.
 
@@ -70,8 +69,7 @@ type AnalyticsEvents = {
 };
 
 const analytics = createAnalytics<AnalyticsEvents>({
-  provider: 'umami',
-  site: 'my-site',
+  provider: { name: 'umami', site: 'my-site' },
   autoTrack: true,
 });
 
@@ -81,7 +79,7 @@ analytics.track('signup_completed', { plan: 'pro' });
 ```
 
 * `E` is an optional **event map** type for typed `track()` calls.
-* `InitOptions` configures provider, queue, consent, resilience, etc.
+* `AnalyticsOptions` configures provider, queue, consent, resilience, etc.
   See the Configuration guide for full fields.
 
 #### `init(opts: InitOptions): void`
@@ -91,7 +89,7 @@ Singleton API. Initialises the **global** analytics facade.
 ```ts
 import { init, pageview } from 'trackkit';
 
-init({ provider: 'umami', site: 'my-site' });
+init({ provider: { name: 'umami', site: 'my-site' } });
 pageview();
 ```
 
@@ -126,28 +124,27 @@ track('signup_completed', { plan: 'pro', source: 'landing' });
 
 When using typed events via `createAnalytics<MyEvents>`, `eventName` and `props` are type-checked.
 
-#### `pageview(path?: string | { path?: string; title?: string; referrer?: string }): void`
+#### `pageview(url?: string): void`
 
 Record a pageview.
 
-* `path` omitted → current `window.location`.
-* `path` provided → explicit path.
-* The options object variant lets you attach metadata (title, referrer, etc., depending on provider).
+* `url` omitted → current `window.location`.
+* `url` provided → explicit path.
 
 Examples:
 
 ```ts
-pageview();               // current URL
-pageview('/pricing');     // explicit path
-pageview({ path: '/x' }); // structured
+pageview();          // current URL
+pageview('/pricing'); // explicit path
 ```
 
-#### `identify(userId: string, traits?: Record<string, unknown>): void`
+#### `identify(userId: string | null): void`
 
-Associate traits with a user identifier.
+Associate a user identifier with subsequent events.
 
 ```ts
-identify('user_123', { plan: 'pro', email: 'user@example.com' });
+identify('user_123');
+identify(null); // clear user association
 ```
 
 Provider support for identify varies; check provider docs.
@@ -171,9 +168,9 @@ These functions operate on the **singleton** or an instance:
   analytics.grantConsent();
   ```
 
-#### `getConsent(): ConsentStoredState | undefined`
+#### `getConsent(): ConsentStoredState | null`
 
-Returns the current consent state and metadata, if available. The shape matches the consent storage schema.
+Returns the current consent state and metadata, or `null` if no consent decision has been recorded. The shape matches the consent storage schema.
 
 Typical fields:
 
@@ -203,19 +200,13 @@ Reset consent back to its **initial status** (usually `'pending'`), clearing sto
 
 Useful for debugging or for exposing a “change my consent” option in UI.
 
-#### `setConsent(status: ConsentStatus, meta?: { version?: string; method?: string }): void`
-
-Low-level setter to directly set the internal consent status and optional metadata.
-
-Prefer `grantConsent` / `denyConsent` / `resetConsent` where possible. `setConsent` is exposed for advanced cases or when bridging an external CMP.
-
-#### `onConsentChange(handler: (state: ConsentStoredState) => void): () => void`
+#### `onConsentChange(handler: (status: ConsentStatus, prev: ConsentStatus) => void): () => void`
 
 Subscribe to consent changes. Returns an unsubscribe function.
 
 ```ts
-const unsubscribe = onConsentChange(state => {
-  console.log('Consent changed:', state.status);
+const unsubscribe = onConsentChange((status, prev) => {
+  console.log('Consent changed:', prev, '→', status);
 });
 
 // Later:
@@ -225,7 +216,7 @@ unsubscribe();
 
 ### Utilities
 
-#### `waitForReady(timeoutMs?: number): Promise<void>`
+#### `waitForReady(opts?: { timeoutMs?: number; mode?: string }): Promise<void>`
 
 Resolves when:
 
@@ -272,13 +263,13 @@ Used for debugging, visualisation, and tools. See the Debugging guide for field-
 
 A non-exhaustive list of important exported types:
 
-#### `InitOptions`
+#### `AnalyticsOptions`
 
 Configuration object passed to `createAnalytics` / `init`.
 
 Includes:
 
-* provider selection (`provider`, `site`, `host`, `measurementId`, etc.)
+* provider selection (`provider` object with `name` and provider-specific fields)
 * queue settings (`queueSize`, `batchSize`, `batchTimeout`, etc.)
 * consent options (`initialStatus`, `requireExplicit`, `allowEssentialOnDenied`, etc.)
 * resilience and transports (`detectBlockers`, `fallbackStrategy`, `proxy` config)
@@ -428,8 +419,7 @@ You can provide a global error handler:
 
 ```ts
 createAnalytics({
-  provider: 'umami',
-  site: 'my-site',
+  provider: { name: 'umami', site: 'my-site' },
   onError: (error) => {
     console.error('[trackkit]', error.code, error.message);
     // send to Sentry/Datadog if desired

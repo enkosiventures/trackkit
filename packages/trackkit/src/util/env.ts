@@ -3,8 +3,13 @@
  * Supports build-time (process.env) and runtime (window) access
  */
 
-import { stripEmptyFields } from "../util";
-import type { InitOptions } from "../types";
+import { isPlainObject, stripEmptyFields } from "../util";
+import type { AnalyticsOptions, FacadeOptions, ProviderOptions } from "../types";
+import type { NoopOptions } from "../providers/noop/types";
+import type { BatchingOptions, DispatcherOptions, ConnectionOptions, PerformanceOptions, ProxyTransportOptions, ResilienceOptions, RetryOptions, TransportMode } from "../dispatcher/types";
+import type { PlausibleOptions } from "../providers/plausible";
+import { AnalyticsError, dispatchError } from "../errors";
+import type { ConsentOptions } from "../consent/types";
 
 export interface EnvConfig {
   provider?: string;
@@ -61,99 +66,241 @@ function getEnvVar(key: string): string | undefined {
   return undefined;
 }
 
-function maybeFormat(value: string | undefined, formatter?: (val: string) => any): any | undefined {
-  if (value === undefined) return undefined;
-  // Try to parse as JSON first
+function tryParseEnvVar(key: string): any | undefined {
+  const value = getEnvVar(key);
+  if (!value) return undefined;
   try {
     return JSON.parse(value);
-  } catch (_e) {
-    // If that fails, use the provided formatter
-    if (!formatter) return value;
-    return formatter(value);
+  } catch {
+    return undefined;
   }
 }
 
-export function readEnvConfig(): InitOptions {
-  return stripEmptyFields<InitOptions>({
-    // CORE OPTIONS
-    provider: maybeFormat(getEnvVar('PROVIDER')),
-    site: maybeFormat(getEnvVar('SITE')),
-    host: maybeFormat(getEnvVar('HOST')),
 
-    // GENERAL OPTIONS
-    allowWhenHidden: parseEnvBoolean(getEnvVar('ALLOW_WHEN_HIDDEN')),
-    autoTrack: parseEnvBoolean(getEnvVar('AUTO_TRACK')),
-    batchSize: maybeFormat(getEnvVar('BATCH_SIZE'), parseInt),
-    batchTimeout: maybeFormat(getEnvVar('BATCH_TIMEOUT'), parseInt),
-    bustCache: parseEnvBoolean(getEnvVar('BUST_CACHE')),
-    debug: parseEnvBoolean(getEnvVar('DEBUG')),
-    domains: maybeFormat(getEnvVar('DOMAINS'), s => s.split(',').map(x => x.trim())),
-    doNotTrack: parseEnvBoolean(getEnvVar('DO_NOT_TRACK')),
-    exclude: maybeFormat(getEnvVar('EXCLUDE'), s => s.split(',').map(x => x.trim())),
-    includeHash: parseEnvBoolean(getEnvVar('INCLUDE_HASH')),
-    queueSize: maybeFormat(getEnvVar('QUEUE_SIZE'), parseInt),
-    trackLocalhost: parseEnvBoolean(getEnvVar('TRACK_LOCALHOST')),
-    transport: maybeFormat(getEnvVar('TRANSPORT')) as any,
+// Type conversion helpers for env var parsing
 
-    // OPTION COLLECTIONS
-    consent: maybeFormat(getEnvVar('CONSENT')),
-  
-    // PROVIDER-SPECIFIC OPTIONS
+const toString = (value: any): string | undefined => typeof value === 'string' ? value : undefined;
 
-    // - Plausible
-    defaultProps: maybeFormat(getEnvVar('DEFAULT_PROPS')),
-    domain: maybeFormat(getEnvVar('DOMAIN')),
-    revenue: maybeFormat(getEnvVar('REVENUE')),
+const toNumber = (value: any): number | undefined => typeof value === 'number' ? value : undefined;
 
-    // - Umami
-    website: maybeFormat(getEnvVar('WEBSITE')),
+const toBoolean = (value: any): boolean | undefined => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value > 0;
+  return undefined;
+}
 
-    // - GA4
-    apiSecret: maybeFormat(getEnvVar('API_SECRET')),
-    customDimensions: maybeFormat(getEnvVar('CUSTOM_DIMENSIONS')),
-    customMetrics: maybeFormat(getEnvVar('CUSTOM_METRICS')),
-    debugEndpoint: parseEnvBoolean(getEnvVar('DEBUG_ENDPOINT')),
-    debugMode: parseEnvBoolean(getEnvVar('DEBUG_MODE')),
-    measurementId: maybeFormat(getEnvVar('MEASUREMENT_ID')),
+function toArray<T>(value: any, type: string): T[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const result: T[] = [];
+  for (const item of value) {
+    if (typeof item === type) {
+      result.push(item);
+    }
+  }
+  return result;
+}
+
+const toStringArray = (value: any): string[] | undefined => toArray<string>(value, 'string');
+
+const toNumberArray = (value: any): number[] | undefined => toArray<number>(value, 'number');
+
+function toStringRecord(value: any): Record<string, string | undefined> | undefined {
+  if (!isPlainObject(value)) return undefined;
+  const record: Record<string, string | undefined> = {};
+  for (const key in value) {
+    if (typeof value[key] === 'string') {
+      record[key] = value[key];
+    }
+  }
+  return record;
+}
+
+function formatFacadeConfig(): FacadeOptions | undefined {
+  try {
+    const parsedConsent = tryParseEnvVar('CONSENT');
+
+    return stripEmptyFields<FacadeOptions>({
+      allowWhenHidden: toBoolean(tryParseEnvVar('ALLOW_WHEN_HIDDEN')),
+      autoTrack: toBoolean(tryParseEnvVar('AUTO_TRACK')),
+      bustCache: toBoolean(tryParseEnvVar('BUST_CACHE')),
+      consent: parsedConsent ? stripEmptyFields<ConsentOptions>({
+        initialStatus: toString(parsedConsent.initialStatus) as any,
+        storageKey: toString(parsedConsent.storageKey),
+        disablePersistence: toBoolean(parsedConsent.disablePersistence),
+        policyVersion: toString(parsedConsent.policyVersion),
+        requireExplicit: toBoolean(parsedConsent.requireExplicit),
+        allowEssentialOnDenied: toBoolean(parsedConsent.allowEssentialOnDenied),
+      }) : undefined,
+      debug: toBoolean(tryParseEnvVar('DEBUG')),
+      domains: toStringArray(tryParseEnvVar('DOMAINS')),
+      doNotTrack: toBoolean(tryParseEnvVar('DO_NOT_TRACK')),
+      exclude: toStringArray(tryParseEnvVar('EXCLUDE')),
+      includeHash: toBoolean(tryParseEnvVar('INCLUDE_HASH')),
+      queueSize: toNumber(tryParseEnvVar('QUEUE_SIZE')),
+      trackLocalhost: toBoolean(tryParseEnvVar('TRACK_LOCALHOST')),
+    });
+  } catch (e) {
+    dispatchError(
+      new AnalyticsError(
+        'Failed to parse facade config from environment variable',
+        'INVALID_CONFIG',
+        undefined,
+        e as Error,
+      )
+    );
+  }
+}
+
+
+// Main exported function to read env config
+
+/**
+ * Reads analytics configuration from environment variables.
+ * @returns AnalyticsOptions object populated from env vars.
+ */
+export function readEnvConfig(): AnalyticsOptions {
+  return stripEmptyFields<AnalyticsOptions>({
+    // FACADE OPTIONS
+    ...formatFacadeConfig(),
+
+    // PROVIDER OPTIONS
+    provider: formatProviderConfig(getEnvVar('PROVIDER')),
+
+    // DISPATCHER OPTIONS
+    dispatcher: formatDispatcherConfig(getEnvVar('DISPATCHER')),
   });
 }
 
-/**
- * Parse boolean environment variable
- */
-export function parseEnvBoolean(value: string | undefined, defaultValue = false): boolean {
-  if (!value) return defaultValue;
-  return value.toLowerCase() === 'true' || value === '1';
+function formatDispatcherConfig(value: string | undefined): DispatcherOptions | undefined {
+  if (!value) return undefined;
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed) {
+      return undefined;
+    }
+
+    const transportMode = ['smart', 'fetch', 'beacon', 'proxy', 'noop'].includes(parsed.transportMode as string)
+      ? (parsed.transportMode as TransportMode)
+      : undefined;
+
+    const fallbackStrategy = ['none', 'memory', 'localStorage'].includes(parsed.resilience?.fallbackStrategy as string)
+      ? (parsed.resilience!.fallbackStrategy as ResilienceOptions['fallbackStrategy'])
+      : undefined;
+
+    return stripEmptyFields<DispatcherOptions>({
+      transportMode,
+      defaultHeaders: toStringRecord(parsed.defaultHeaders),
+      batching: stripEmptyFields<BatchingOptions>({
+        enabled: toBoolean(parsed.batching?.enabled),
+        maxSize: toNumber(parsed.batching?.maxSize),
+        maxWait: toNumber(parsed.batching?.maxWait),
+        maxBytes: toNumber(parsed.batching?.maxBytes),
+        concurrency: toNumber(parsed.batching?.concurrency),
+        deduplication: toBoolean(parsed.batching?.deduplication),
+      }),
+      performance: stripEmptyFields<Partial<PerformanceOptions>>({
+        enabled: toBoolean(parsed.performance?.enabled),
+        sampleRate: toNumber(parsed.performance?.sampleRate),
+        windowSize: toNumber(parsed.performance?.windowSize),
+      }),
+      connection: stripEmptyFields<Partial<ConnectionOptions>>({
+        monitor: toBoolean(parsed.connection?.monitor),
+        offlineStorage: toBoolean(parsed.connection?.offlineStorage),
+        syncInterval: toNumber(parsed.connection?.syncInterval),
+        slowThreshold: toNumber(parsed.connection?.slowThreshold),
+        checkInterval: toNumber(parsed.connection?.checkInterval),
+      }),
+      resilience: stripEmptyFields<Partial<ResilienceOptions>>({
+        detectBlockers: toBoolean(parsed.resilience?.detectBlockers),
+        fallbackStrategy,
+        proxy: parsed.resilience.proxy?.proxyUrl ? stripEmptyFields<ProxyTransportOptions>({
+          proxyUrl: toString(parsed.resilience.proxy?.proxyUrl) as string,
+          token: toString(parsed.resilience.proxy?.token),
+          headers: toStringRecord(parsed.resilience.proxy?.headers),
+          keepalive: toBoolean(parsed.resilience.proxy?.keepalive),
+          allowlist: toStringArray(parsed.resilience.proxy?.allowlist),
+        }) : undefined,
+        retry: parsed.resilience.retry ?stripEmptyFields<Partial<RetryOptions>>({
+          maxAttempts: toNumber(parsed.resilience.retry.maxAttempts),
+          initialDelay: toNumber(parsed.resilience.retry.initialDelay),
+          maxDelay: toNumber(parsed.resilience.retry.maxDelay),
+          multiplier: toNumber(parsed.resilience.retry.multiplier),
+          jitter: toBoolean(parsed.resilience.retry.jitter),
+          retryableStatuses: toNumberArray(parsed.resilience.retry.retryableStatuses),
+        }) : undefined,
+      }),
+    });
+  } catch (e) {
+    dispatchError(
+      new AnalyticsError(
+        'Failed to parse dispatcher config from environment variable',
+        'INVALID_CONFIG',
+        undefined,
+        e as Error,
+      )
+    );
+    return undefined;
+  }
 }
 
-/**
- * Parse numeric environment variable
- */
-export function parseEnvNumber(value: string | undefined, defaultValue: number): number {
-  if (!value) return defaultValue;
-  const parsed = parseInt(value, 10);
-  return isNaN(parsed) ? defaultValue : parsed;
+
+function formatProviderConfig(value: string | undefined): ProviderOptions | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || !parsed.name) {
+      return undefined;
+    }
+
+    switch (parsed.name) {
+      case 'umami':
+        return stripEmptyFields<ProviderOptions>({
+          name: 'umami',
+          host: toString(parsed.host),
+          website: toString(parsed.website),
+        });
+      case 'plausible':
+        return stripEmptyFields<ProviderOptions>({
+          name: 'plausible',
+          host: toString(parsed.host),
+          domain: toString(parsed.domain),
+          revenue: parsed.revenue ? stripEmptyFields<PlausibleOptions['revenue']>({
+            currency: toString(parsed.revenue.currency) ?? '$',
+            trackingEnabled: toBoolean(parsed.revenue.trackingEnabled) ?? false,
+          }) : undefined,
+          defaultProps: toStringRecord(parsed.defaultProps),
+        });
+      case 'ga4':
+        return stripEmptyFields<ProviderOptions>({
+          name: 'ga4',
+          host: toString(parsed.host),
+          measurementId: toString(parsed.measurementId),
+          apiSecret: toString(parsed.apiSecret),
+          customDimensions: toStringRecord(parsed.customDimensions),
+          customMetrics: toStringRecord(parsed.customMetrics),
+          debugEndpoint: toBoolean(parsed.debugEndpoint),
+          debugMode: toBoolean(parsed.debugMode),
+
+        });
+      case 'noop':
+        return parsed as NoopOptions;
+
+      default:
+        return undefined;
+    }
+  } catch (e) {
+    dispatchError(
+      new AnalyticsError(
+        'Failed to parse provider config from environment variable',
+        'INVALID_CONFIG',
+        undefined,
+        e as Error,
+      )
+    );
+    return undefined;
+  }
 }
-
-/**
- * Check if we're in a browser environment
- */
-// export function hasDOM(): boolean {
-//   return typeof window !== 'undefined' && typeof document !== 'undefined';
-// }
-
-// export function isBrowser(): boolean {
-//   // “Browser” means DOM-ful contexts (not workers)
-//   return hasDOM();
-// }
-
-// export function isServer(): boolean {
-//   return !isBrowser();
-// }
-
-// export function inBrowser(): boolean {
-//   return typeof window !== 'undefined';
-// }
 
 /**
  * Environment detection helpers

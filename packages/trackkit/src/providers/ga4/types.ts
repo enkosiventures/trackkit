@@ -1,69 +1,136 @@
-export type GA4Options = {
-  provider: 'ga4';
-  site?: string;
-  measurementId: string;
+import type { RequiredOnly } from '../../util/types';
+import type { BaseProviderOptions } from '../types';
+
+/**
+ * Configuration options for the GA4 provider.
+ *
+ * Extends {@link BaseProviderOptions} with GA4-specific fields such as
+ * `measurementId` and optional `apiSecret`.
+ */
+export type GA4Options = BaseProviderOptions & {
+  /**
+   * Provider name discriminator.
+   */
+  name: 'ga4';
+
+  /**
+   * Google Analytics 4 measurement ID (alternative to `site` alias).
+   *
+   * @example 'G-XXXXXXXXXX'
+   */
+  measurementId?: string;
+
+  /**
+   * Custom API secret for server-side tracking using the GA4
+   * Measurement Protocol.
+   *
+   * Required in many GA4 setups when sending events directly to the MP
+   * endpoint.
+   */
   apiSecret?: string;
-  customDimensions?: Record<string, string>;
-  customMetrics?: Record<string, string>;
-  host?: string;
+
+  /**
+   * Custom dimensions mapping.
+   *
+   * Maps friendly names to GA4 dimension keys.
+   *
+   * @example { plan_type: 'custom_dimension_1' }
+   */
+  customDimensions?: Record<string, string | undefined>;
+
+  /**
+   * Custom metrics mapping.
+   *
+   * Maps friendly names to GA4 metric keys.
+   *
+   * @example { engagement_score: 'custom_metric_1' }
+   */
+  customMetrics?: Record<string, string | undefined>;
+
+  /**
+   * When `true`, send events to the GA4 validation endpoint
+   * (`/debug/mp/collect`) instead of the production endpoint.
+   *
+   * Useful for validating payloads without polluting real data.
+   */
   debugEndpoint?: boolean;
+
+  /**
+   * When `true`, add GA4 `debug_mode=1` event param so events show in
+   * GA4 DebugView.
+   */
   debugMode?: boolean;
 };
 
 /**
- * GA4 event parameters
+ * GA4 options after normalisation and defaulting.
+ *
+ * Ensures `name`, `host`, `measurementId` and `debugMode` are always set.
+ *
+ * @internal
  */
-export interface GA4EventParams {
-  // Required parameters
+export type ResolvedGA4Options = RequiredOnly<
+  GA4Options,
+  'name' | 'host' | 'measurementId' | 'debugMode'
+>;
+
+/**
+ * GA4 event parameters for Measurement Protocol payloads.
+ *
+ * This is a typed view over the standard GA4 event param surface; not all
+ * fields are required for every event.
+ */
+export type GA4EventParams = {
+  // Core/session parameters
   session_id?: string;
   engagement_time_msec?: number;
-  
+
   // Page parameters
   page_location?: string;
   page_referrer?: string;
   page_title?: string;
   page_path?: string;
-  
+
   // User parameters
   user_id?: string;
   user_properties?: Record<string, any>;
-  
+
   // Device/platform parameters
   screen_resolution?: string;
   language?: string;
-  
+
   // Enhanced measurement
   percent_scrolled?: number;
   search_term?: string;
   content_type?: string;
   content_id?: string;
   content_group?: string;
-  
+
   // Engagement
   engaged_session_event?: 1;
-  
+
   // Ecommerce parameters
   currency?: string;
   value?: number;
   coupon?: string;
   payment_type?: string;
   items?: GA4Item[];
-  
+
   // Event-specific parameters
   method?: string;
-  
+
   // Custom parameters
   [key: string]: any;
-}
+};
 
 /**
- * GA4 item for ecommerce events
+ * GA4 item structure for ecommerce events.
  */
-export interface GA4Item {
+export type GA4Item = {
   // Required
   item_id: string;
   item_name: string;
-  
+
   // Optional
   affiliation?: string;
   coupon?: string;
@@ -82,26 +149,34 @@ export interface GA4Item {
   location_id?: string;
   price?: number;
   quantity?: number;
-  
+
   // Custom item parameters
   [key: string]: any;
-}
+};
 
 /**
- * GA4 Measurement Protocol response
+ * GA4 Measurement Protocol debug response shape.
+ *
+ * Returned when sending to the `/debug/mp/collect` endpoint.
  */
-export interface GA4DebugResponse {
+export type GA4DebugResponse = {
   validationMessages: Array<{
     fieldPath: string;
     description: string;
     validationCode: string;
   }>;
-}
+};
 
 /**
- * Standard GA4 events
+ * Standard GA4 event names.
+ *
+ * These cover:
+ * - automatically collected events,
+ * - recommended retail/ecommerce events,
+ * - recommended game events,
+ * - and other recommended events.
  */
-export type GA4StandardEvent = 
+export type GA4StandardEvent =
   // Automatically collected events
   | 'first_visit'
   | 'session_start'
@@ -114,7 +189,7 @@ export type GA4StandardEvent =
   | 'video_progress'
   | 'video_complete'
   | 'file_download'
-  
+
   // Recommended events - Retail/Ecommerce
   | 'add_payment_info'
   | 'add_shipping_info'
@@ -131,7 +206,7 @@ export type GA4StandardEvent =
   | 'view_item'
   | 'view_item_list'
   | 'view_promotion'
-  
+
   // Recommended events - Games
   | 'earn_virtual_currency'
   | 'join_group'
@@ -144,7 +219,7 @@ export type GA4StandardEvent =
   | 'tutorial_begin'
   | 'tutorial_complete'
   | 'unlock_achievement'
-  
+
   // Other recommended events
   | 'ad_impression'
   | 'exception'

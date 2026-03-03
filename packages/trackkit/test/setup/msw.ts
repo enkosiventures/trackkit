@@ -76,19 +76,16 @@ export const handlers = [
 
   // Custom host
   http.post('https://analytics.example.com/api/send', () => {
-    console.warn('Mock custom analytics host called');
     return HttpResponse.json({ ok: true });
   }),
 
   // Network error simulation
   http.post('https://error.example.com/api/send', () => {
-    console.warn('Mock network error simulation');
     return HttpResponse.error();
   }),
 
   // Server error simulation
   http.post('https://500.example.com/api/send', () => {
-    console.warn('Mock server error simulation');
     return new HttpResponse('Internal Server Error', {
       status: 500,
     });

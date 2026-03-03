@@ -9,7 +9,7 @@ Trackkit calls Umami’s HTTP API directly, so no tracking script is required.
 
 | Old (Umami)                                            | Trackkit                                           |
 |--------------------------------------------------------|----------------------------------------------------|
-| `<script src=".../script.js" data-website-id="...">`   | `createAnalytics({ provider: 'umami', site: '...' })` |
+| `<script src=".../script.js" data-website-id="...">`   | `createAnalytics({ provider: { name: 'umami', site: '...' } })` |
 | Global `umami.track('event')`                          | `track('event')`                                   |
 | `data-website-id`                                      | `site` option / `TRACKKIT_SITE`                   |
 | Script placement & inline JS                           | Centralised TS/JS module                           |
@@ -54,9 +54,11 @@ TRACKKIT_HOST=https://analytics.example.com
 import { createAnalytics } from 'trackkit';
 
 export const analytics = createAnalytics({
-  provider: 'umami',
-  site: '94db1cb1-74f4-4a40-ad6c-962362670409',
-  host: 'https://analytics.example.com',
+  provider: {
+    name: 'umami',
+    site: '94db1cb1-74f4-4a40-ad6c-962362670409',
+    host: 'https://analytics.example.com',
+  },
   autoTrack: true,
   doNotTrack: true,
   includeHash: false,
@@ -109,9 +111,11 @@ If you need to gate Umami against consent:
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'umami',
-  site: '94db1cb1-74f4-4a40-ad6c-962362670409',
-  host: 'https://analytics.example.com',
+  provider: {
+    name: 'umami',
+    site: '94db1cb1-74f4-4a40-ad6c-962362670409',
+    host: 'https://analytics.example.com',
+  },
   consent: {
     initialStatus: 'pending',
     requireExplicit: true,

@@ -21,10 +21,7 @@ describe('Consent Edge Cases', () => {
       configurable: true,
     });
 
-    init({
-      provider: 'noop',
-      consent: { requireExplicit: true },
-    });
+    init({ consent: { requireExplicit: true }});
 
     // Should work without persistence
     expect(getConsent()?.status).toBe('pending');
@@ -45,10 +42,7 @@ describe('Consent Edge Cases', () => {
     });
     vi.spyOn(window.localStorage, 'setItem').mockImplementation(mockSetItem);
 
-    init({
-      provider: 'noop',
-      consent: { requireExplicit: true },
-    });
+    init({ consent: { requireExplicit: true }});
 
     // Should not throw
     expect(() => grantConsent()).not.toThrow();
@@ -59,7 +53,6 @@ describe('Consent Edge Cases', () => {
     const longVersion = 'v' + '1.0.0-alpha.beta.gamma.'.repeat(100);
 
     init({
-      provider: 'noop',
       consent: {
         requireExplicit: true,
         policyVersion: longVersion,
@@ -73,18 +66,12 @@ describe('Consent Edge Cases', () => {
   });
 
   it('maintains consent state through multiple init calls', () => {
-    init({
-      provider: 'noop',
-      consent: { requireExplicit: true },
-    });
+    init({ consent: { requireExplicit: true }});
 
     grantConsent();
 
     // Re-init should not reset consent
-    init({
-      provider: 'noop',
-      consent: { requireExplicit: true },
-    });
+    init({ consent: { requireExplicit: true }});
 
     expect(getConsent()?.status).toBe('granted');
   });

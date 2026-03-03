@@ -1,8 +1,9 @@
+import { getId } from '../../util';
 import type { DispatchPayload, ProxyTransportOptions, Transport } from '../types';
 
 
 export class ProxiedTransport implements Transport {
-  id = 'proxy_' + Math.random().toString(36).substring(2, 8);
+  id = 'proxy_' + getId();
 
   constructor(private opts: ProxyTransportOptions) {
     if (!opts.proxyUrl) throw new Error('ProxiedTransport: proxyUrl is required');

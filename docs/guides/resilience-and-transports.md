@@ -8,25 +8,21 @@ Trackkit is designed to survive real-world conditions:
 
 This guide explains how **retries**, **adblocker detection**, and **transports** work together, and how to configure them.
 
-
 ## Overview
 
-When Trackkit sends an event:
+When Trackkit dispatches an event:
 
 1. It builds a provider-specific payload.
-2. It chooses a **transport**:
-   - `fetch` (default)
-   - `beacon`
-   - `proxy` (your own endpoint)
-3. It applies **retry logic** if the request fails.
-4. It respects **resilience settings** such as adblocker detection and fallback strategy.
+2. It **resolves the transport** based on your configuration and environment:
+   - Checks `transportMode` (fetch vs beacon).
+   - If enabled, runs **adblocker detection** and switches to a fallback strategy (e.g. proxy) if needed.
+3. It hands the request to the transport, which applies **retry logic** (backoff/jitter) if the request fails.
 
 You control this via:
 
 - `retry` options (see dispatcher types)
 - `resilience` options
 - `RETRY_DEFAULTS` and `RESILIENCE_DEFAULTS` in `constants.ts`
-
 
 ## Retry behaviour
 
@@ -58,12 +54,14 @@ Other HTTP statuses are treated as permanent failures and are **not** retried.
 
 ### Customising retries
 
-You can override retry options in your config (see your `InitOptions` / `FacadeOptions`):
+You can override retry options in your config (see your `AnalyticsOptions`):
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'umami',
-  site: '…',
+  provider: {
+    name: 'umami',
+    site: '…',
+  },
   retry: {
     maxAttempts: 5,
     initialDelay: 500,
@@ -80,7 +78,6 @@ Recommended:
 * Use **higher** `maxAttempts` / `maxDelay` for low-volume, high-value events.
 * Use **lower** values when latency matters more than “event eventually lands”.
 
-
 ## Adblocker detection
 
 Adblockers often block requests to known analytics endpoints. Trackkit can probe for this and adjust the transport.
@@ -90,7 +87,7 @@ Resilience defaults (`RESILIENCE_DEFAULTS`) look like:
 ```ts
 export const RESILIENCE_DEFAULTS = {
   detectBlockers: false,
-  fallbackStrategy: 'proxy' as const, // 'proxy' | 'beacon' | 'none'
+  fallbackStrategy: 'smart' as const, // 'smart' | 'proxy' | 'beacon' | 'none'
   proxy: undefined,
 } as const;
 ```
@@ -102,38 +99,36 @@ export const RESILIENCE_DEFAULTS = {
 
 Detection is handled by `dispatcher/adblocker.ts` and typically cached for the session.
 
-
 ## Transports & fallback strategy
 
-Transport resolution (in `dispatcher/transports/resolve.ts`) follows this precedence:
+Transport resolution (in resolve.ts) determines which low-level mechanism (`fetch` vs `beacon`) or endpoint (direct vs proxy) to use.
 
-1. Always start with `FetchTransport` as base.
-2. If `detectBlockers` is **disabled**, use fetch and return.
-3. If `detectBlockers` is **enabled**:
+1. **Check Base Transport**: Uses `FetchTransport` by default.
+2. **Check Blockers**:
+   - If `detectBlockers` is **disabled**, proceed with base transport.
+   - If `detectBlockers` is **enabled**, run a probe.
+     - If **no blocker** detected → proceed with base transport.
+     - If a blocker **is** detected → resolve the **fallback strategy**.
 
-   * If **no blocker** is detected → still use fetch.
-   * If a blocker **is** detected:
+### Fallback Strategies
 
-     1. Determine the **desired fallback**:
+If a blocker is detected, Trackkit chooses a fallback based on `resilience.fallbackStrategy`:
 
-        * use `resilience.fallbackStrategy` if set, else
-        * use the detector’s suggested fallback, else
-        * default to `'proxy'`.
-     2. If desired is `'beacon'` → use `BeaconTransport`.
-     3. If desired is `'proxy'`:
-
-        * if `resilience.proxy.proxyUrl` is set → use `ProxiedTransport`.
-        * otherwise → fall back to `BeaconTransport`.
+* `'smart'` (default):
+  * If `proxy.proxyUrl` is configured → uses `ProxiedTransport`.
+  * If no proxy is configured → uses `BeaconTransport` (often bypasses blockers).
+* `'proxy'`: forces usage of `ProxiedTransport`. **Throws a configuration error** if `proxyUrl` is missing. Use this to ensure you don't accidentally send direct requests if proxying fails.
+* `'beacon'`: forces usage of `BeaconTransport`.
+* `'none'`: keeps using `FetchTransport`. The request will likely fail, but it adheres to strict compliance policies if you absolutely cannot use other methods.
 
 ### Configuring `resilience`
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'plausible',
-  site: 'yourdomain.com',
+  provider: { name: 'plausible', site: 'yourdomain.com' },
   resilience: {
     detectBlockers: true,
-    fallbackStrategy: 'proxy', // 'proxy' | 'beacon' | 'none'
+    fallbackStrategy: 'smart',
     proxy: {
       proxyUrl: '/api/trackkit-proxy',
       token: process.env.TRACKKIT_PROXY_TOKEN,
@@ -144,7 +139,6 @@ const analytics = createAnalytics({
   },
 });
 ```
-
 
 ## Proxy transport
 
@@ -166,7 +160,6 @@ Benefits:
 * Better resilience against adblockers targeting common analytics domains.
 * Centralised logging and control over outbound analytics traffic.
 
-
 ## Example strategies
 
 **Baseline / early stage:**
@@ -186,16 +179,27 @@ resilience: {
 }
 ```
 
-**Production with proxy:**
+**Production with proxy (Safety First):**
 
 ```ts
 resilience: {
   detectBlockers: true,
-  fallbackStrategy: 'proxy',
+  fallbackStrategy: 'proxy', // Throws if proxy config missing
   proxy: {
     proxyUrl: '/api/trackkit',
     token: '…',
   },
+}
+```
+
+**Production with proxy (Auto-fallback):**
+
+```ts
+// Uses proxy if available, but allows falling back to beacon if proxy config is somehow invalid/missing at runtime
+resilience: {
+  detectBlockers: true,
+  fallbackStrategy: 'smart',
+  proxy: { ... }
 }
 ```
 
@@ -209,7 +213,6 @@ resilience: {
 ```
 
 (events simply fail when blocked – rarely desirable, but available).
-
 
 ## Interaction with queues and consent
 

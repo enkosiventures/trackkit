@@ -119,13 +119,20 @@ export class StatefulProvider implements ProviderInstance {
     return this.state.getState();
   }
 
+  getProviderInstance() {
+    return this.provider;
+  }
+
   /**
    * Get snapshot of state and history (for diagnostics)
    */
   getSnapshot() {
+    const history = this.state.getHistory();
     return {
+      key: this.provider.name,
       state: this.state.getState(),
-      history: this.state.getHistory(),
+      events: history.length,
+      history,
     };
   }
 }

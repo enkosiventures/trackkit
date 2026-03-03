@@ -15,11 +15,11 @@ Your app
         ├─> PolicyGate (DNT, domain/paths, localhost)
         ├─> ConsentManager
         ├─> QueueService (runtime + SSR)
-        ├─> ProviderManager
-        │     └─> Provider adapter (Umami, Plausible, GA4, noop, or custom)
-        └─> NetworkDispatcher
-              ├─> Transports (fetch, beacon, proxy)
-              └─> Retry / backoff
+        └─> ProviderManager
+              ├─> Provider adapter (Umami, Plausible, GA4, noop, or custom)
+              └─> NetworkDispatcher
+                    ├─> Transports (fetch, beacon, proxy)
+                    └─> Retry / backoff
 ```
 
 Every event goes through the same canonical pipeline:

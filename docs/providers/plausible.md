@@ -24,8 +24,7 @@ No external script is loaded—Trackkit dispatches events directly to the Plausi
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'plausible',
-  site: 'yourdomain.com',
+  provider: { name: 'plausible', site: 'yourdomain.com' },
 });
 ```
 
@@ -33,17 +32,19 @@ const analytics = createAnalytics({
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'plausible',
-  site: 'yourdomain.com',
-  // domain: 'yourdomain.com',           // Provider-specific alternative to 'site'
-  host: 'https://plausible.io',          // or self-host  
+  provider: {
+    name: 'plausible',
+    site: 'yourdomain.com',
+    // domain: 'yourdomain.com',           // Provider-specific alternative to 'site'
+    host: 'https://plausible.io',          // or self-host
+    defaultProps: { appVersion: '2.3.1' }, // merged into event props
+  },
   autoTrack: true,                       // History API + popstate
   doNotTrack: true,                      // default respected unless set to false
   includeHash: false,                    // ignore #fragment by default
   domains: ['yourdomain.com'],           // exact matches (no wildcards)
   exclude: ['/admin', '/preview'],       // substring/path checks (strings only)
   trackLocalhost: true,                  // enable for local dev if desired
-  defaultProps: { appVersion: '2.3.1' }, // merged into event props
   debug: false,
 });
 ```
@@ -102,8 +103,7 @@ grantConsent();      // replays queued events
 
 ```ts
 createAnalytics({
-  provider: 'plausible',
-  site: 'yourdomain.com',
+  provider: { name: 'plausible', site: 'yourdomain.com' },
   debug: true,
 });
 ```

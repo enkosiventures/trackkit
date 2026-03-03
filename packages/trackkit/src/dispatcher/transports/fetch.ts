@@ -1,8 +1,9 @@
+import { getId } from '../../util';
 import type { DispatchPayload, Transport } from '../types';
 
 
 export class FetchTransport implements Transport {
-  id = 'fetch_' + Math.random().toString(36).substring(2, 8);
+  id = 'fetch_' + getId();
 
   async send(payload: DispatchPayload): Promise<Response | void> {
     const { headers: hdrs, ...rest } = payload.init || {};

@@ -65,13 +65,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "preview:e2e": "serve . -p 3000",
     "coverage:check": "node ../../scripts/coverage-check.mjs",
     "deadcode:only": "node ../../scripts/deadcode-report.mjs --workspace --ensure-coverage",
     "deadcode": "node ../../scripts/deadcode-report.mjs --workspace --ensure-coverage",
     "deadcode:types": "node ../../scripts/deadcode-report.mjs --workspace --ensure-coverage --include-statementless",
     "deadcode:ci": "node ../../scripts/deadcode-report.mjs --ensure-coverage",
     "deadcode:gate": "node ../../scripts/deadcode-report.mjs --ensure-coverage --fail-on-unused --max-uncovered-files=0",
-    "verify": "pnpm -s test:coverage && pnpm -s coverage:check && pnpm -s deadcode:gate",
+    "verify": "pnpm run test:coverage && pnpm run coverage:check && pnpm run deadcode:gate",
     "knip": "knip",
     "size": "size-limit",
     "prepublishOnly": "pnpm run clean && pnpm run build && pnpm run defaults:inject && pnpm run defaults:assert"
@@ -83,6 +85,7 @@
     "access": "public"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@size-limit/preset-small-lib": "^11.2.0",
     "@types/node": "^24.0.13",
     "@vitest/coverage-v8": "^3.2.4",

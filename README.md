@@ -56,9 +56,11 @@ npm i trackkit     # or: pnpm add trackkit  /  yarn add trackkit
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'umami',                      // 'umami' | 'plausible' | 'ga4' | 'noop'
-  site: '94db1cb1-74f4-4a40-ad6c-962362670409',
-  host: 'https://analytics.example.com',  // required if self-hosting/custom domain
+  provider: {
+    name: 'umami',                   // 'umami' | 'plausible' | 'ga4' | 'noop'
+    site: '94db1cb1-74f4-4a40-ad6c-962362670409',
+    host: 'https://analytics.example.com',  // required if self-hosting/custom domain
+  },
   debug: true,
 });
 
@@ -86,7 +88,7 @@ However, if you prefer a global approach, you can use the included singleton hel
 
 import { init, pageview, track } from 'trackkit';
 
-init({ provider: 'umami', site: '...' });
+init({ provider: { name: 'umami', site: '...' } });
 pageview();
 track('signup_submitted', { plan: 'starter' });
 ```
@@ -107,8 +109,7 @@ Every mechanism (SSR, offline, resilience, performance) is downstream of these g
 import { createAnalytics /* or init, grantConsent */ } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'ga4',
-  site: 'G-XXXXXXXXXX',
+  provider: { name: 'ga4', site: 'G-XXXXXXXXXX' },
   consent: {
     initialStatus: 'pending',      // 'pending' | 'granted' | 'denied'
     requireExplicit: true,         // default: true

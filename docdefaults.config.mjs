@@ -28,10 +28,5 @@ export default {
       interface: 'PerformanceOptions',
       member: 'PERFORMANCE_DEFAULTS',
     },
-    {
-      types: 'src/dispatcher/types.ts',
-      interface: 'ResilienceOptions',
-      member: 'RESILIENCE_DEFAULTS',
-    },
   ],
 };

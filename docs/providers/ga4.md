@@ -8,12 +8,11 @@ Trackkit’s GA4 adapter is Measurement-Protocol–only. No GA script is loaded 
 
 ## Features
 
-- Automatic SPA pageviews (`autoTrack: true` by default)
-- Custom events via `analytics.track()`
-- Optional identification (`analytics.identify()`)
+- **No external scripts** (0kB remote dependency).
+- Automatic SPA pageviews (via `autoTrack`)
+- Automatic `client_id` and `session_id` management.
+- Custom events & user properties
 - Consent-aware queueing and replay
-- Domain allowlist (`domains`) and path exclusion (`exclude`)
-- Debug logging for lifecycle and send decisions
 
 
 ## Configuration
@@ -24,8 +23,13 @@ Trackkit’s GA4 adapter is Measurement-Protocol–only. No GA script is loaded 
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'ga4',
-  site: 'G-XXXXXXXXXX', 
+  provider: {
+    name: 'ga4',
+    site: 'G-XXXXXXXXXX',  // Your Measurement ID
+
+    // Recommended for full reporting accuracy in MP:
+    // apiSecret: '...', 
+  },
 });
 ```
 
@@ -33,22 +37,33 @@ const analytics = createAnalytics({
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'ga4',
-  site: 'G-XXXXXXXXXX',
-  // measurementId: 'G-XXXXXXXXXX',      // Provider-specific alternative to 'site'
+  provider: {
+    name: 'ga4',
+
+    /* Identifier */
+    site: 'G-XXXXXXXXXX',
+    // measurementId: 'G-XXXXXXXXXX',      // Provider-specific alternative to 'site'
+
+    /* Auth (Optional but recommended for reliability) */
+    apiSecret: 'YOUR_API_SECRET',          // Generated in GA4 Admin > Data Streams > API Secrets
+
+    /* Metadata */
+    defaultProps: { appVersion: '2.3.1' }, // merged into GA4 params
+  },
+
+  /* Features */
   autoTrack: true,                       // SPA pageviews
-  doNotTrack: true,                      // respect DNT
   includeHash: false,                    // omit #fragment
+  trackLocalhost: true,                  // enabled by default
+
+  /* Filtering */
+  doNotTrack: true,                      // respect DNT
   domains: ['example.com'],              // optional allowlist
   exclude: ['/admin', '/preview'],       // skip certain paths
-  trackLocalhost: true,                  // enabled by default
-  defaultProps: { appVersion: '2.3.1' }, // merged into GA4 params
+
   debug: false,
 });
 ```
-
-> **Identifier:**
-> You may provide either the GA4-specific `measurementId` field or the generic `site` field.
 
 ### Environment Variables
 
@@ -68,19 +83,22 @@ VITE_TRACKKIT_SITE=G-XXXXXXXXXX
 
 ## API Usage
 
-> Examples below use the **singleton helpers** (`track`, `pageview`, `identify`,…) for compactness.
-> To use instances instead, call the same methods on your `analytics` object.
+> Examples below use singleton helpers (`pageview`, `track`, `identify`). You can also call methods on the `analytics` instance.
 
 ### Pageviews
+
+Unline `gtag.js`, the Measurement Protocol does not automatically detect "page_view" events. Trackkit handles this translation for you.
 
 ```ts
 import { pageview } from 'trackkit';
 
-history.pushState({}, '', '/thank-you');
-pageview(); // current URL
+// Manual trigger for current page 
+// (if autoTrack is false or for virtual views)
+pageview();
+// url can be passed as an argument:
+pageview('/virtual/thank-you');
 ```
 
-Automatic when `autoTrack: true`.
 
 ### Custom Events
 
@@ -101,7 +119,11 @@ track('purchase', {
 ```ts
 import { identify } from 'trackkit';
 
-identify('user-123'); // sets GA4 user_id
+// Sets the 'user_id' parameter on all subsequent events
+identify('user-123'); 
+
+// Note: To set specific User Properties, pass them as traits (if supported by your setup)
+// or simply send them as params on specific events.
 ```
 
 ### Consent
@@ -113,10 +135,19 @@ denyConsent();  // optional initial state
 grantConsent(); // queued events flush
 ```
 
+## Session Management
+
+Since Trackkit uses the Measurement Protocol, it manually generates and persists:
+
+1.  `client_id`: A pseudo-unique device ID (persisted in localStorage).
+2.  `session_id`: A timestamp-based ID kept in session storage.
+
+This ensures your GA4 dashboard correctly shows "Active Users" and session duration, mirroring `gtag.js` behavior without the bloat.
+
 
 ## CSP
 
-Because Trackkit sends GA4 hits directly (Measurement Protocol), you typically need only:
+Because Trackkit sends GA4 hits directly (Measurement Protocol), you typically only need to allow the Google Analytics endpoints in your CSP:
 
 ```
 connect-src https://www.google-analytics.com https://region1.google-analytics.com;
@@ -137,18 +168,15 @@ No script tag required unless using an advanced GA4 configuration.
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'ga4',
-  site: 'G-XXXXXXXXXX',
+  provider: { name: 'ga4', site: 'G-XXXXXXXXXX' },
   debug: true,
 });
 ```
 
-You’ll see:
-
-* Provider readiness
-* Queue adds/replays
-* Navigation triggers
-* URL normalization decisions
+Enable `debug: true` to see:
+* The generated `client_id` and `session_id`.
+* The raw payload sent to `/mp/collect`.
+* Validation errors (if `debug_mode` param is enabled internally).
 
 
 ## Best Practices

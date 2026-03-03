@@ -10,8 +10,10 @@ import {
   getFacade,
   hasQueuedEvents,
   flushIfReady,
+  getDiagnostics,
 } from '../../../src';
 import { setupAnalytics } from '../../helpers/providers';
+import { CONSENT_DEFAULTS, DEFAULT_ERROR_HANDLER, DEFAULT_NAVIGATION_SOURCE, FACADE_BASE_DEFAULTS } from '../../../src/constants';
 
 
 describe('Trackkit Facade (core API)', () => {
@@ -49,11 +51,46 @@ describe('Trackkit Facade (core API)', () => {
     });
 
     it('uses default options when none provided', async () => {
+      const nonDiagnosticDefaults = { 
+        consent: CONSENT_DEFAULTS,
+        navigationSource: DEFAULT_NAVIGATION_SOURCE,
+        onError: DEFAULT_ERROR_HANDLER,
+      };
+      
       init();
       grantConsent();
       await waitForReady();
       const facade = getFacade();
       expect(facade).toBeDefined();
+      const diagnostics = getDiagnostics();
+      expect({
+        ...diagnostics.config,
+        ...nonDiagnosticDefaults,
+      }).toEqual({
+        ...FACADE_BASE_DEFAULTS,
+        trackLocalhost: true, // is true for noop, which is default provider
+      });
+    });
+
+    it('faithfully merges user options with defaults', async () => {
+      // Values are distinct from defaults to verify they are set
+      const facadeConfig = {
+        allowWhenHidden: true,
+        autoTrack: false,
+        bustCache: true,
+        debug: true,
+        domains: ['example.com'],
+        doNotTrack: false,
+        exclude: ['/private'],
+        includeHash: true,
+        queueSize: 100,
+        trackLocalhost: false,
+      }
+      init(facadeConfig);
+      grantConsent();
+      await waitForReady();
+      const diagnostics = getDiagnostics();
+      expect(facadeConfig).toEqual(diagnostics.config);
     });
   });
 
@@ -84,7 +121,7 @@ describe('Trackkit Facade (core API)', () => {
       await new Promise(r => setTimeout(r, 30));
 
       const { eventCalls, pageviewCalls } = provider!.diagnostics;
-      expect(eventCalls.map(e => e.name)).toEqual(['early_event']);
+      expect((eventCalls as any[]).map(e => e.name)).toEqual(['early_event']);
       expect(pageviewCalls.length).toBe(1);
     });
 
@@ -132,7 +169,7 @@ describe('Trackkit Facade (core API)', () => {
       identify('abc');
 
       const { eventCalls, identifyCalls, pageviewCalls } = provider!.diagnostics;
-      expect(eventCalls.map(e => e.name)).toContain('delegated_event');
+      expect((eventCalls as any[]).map(e => e.name)).toContain('delegated_event');
       expect(pageviewCalls.length).toBeGreaterThanOrEqual(1);
       // identify payload shape depends on the mock; at least assert it was called:
       expect(identifyCalls.length).toBeGreaterThan(0);

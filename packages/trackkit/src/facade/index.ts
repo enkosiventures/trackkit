@@ -1,5 +1,5 @@
-import type { EventType, FacadeOptions, InitOptions, Props, ProviderOptions } from '../types';
-import { mergeConfig, validateProviderConfig, getConsentConfig } from './config';
+import type { EventType, AnalyticsOptions, Props, ResolvedFacadeOptions, ResolvedProviderOptions } from '../types';
+import { resolveConfig } from './config';
 import { ConsentManager } from '../consent/ConsentManager';
 import type { ConsentCategory, ConsentStatus, ConsentStoredState } from '../consent/types';
 import { PolicyGate } from './policy-gate';
@@ -7,8 +7,8 @@ import { ContextService } from './context';
 import { ProviderManager } from './provider-manager';
 import { NavigationService } from './navigation';
 import { logger, createLogger, setGlobalLogger } from '../util/logger';
-import { DEFAULT_CATEGORY, ESSENTIAL_CATEGORY, FACADE_BASE_DEFAULTS } from '../constants';
-import { AnalyticsError, dispatchError, setUserErrorHandler } from '../errors';
+import { DEFAULT_CATEGORY, DEFAULT_PROVIDER_OPTIONS, ESSENTIAL_CATEGORY, FACADE_BASE_DEFAULTS } from '../constants';
+import { AnalyticsError, setUserErrorHandler } from '../errors';
 import { DiagnosticsService } from './diagnostics';
 import type { StatefulProvider } from '../providers/stateful-wrapper';
 import { QueueService, EventQueue, type QueuedEventUnion } from '../queues';
@@ -16,6 +16,8 @@ import { isServer } from '../util/env';
 import { ConnectionMonitor } from '../connection/monitor';
 import { OfflineStore } from '../connection/offline-store';
 import { PerformanceTracker } from '../performance/tracker';
+import type { ResolvedDispatcherOptions } from '../dispatcher/types';
+import { getId } from '../util';
 
 /**
  * Wraps a promise and rejects on timeout.
@@ -32,24 +34,22 @@ function withTimeout<T>(p: Promise<T>, ms?: number, onTimeout?: () => unknown): 
 }
 
 
+function returnIfInitialized<T>(obj: T | null, name?: string): T {
+  if (!obj) {
+    const label = name ? ` - ${name} not ready` : '';
+    throw new AnalyticsError(`Analytics not initialized${label}`, 'NOT_INITIALIZED');
+  }
+  return obj;
+}
+
 export class AnalyticsFacade {
-  readonly id = `AF_${Math.random().toString(36).slice(2,10)}`;
+  readonly id = `AF_${getId()}`;
 
-  private cfg: FacadeOptions | null = null;
-  private pCfg: ProviderOptions | null = null;
-  private consent: ConsentManager | null = null;
-  private monitor: ConnectionMonitor | null = null;
-  private performanceTracker: PerformanceTracker | null = null;
-  private offline: OfflineStore | null = null;
-
-  private context!: ContextService;
-  private queues!: QueueService;
-  private policy!: PolicyGate;
-  private provider!: ProviderManager;
-  private nav!: NavigationService;
-  // private dispatcher!: Dispatcher;
-
-  private diag!: DiagnosticsService;
+  private config: {
+    facade: ResolvedFacadeOptions;
+    provider: ResolvedProviderOptions;
+    dispatcher: ResolvedDispatcherOptions;
+  } | null = null;
 
   private initPromise: Promise<void> | null = null;
 
@@ -59,49 +59,93 @@ export class AnalyticsFacade {
   private overflowNotified = false;
   private policyReasonsNotified = new Set<string>();
 
-  private _preInjectedProvider: any | null = null;
-
   // Collect calls made before init() (when context/queues don’t exist yet)
   private preInitBuffer: EventQueue = new EventQueue({ maxSize: FACADE_BASE_DEFAULTS.queueSize });
 
-  init(opts: InitOptions = {}): this {
+  // Nullable internal services
+  private connectionMonitor: ConnectionMonitor | null = null;
+  private contextService: ContextService | null = null;
+  private performanceTracker: PerformanceTracker | null = null;
+  
+  // Required internal services and their getters
+
+  private _consent: ConsentManager | null = null;
+  private _diagnostics: DiagnosticsService | null = null;
+  private _navigation: NavigationService | null = null;
+  private _offline: OfflineStore | null = null;
+  private _policy: PolicyGate | null = null;
+  private _provider: ProviderManager | null = null;
+  private _queues: QueueService | null = null;
+
+  private _preInjectedProvider: any | null = null;
+
+
+  private get consent(): ConsentManager {
+    return returnIfInitialized(this._consent, 'ConsentManager');
+  }
+
+  private get diagnostics(): DiagnosticsService {
+    return returnIfInitialized(this._diagnostics, 'DiagnosticsService');
+  }
+
+  private get navigation(): NavigationService {
+    return returnIfInitialized(this._navigation, 'NavigationService');
+  }
+
+  private get offline(): OfflineStore {
+    return returnIfInitialized(this._offline, 'OfflineStore');
+  }
+
+  private get policy(): PolicyGate {
+    return returnIfInitialized(this._policy, 'PolicyGate');
+  }
+
+  private get provider(): ProviderManager {
+    return returnIfInitialized(this._provider, 'ProviderManager');
+  }
+
+  private get queues(): QueueService {
+    return returnIfInitialized(this._queues, 'QueueService');
+  }
+
+
+  init(opts: AnalyticsOptions = {}): this {
     if (this.initPromise) return this;
+    setGlobalLogger(createLogger(!!opts.debug));
+    if (opts.onError) {
+      // Attempt to set user error handler early to catch
+      // any errors before defaults are resolved
+      setUserErrorHandler(opts.onError);
+    }
 
-    const resolved = mergeConfig(opts);
-    this.cfg = resolved.facadeOptions;
-    this.pCfg = resolved.providerOptions;
+    logger.debug("Resolving user configuration");
+    this.config = resolveConfig(opts);
+    const { facade, provider, dispatcher } = this.config;
+    logger.debug("Initializing analytics", { provider: provider.name });
 
-    setGlobalLogger(createLogger(!!this.cfg?.debug));
-    logger.debug("Initializing analytics", { provider: this.pCfg.provider});
+    // Sets error handler to resolved one (user or default)
+    setUserErrorHandler(facade.onError);
 
-    setUserErrorHandler(this.cfg?.onError);
-
-    this.nav        = new NavigationService();
-    this.context    = new ContextService(this.cfg!);
-    this.queues     = new QueueService({
-      maxSize: this.cfg!.queueSize,
-      debug: !!this.cfg?.debug,
+    this.contextService = new ContextService(facade);
+    this._navigation = new NavigationService();
+    this._queues = new QueueService({
+      maxSize: facade.queueSize,
+      debug: !!facade.debug,
       onOverflow: dropped => this.onOverflow(dropped.length),
     });
 
-    // optional connection+offline
-    this.monitor = this.cfg?.connection?.monitor ? new ConnectionMonitor({
-      slowThreshold: this.cfg.connection?.slowThreshold, checkInterval: this.cfg.connection?.checkInterval
+    this.connectionMonitor = dispatcher.connection?.monitor ? new ConnectionMonitor({
+      slowThreshold: dispatcher.connection?.slowThreshold,
+      checkInterval: dispatcher.connection?.checkInterval,
     }) : null;
-    this.offline = this.cfg?.connection?.offlineStorage ? new OfflineStore() : null;
+    this._offline = dispatcher.connection?.offlineStorage ? new OfflineStore() : null;
 
-    if (this.cfg.performance?.enabled) {
+    if (dispatcher.performance?.enabled) {
       this.performanceTracker = new PerformanceTracker();
       this.performanceTracker.markInitStart();
     }
 
-    try {
-      validateProviderConfig(resolved);
-      this.setupProviderDependencies();
-    } catch (e) {
-      dispatchError(e, 'INVALID_CONFIG', this.pCfg?.provider ?? 'unknown');
-      this.setupFallbackNoopProvider();
-    }
+    this.setupProviderDependencies();
 
     // Consent transitions — attach ONCE per init (not in initialize)
     this.consent?.onChange((to, from) => {
@@ -119,7 +163,7 @@ export class AnalyticsFacade {
     }
 
     // drain offline on reconnect
-    this.monitor?.subscribe(async (state) => {
+    this.connectionMonitor?.subscribe(async (state) => {
       if (state === 'online' && this.offline) {
         const items = await this.offline.drainOffline();
         items.forEach(e => this.execute(e)); // re-checks policy/consent
@@ -140,14 +184,20 @@ export class AnalyticsFacade {
   private async initialize(): Promise<void> {
     try {
       this.attachProviderReadyHandlers();
-      await this.provider.load(this.performanceTracker);
-    } catch (e) {
+      await this.provider.load(this.diagnostics, this.performanceTracker);
+    } catch (error) {
       // Try to recover by falling back to noop
       try {
-        await this.fallbackToNoop(e);
+        logger.warn('Invalid provider config - falling back to noop', { error });
+        this.setupFallbackNoopProvider();
+        this.attachProviderReadyHandlers();
+        await this.provider.load(
+          this.diagnostics,
+          this.performanceTracker,
+        );
       } catch (fallbackErr) {
         // Hard failure: make waiters fail fast
-        this.cfg?.onError?.(
+        this.config?.facade.onError?.(
           new AnalyticsError(
             'Initialization failure',
             'INIT_FAILED',
@@ -258,7 +308,7 @@ export class AnalyticsFacade {
     return withTimeout(p, opts?.timeoutMs);
   }
 
-  getQueueSize(): number { return this.queues?.size() ?? this.preInitBuffer.size; }
+  getQueueSize(): number { return this._queues?.size() ?? this.preInitBuffer.size; }
 
   hasQueuedEvents(): boolean { return this.getQueueSize() > 0; }
 
@@ -284,7 +334,7 @@ export class AnalyticsFacade {
   async flushIfReady(): Promise<number> {
     if (!this.providerIsReady) return 0;
 
-    const status = this.consent?.getStatus?.();
+    const status = this._consent?.getStatus();
 
     let processed = 0;
     switch (status) {
@@ -312,13 +362,13 @@ export class AnalyticsFacade {
     return processed;
   }
 
-  getDiagnostics() { return this.diag.getSnapshot(); }
+  getDiagnostics() { return this.diagnostics.getSnapshot(); }
 
   destroy() {
-    this.nav.stop();
+    this.navigation.stop();
     this.provider.destroy();
     this.queues.clearAll();
-    this.context.reset();
+    this.contextService?.reset();
     setUserErrorHandler(null);
     this.providerIsReady = false;
     this._preInjectedProvider = null;
@@ -328,23 +378,24 @@ export class AnalyticsFacade {
   // === Internals ===
 
   private execute({ type, args = [], url, category = DEFAULT_CATEGORY }: { type: EventType; args?: unknown[]; url?: string; category?: ConsentCategory; }) {
+    logger.debug('facade executing', { type, args, url, category });
     // If init() hasn’t run yet, we don’t have context/queues. Buffer per instance.
 
-    if (!this.context) {
+    if (!this.contextService) {
       const bufferedCtx = url ? { url: url as string } : undefined;
       this.preInitBuffer.enqueue(type, args as any, category, bufferedCtx);
       return;
     }
 
-    const resolvedUrl = this.context.normalizeUrl(url ?? this.context.resolveCurrentUrl());
-    const ctx = this.context.buildPageContext(resolvedUrl, this.userId);
+    const resolvedUrl = this.contextService.normalizeUrl(url ?? this.contextService.resolveCurrentUrl());
+    const ctx = this.contextService.buildPageContext(resolvedUrl, this.userId);
 
     if (isServer() && type !== 'identify') {
       this.queues.enqueue(type, args as any, category, ctx); 
       return;
     }
 
-    if (this.monitor && !this.monitor.isHealthy() && this.offline) {
+    if (this.connectionMonitor && !this.connectionMonitor.isHealthy() && this.offline) {
       // Fire-and-forget; storage may be sync (localStorage) or async (future IndexedDB)
       try {
         const maybePromise = this.offline.saveOffline([
@@ -361,42 +412,55 @@ export class AnalyticsFacade {
     }
 
     const decision = this.policy.shouldSend(type, category, resolvedUrl);
+    logger.debug("Policy gate decision:", decision);
     const providerReady = this.isProviderReady();
+    const transient = !providerReady || decision.reason === 'consent-pending';
+    this.diagnostics.updatePolicyDiagnostics(decision.reason, transient);
 
     if (decision.ok && providerReady) {
       if (type === 'pageview') {
-        if (this.context.isDuplicatePageview(resolvedUrl)) {
+        if (this.contextService.isDuplicatePageview(resolvedUrl)) {
           logger.debug('duplicate pageview', { resolvedUrl });
           return;
         }
-        this.context.markPlanned(resolvedUrl);
+        this.contextService.markPlanned(resolvedUrl);
       }
 
+      logger.debug('Facade calling provider', { type });
       this.provider.call(type, args, ctx)
         ?.then(() => {
-          if (type === 'pageview') this.context.markSent(resolvedUrl);
+          if (type === 'pageview') this.contextService!.markSent(resolvedUrl);
         })
-        .catch(err => this.signalProviderError(type, err));
+        .catch(err => {
+          logger.error('Provider call failed', { type, error: err });
+          this.signalProviderError(type, err);
+        });
       return;
     }
 
-    const transient = !providerReady || decision.reason === 'consent-pending';
     if (transient && decision.reason !== 'consent-denied') {
+      logger.warn('Queuing event due to transient policy block', { reason: decision.reason });
       this.queues.enqueue(type, args as any, category, ctx);
-      if (type === 'track' && decision.reason === 'consent-pending') this.consent?.promoteImplicitIfAllowed?.();
+      if (type === 'track' && decision.reason === 'consent-pending') {
+        logger.debug('Promoting implicit consent if allowed');
+        this.consent?.promoteImplicitIfAllowed?.();
+      }
       return;
     }
-    // blocked
+
+    logger.warn("Policy gate blocked:", decision.reason);
     this.signalPolicyBlocked(decision.reason);
   }
 
   private drainPreInitBuffer() {
+    logger.debug('Draining pre-init buffer');
     const buffered = this.preInitBuffer.flush();
     return this.executeQueuedEvents(buffered);
   }
 
   private flushQueues(policy: 'execute-all' | 'execute-essential' = 'execute-all'): number {
     let events = this.queues.flushAll();
+    logger.debug('Queues flushed by facade', { count: events.length, policy });
     if (policy === 'execute-essential') {
       events = events.filter(e => e.category === 'essential');
     }
@@ -428,14 +492,14 @@ export class AnalyticsFacade {
   }
 
   private sendInitialPV() {
-    if (!this.cfg?.autoTrack) return;
-    const url = this.context.normalizeUrl(this.context.resolveCurrentUrl());
+    if (!this.config?.facade.autoTrack) return;
+    const url = this.contextService?.normalizeUrl(this.contextService?.resolveCurrentUrl());
     this.pageview(url);
   }
 
   private maybeStartAutotrack() {
-    if (!this.cfg?.autoTrack) return;
-    this.nav.start((url) => {
+    if (!this.config?.facade.autoTrack) return;
+    this.navigation.start((url) => {
       this.execute({ type: 'pageview', url });
     });
   }
@@ -445,25 +509,43 @@ export class AnalyticsFacade {
   }
 
   private setupProviderDependencies() {
-    this.consent    = new ConsentManager(getConsentConfig(this.cfg!, this.pCfg?.provider));
-    this.policy     = new PolicyGate(this.cfg!, this.consent, this.pCfg?.provider || 'noop');
-    this.provider   = new ProviderManager(this.pCfg!, this.cfg!);
-    this.diag       = new DiagnosticsService(
-      this.id, this.cfg!, this.consent as any,
-      this.queues, this.context, this.provider,
-      this.pCfg?.provider ?? null, this.performanceTracker,
+    if (!this.config) {
+      throw new AnalyticsError(
+        'Cannot setup provider dependencies: not initialized',
+        'INVALID_CONFIG'
+      );
+    }
+
+    const { facade, provider, dispatcher } = this.config;
+    this._consent = new ConsentManager(facade.consent);
+    this._policy = new PolicyGate(facade, this.consent);
+    this._provider = new ProviderManager(provider, facade, dispatcher);
+    this._diagnostics = new DiagnosticsService(
+      this.id, facade, dispatcher, this.consent,
+      this.queues, this.contextService, this.provider,
+      this.performanceTracker,
     );
   }
 
   private attachProviderReadyHandlers() {
-    if (!this.provider?.onReady) return;
+    if (!this.provider.onReady) {
+      const err = new AnalyticsError(
+        'Provider is not ready-capable',
+        'PROVIDER_ERROR',
+        this.provider.name(),
+      );
+      this.config?.facade.onError(err);
+      return;
+    }
 
     this.provider.onReady(() => {
+      logger.info('Provider is ready');
+
       // Provider is now safe to talk to
       this.providerIsReady = true;
 
       // Enqueue initial PV now; PolicyGate decides send/queue/drop
-      if (this.cfg?.autoTrack) this.sendInitialPV();
+      if (this.config?.facade.autoTrack) this.sendInitialPV();
 
       // Start SPA listeners right away; PolicyGate will handle gating
       this.maybeStartAutotrack();
@@ -483,7 +565,7 @@ export class AnalyticsFacade {
         'QUEUE_OVERFLOW',
         this.provider.name(),
       );
-      this.cfg?.onError?.(err);
+      this.config?.facade.onError(err);
     } catch {}
   }
 
@@ -497,7 +579,7 @@ export class AnalyticsFacade {
         'POLICY_BLOCKED',
         this.provider.name(),
       );
-      this.cfg?.onError?.(err);
+      this.config?.facade.onError(err);
     } catch {}
   }
 
@@ -509,21 +591,20 @@ export class AnalyticsFacade {
         'PROVIDER_ERROR',
         this.provider.name(),
       );
-      this.cfg?.onError?.(err);
+      this.config?.facade.onError(err);
     } catch {}
   }
 
   private setupFallbackNoopProvider() {
     try { this.provider?.destroy(); } catch {}
-    this.pCfg = { provider: 'noop' } as any;
-    this.setupProviderDependencies();
-  }
 
-  private async fallbackToNoop(error: unknown) {
-    logger.warn('Invalid provider config – falling back to noop', { error });
-    this.setupFallbackNoopProvider();
-    await this.provider.load(this.performanceTracker);
-    this.attachProviderReadyHandlers();
+    if (this.config) {
+      this.config.provider = DEFAULT_PROVIDER_OPTIONS;
+    } else {
+      this.config = resolveConfig();
+    }
+
+    this.setupProviderDependencies();
   }
 
   /** @internal test-only */
@@ -532,8 +613,8 @@ export class AnalyticsFacade {
     // (no public export; tests can use // @ts-expect-error)
      
     // @ts-ignore
-    if (this.provider) {
-      this.provider?.inject(p);
+    if (this._provider) {
+      this.provider.inject(p);
       this.providerIsReady = true; 
     }
 
@@ -545,7 +626,7 @@ export class AnalyticsFacade {
 
   /** @internal test-only */
   getProvider(): StatefulProvider | null {
-    return this.provider?.get() ?? null;
+    return this.provider.get() ?? null;
   }
 
   /** @internal test-only */
