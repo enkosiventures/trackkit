@@ -1,4 +1,4 @@
-import type { EventType, AnalyticsOptions, Props, ResolvedFacadeOptions, ResolvedProviderOptions } from '../types';
+import type { EventType, AnalyticsOptions, Props, ResolvedFacadeOptions, ResolvedProviderOptions, EventMap, AnyEventMap } from '../types';
 import { resolveConfig } from './config';
 import { ConsentManager } from '../consent/ConsentManager';
 import type { ConsentCategory, ConsentStatus, ConsentStoredState } from '../consent/types';
@@ -42,7 +42,7 @@ function returnIfInitialized<T>(obj: T | null, name?: string): T {
   return obj;
 }
 
-export class AnalyticsFacade {
+export class AnalyticsFacade<E extends EventMap = AnyEventMap> {
   readonly id = `AF_${getId()}`;
 
   private config: {
@@ -211,8 +211,8 @@ export class AnalyticsFacade {
 
   // === Public API (compat with README & legacy singleton) ===
 
-  track(name: string, props?: Props, category = DEFAULT_CATEGORY) {
-    this.execute({ type: 'track', args: [name, props], category });
+  track<K extends string & keyof E>(name: K, props?: E[K], category = DEFAULT_CATEGORY) {
+    this.execute({ type: 'track', args: [name, props as Props], category });
   }
 
   pageview(url?: string) {

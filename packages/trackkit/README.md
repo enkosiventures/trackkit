@@ -50,19 +50,31 @@ For full documentation, see the **Quickstart**, detailed guides, API reference, 
 
 ## TypeScript niceties
 
-Optionally type your events:
+Define an event map and pass it as a type parameter to `createAnalytics` for
+compile-time checking of `track()` calls:
 
 ```ts
-type Events = {
+import { createAnalytics } from 'trackkit';
+
+type MyEvents = {
   signup_submitted: { plan: 'free' | 'pro' };
-  purchase_completed: { amount: number; currency: 'USD'|'EUR' };
+  purchase_completed: { amount: number; currency: string };
 };
 
-// If your project exposes a TypedAnalytics<> helper, you can cast.
-// Otherwise, just rely on your own wrappers/types around `track`.
+const analytics = createAnalytics<MyEvents>({
+  provider: { name: 'umami', site: '...' },
+});
+
+analytics.track('signup_submitted', { plan: 'pro' });     // ✅ compiles
+analytics.track('signup_submitted', { plan: 'gold' });     // ❌ type error
+analytics.track('signup_submited');                         // ❌ typo caught
 ```
 
-(Trackkit’s core API is fully typed; strict event typing can be layered via your app types or helper wrappers.)
+When no type parameter is supplied, behaviour is unchanged — any event name
+and any props are accepted.
+
+> **Note:** The singleton API (`init` / `track`) does not support typed events.
+> Use the factory API (`createAnalytics<E>()`) for compile-time event checking.
 
 ## SSR
 

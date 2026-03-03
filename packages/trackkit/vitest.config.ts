@@ -19,6 +19,10 @@ export default defineConfig({
       ...configDefaults.exclude,
       '**/e2e/**',
     ],
+    typecheck: {
+      enabled: false,
+      include: ['test/**/*.test-d.ts'],
+    },
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage',

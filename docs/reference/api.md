@@ -55,7 +55,7 @@ import type {
 
 ### Initialization
 
-#### `createAnalytics<E extends EventMap = EventMap>(opts?: AnalyticsOptions): AnalyticsInstance<E>`
+#### `createAnalytics<E extends EventMap = AnyEventMap>(opts?: AnalyticsOptions): AnalyticsInstance<E>`
 
 Factory API. Creates a **new analytics instance**.
 
@@ -82,7 +82,7 @@ analytics.track('signup_completed', { plan: 'pro' });
 * `AnalyticsOptions` configures provider, queue, consent, resilience, etc.
   See the Configuration guide for full fields.
 
-#### `init(opts: InitOptions): void`
+#### `init(opts: AnalyticsOptions): void`
 
 Singleton API. Initialises the **global** analytics facade.
 
@@ -289,12 +289,12 @@ String union of supported provider keys, e.g.:
 
 #### `EventMap` / `AnyEventMap`
 
-See Typed Events above.
+* `EventMap`: `Record<string, Record<string, unknown>>` — a mapping from event names to their expected property shapes. Define your own event map to get compile-time checking of `track()` calls via `createAnalytics<E>()`.
+* `AnyEventMap`: convenience alias for the fully-open default map. When no type parameter is supplied, `AnyEventMap` is used and all event names and props are accepted.
 
-* `EventMap`: `Record<string, Record<string, unknown>>`
-* `AnyEventMap`: alias used as the default map.
+> **Note:** The singleton API (`init` / `track` / `pageview`) does not support typed events. Use the factory API (`createAnalytics<E>()`) for compile-time event checking.
 
-#### `AnalyticsInstance<E extends EventMap = EventMap>`
+#### `AnalyticsInstance<E extends EventMap = AnyEventMap>`
 
 The shape of an analytics instance returned by `createAnalytics<E>()`.
 Primarily used by TypeScript consumers for typed `track()`.

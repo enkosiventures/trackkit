@@ -72,6 +72,35 @@ analytics.track('signup_submitted', {
 });
 ```
 
+### Typed events (optional)
+
+For compile-time checking of event names and properties, define an event map
+and pass it as a type parameter:
+
+```ts
+// analytics.ts
+import { createAnalytics } from 'trackkit';
+
+type MyEvents = {
+  signup_submitted: { plan: 'free' | 'pro'; source: string };
+  purchase_completed: { amount: number; currency: string };
+};
+
+export const analytics = createAnalytics<MyEvents>({
+  provider: { name: 'umami', site: '...' },
+});
+
+analytics.track('signup_submitted', { plan: 'pro', source: 'hero' }); // ✅
+analytics.track('signup_submitted', { plan: 'gold' });                 // ❌ type error
+analytics.track('unknown_event');                                      // ❌ not in MyEvents
+```
+
+When no type parameter is supplied, `track()` accepts any string name and any
+props — identical to untyped usage.
+
+> The singleton API does not support typed events. Use `createAnalytics<E>()`
+> for type-checked tracking.
+
 ### Identify (where supported)
 
 ```ts
@@ -204,3 +233,4 @@ const analytics = createAnalytics({
   - [Plausible](/providers/plausible)
   - [Google Analytics 4](/providers/ga4)
 - See full SSR semantics: [SSR Guide](/guides/ssr)
+- Typed events API details: [API Reference](/reference/api)
