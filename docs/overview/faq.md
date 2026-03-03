@@ -101,7 +101,7 @@ Trackkit gives you explicit hooks; it does not substitute for a legal review.
 At a high level:
 
 - Trackkit keeps an internal consent state: `pending`, `granted`, or `denied`.
-- You can configure default behaviour via `InitOptions.consent` (initialStatus, requireExplicit, allowEssentialOnDenied, etc.).
+- You can configure default behaviour via `AnalyticsOptions.consent` (initialStatus, requireExplicit, allowEssentialOnDenied, etc.).
 - Events are tagged with a **category** (`analytics` by default, or `essential` when you explicitly opt in).
 - The queue and policy gate use those categories and status to decide whether to queue, flush, or drop events.
 
@@ -190,7 +190,7 @@ The [Next.js example](/examples/next-ssr-ga4) demonstrates a complete setup.
 Prefer the **factory API**:
 
 ```ts
-const analytics = createAnalytics({ provider: 'umami', site: 'my-site' });
+const analytics = createAnalytics({ provider: { name: 'umami', site: 'my-site' } });
 analytics.track('signup_completed', { plan: 'pro' });
 ```
 

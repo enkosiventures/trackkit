@@ -22,9 +22,11 @@ Create a single `analytics` instance near your app entry point:
 import { createAnalytics } from 'trackkit';
 
 export const analytics = createAnalytics({
-  provider: 'umami',                 // 'umami' | 'plausible' | 'ga4' | 'noop'
-  site: '94db1cb1-74f4-4a40-ad6c-962362670409',
-  host: 'https://cloud.umami.is',    // required if self-hosting / custom domain
+  provider: {
+    name: 'umami',                 // 'umami' | 'plausible' | 'ga4' | 'noop'
+    site: '94db1cb1-74f4-4a40-ad6c-962362670409',
+    host: 'https://cloud.umami.is',  // required if self-hosting / custom domain
+  },
   debug: process.env.NODE_ENV === 'development',
 });
 ```
@@ -88,8 +90,7 @@ A common EU-style setup:
 import { createAnalytics } from 'trackkit';
 
 export const analytics = createAnalytics({
-  provider: 'ga4',
-  site: 'G-XXXXXXXXXX',
+  provider: { name: 'ga4', site: 'G-XXXXXXXXXX' },
   consent: {
     initialStatus: 'pending',      // 'pending' | 'granted' | 'denied'
     requireExplicit: true,         // explicit opt-in
@@ -135,14 +136,13 @@ However, if you prefer a global singleton, you can use the top-level helpers:
 import {
   init, destroy,
   track, pageview, identify,
-  setConsent, grantConsent, denyConsent, resetConsent,
+  grantConsent, denyConsent, resetConsent,
   waitForReady, hasQueuedEvents, flushIfReady,
   getConsent, getDiagnostics,
 } from 'trackkit';
 
 init({
-  provider: 'umami',
-  site: '94db1cb1-74f4-4a40-ad6c-962362670409',
+  provider: { name: 'umami', site: '94db1cb1-74f4-4a40-ad6c-962362670409' },
 });
 
 pageview();
@@ -168,8 +168,7 @@ Enable debug logs to see what Trackkit is doing:
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'umami',
-  site: '94db1cb1-74f4-4a40-ad6c-962362670409',
+  provider: { name: 'umami', site: '94db1cb1-74f4-4a40-ad6c-962362670409' },
   debug: true,
 });
 ```
@@ -185,8 +184,7 @@ If you want to wire Trackkit into your own logging:
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'umami',
-  site: '94db1cb1-74f4-4a40-ad6c-962362670409',
+  provider: { name: 'umami', site: '94db1cb1-74f4-4a40-ad6c-962362670409' },
   onError: (err) => {
     // err is an AnalyticsError with .code, .message, .provider, .timestamp
     myLogger.error('analytics_error', err);

@@ -22,7 +22,7 @@ idle → initializing → ready → destroyed
 ```ts
 import { init, waitForReady } from 'trackkit';
 
-init({ provider: 'umami' });
+init({ provider: { name: 'umami' } });
 await waitForReady();   // ensures provider is ready
 track('app_loaded');
 ```
@@ -57,7 +57,7 @@ If initialization fails (bad config, blocked script, network), Trackkit:
 import { destroy, init } from 'trackkit';
 
 destroy(); // stop autotrack, clear queues, destroy provider
-init({ provider: 'plausible', autoTrack: true });
+init({ provider: { name: 'plausible' }, autoTrack: true });
 ```
 
 Destroying cleans navigation listeners, clears in-memory queues, resets consent listeners, and detaches the provider. Re-init is safe afterwards.
@@ -69,7 +69,7 @@ If you ship your own preload step (dynamic import), do it before `init()`:
 
 ```ts
 await import('trackkit/providers/umami'); // warm the chunk
-init({ provider: 'umami' });
+init({ provider: { name: 'umami' } });
 ```
 
 > Trackkit doesn’t currently export a dedicated `preload()` helper; this pattern is sufficient if you need it.

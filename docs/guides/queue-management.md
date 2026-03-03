@@ -78,7 +78,7 @@ These semantics ensure deterministic behaviour across SSR, pending consent, and 
 1. **Provider not ready (async load)**
 
 ```ts
-const analytics = createAnalytics({ provider: 'umami', site: 'example.com' });
+const analytics = createAnalytics({ provider: { name: 'umami', site: 'example.com' } });
 
 // Immediately after creating the instance:
 analytics.track('clicked');
@@ -89,7 +89,9 @@ analytics.track('clicked');
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'umami',
+  provider: {
+    name: 'umami',
+  },
   consent: {
     initialStatus: 'pending',
     requireExplicit: true,
@@ -113,7 +115,7 @@ Events collected on the server are injected into the page and **replayed** on th
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'umami',
+  provider: { name: 'umami' },
   queueSize: 100, // default 50
   onError: (err) => {
     if (err.code === 'QUEUE_OVERFLOW') {
@@ -184,8 +186,7 @@ By default, Trackkit sends events with `fetch`:
 
 ```ts
 createAnalytics({
-  provider: 'umami',
-  site: '...',
+  provider: { name: 'umami', site: '...' },
   // transport: 'auto' is the default
 });
 ```
@@ -194,8 +195,7 @@ If you enable blocker detection, Trackkit can switch transports when ad blockers
 
 ```ts
 createAnalytics({
-  provider: 'plausible',
-  site: '...',
+  provider: { name: 'plausible', site: '...' },
   resilience: {
     detectBlockers: true,
     fallbackStrategy: 'proxy', // 'proxy' | 'beacon' | 'none'

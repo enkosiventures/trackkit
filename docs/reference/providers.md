@@ -7,8 +7,8 @@ For full behaviour (consent, queueing, SSR, transports, policy), see the individ
 ## Umami
 
 **Required**
-- `provider: 'umami'`
-- `site` (or `website`)
+- `provider: { name: 'umami' }`
+- `site` (or `website`) inside the provider object
 
 **Optional**
 - `host`: e.g., `https://umami.example.com`
@@ -21,8 +21,8 @@ For full behaviour (consent, queueing, SSR, transports, policy), see the individ
 ## Plausible
 
 **Required**
-- `provider: 'plausible'`
-- `site` (usually your domain)
+- `provider: { name: 'plausible' }`
+- `site` (usually your domain) inside the provider object
 
 **Optional**
 - `host` for self-hosted Plausible
@@ -35,8 +35,8 @@ For full behaviour (consent, queueing, SSR, transports, policy), see the individ
 ## GA4
 
 **Required**
-- `provider: 'ga4'`
-- `measurementId: 'G-XXXXXXX'`
+- `provider: { name: 'ga4' }`
+- `site` (or `measurementId`) inside the provider object, e.g. `'G-XXXXXXX'`
 
 **Events**
 - `track(name, props?)`

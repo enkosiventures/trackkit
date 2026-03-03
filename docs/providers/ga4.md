@@ -23,11 +23,13 @@ Trackkit’s GA4 adapter is Measurement-Protocol–only. No GA script is loaded 
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'ga4',
-  site: 'G-XXXXXXXXXX',  // Your Measurement ID
+  provider: {
+    name: 'ga4',
+    site: 'G-XXXXXXXXXX',  // Your Measurement ID
 
-  // Recommended for full reporting accuracy in MP:
-  // apiSecret: '...', 
+    // Recommended for full reporting accuracy in MP:
+    // apiSecret: '...', 
+  },
 });
 ```
 
@@ -35,18 +37,22 @@ const analytics = createAnalytics({
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'ga4',
+  provider: {
+    name: 'ga4',
 
-  /* Identifier */
-  site: 'G-XXXXXXXXXX',
-  // measurementId: 'G-XXXXXXXXXX',      // Provider-specific alternative to 'site'
+    /* Identifier */
+    site: 'G-XXXXXXXXXX',
+    // measurementId: 'G-XXXXXXXXXX',      // Provider-specific alternative to 'site'
 
-  /* Auth (Optional but recommended for reliability) */
-  apiSecret: 'YOUR_API_SECRET',          // Generated in GA4 Admin > Data Streams > API Secrets
+    /* Auth (Optional but recommended for reliability) */
+    apiSecret: 'YOUR_API_SECRET',          // Generated in GA4 Admin > Data Streams > API Secrets
+
+    /* Metadata */
+    defaultProps: { appVersion: '2.3.1' }, // merged into GA4 params
+  },
 
   /* Features */
   autoTrack: true,                       // SPA pageviews
-  defaultProps: { appVersion: '2.3.1' }, // merged into GA4 params
   includeHash: false,                    // omit #fragment
   trackLocalhost: true,                  // enabled by default
 
@@ -162,8 +168,7 @@ No script tag required unless using an advanced GA4 configuration.
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'ga4',
-  site: 'G-XXXXXXXXXX',
+  provider: { name: 'ga4', site: 'G-XXXXXXXXXX' },
   debug: true,
 });
 ```

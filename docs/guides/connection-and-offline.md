@@ -284,8 +284,7 @@ const monitor = new ConnectionMonitor();
 const offlineStore = new OfflineStore();
 
 const analytics = createAnalytics({
-  provider: 'umami',
-  site: '…',
+  provider: { name: 'umami', site: '…' },
   // normal config…
 });
 

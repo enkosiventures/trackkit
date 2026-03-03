@@ -23,9 +23,11 @@ Trackkit loads **no script tags**; all communication is via the Umami HTTP API.
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'umami',
-  site: 'your-website-id', // UUID from Umami dashboard
-  // host defaults to 'https://api.umami.is' if omitted
+  provider: {
+    name: 'umami',
+    site: 'your-website-id', // UUID from Umami dashboard
+    // host defaults to 'https://api.umami.is' if omitted
+  },
 });
 ```
 
@@ -33,27 +35,30 @@ const analytics = createAnalytics({
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'umami',
-  
-  // Identifier
-  site: 'your-website-id',                     // Unified key
-  // website: 'your-website-id',               // Provider-specific alternative to 'site'
+  provider: {
+    name: 'umami',
 
-  // Endpoint
-  host: 'https://analytics.example.com',       // Required for self-hosted instances
+    // Identifier
+    site: 'your-website-id',                     // Unified key
+    // website: 'your-website-id',               // Provider-specific alternative to 'site'
+
+    // Endpoint
+    host: 'https://analytics.example.com',       // Required for self-hosted instances
+
+    // Metadata
+    defaultProps: { appVersion: '2.3.1' },       // Merged into every event
+  },
 
   // Features
   autoTrack: true,                             // Enable SPA pageview tracking
   doNotTrack: true,                            // Respect browser DNT setting
   trackLocalhost: true,                        // Enable in local dev
-  
+
   // Filtering
   domains: ['example.com', 'www.example.com'], // Exact match allowlist
   exclude: ['/admin', '/preview'],             // Path substring blocklist
   includeHash: false,                          // Ignore URL hash in pageviews
-  
-  // Metadata
-  defaultProps: { appVersion: '2.3.1' },       // Merged into every event
+
   debug: false,
 });
 ```
@@ -121,8 +126,7 @@ grantConsent(); // Flush queue and resume
 
 ```ts
 createAnalytics({
-  provider: 'umami',
-  site: 'your-website-id',
+  provider: { name: 'umami', site: 'your-website-id' },
   debug: true,
 });
 ```

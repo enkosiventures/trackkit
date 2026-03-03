@@ -35,8 +35,10 @@ Performance tracking is disabled by default. To turn it on, pass `performance.en
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'umami',
-  site: '…',
+  provider: {
+    name: 'umami',
+    site: '…',
+  },
   performance: {
     enabled: true,
     sampleRate: 1,   // track every event
@@ -75,8 +77,7 @@ If performance tracking is enabled and wired into the facade, metrics are expose
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'ga4',
-  site: 'G-XXXXXXXXXX',
+  provider: { name: 'ga4', site: 'G-XXXXXXXXXX' },
   debug: true,
   performance: { enabled: true },
 });
@@ -110,8 +111,7 @@ Use this to:
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'plausible',
-  site: 'example.com',
+  provider: { name: 'plausible', site: 'example.com' },
   debug: true,
   performance: { enabled: true },
 });

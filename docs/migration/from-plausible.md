@@ -18,7 +18,7 @@ and adds:
 
 | Old (Plausible)                                   | Trackkit                                      |
 |--------------------------------------------------|-----------------------------------------------|
-| `<script src="https://plausible.io/js/script.js` | `createAnalytics({ provider: 'plausible',… })`|
+| `<script src="https://plausible.io/js/script.js` | `createAnalytics({ provider: { name: 'plausible',… } })`|
 | Global `plausible('event', props)`               | `track('event', props)`                       |
 | `data-domain` attribute                          | `site` option / `TRACKKIT_SITE`              |
 | On-page consent  gating around script            | `consent.initialStatus`, `grantConsent()`    |
@@ -62,9 +62,11 @@ TRACKKIT_HOST=https://plausible.io
 import { createAnalytics } from 'trackkit';
 
 export const analytics = createAnalytics({
-  provider: 'plausible',
-  site: 'yourdomain.com',
-  host: 'https://plausible.io',
+  provider: {
+    name: 'plausible',
+    site: 'yourdomain.com',
+    host: 'https://plausible.io',
+  },
   autoTrack: true,
   doNotTrack: true,
   includeHash: false,
@@ -113,8 +115,7 @@ Use `domains` and `exclude` to limit what gets tracked:
 
 ```ts
 createAnalytics({
-  provider: 'plausible',
-  site: 'yourdomain.com',
+  provider: { name: 'plausible', site: 'yourdomain.com' },
   domains: ['yourdomain.com'],
   exclude: ['/admin', '/preview'],
 });
@@ -127,8 +128,7 @@ Instead of manually avoiding `plausible()` calls, let Trackkit hold the events a
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'plausible',
-  site: 'yourdomain.com',
+  provider: { name: 'plausible', site: 'yourdomain.com' },
   consent: {
     initialStatus: 'pending',
     requireExplicit: true,

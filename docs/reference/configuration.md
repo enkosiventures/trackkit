@@ -108,9 +108,11 @@ Programmatic config is the “source of truth” and always wins over env/runtim
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'plausible',
-  site: 'site-123',
-  host: 'https://plausible.example.com',
+  provider: {
+    name: 'plausible',
+    site: 'site-123',
+    host: 'https://plausible.example.com',
+  },
   debug: true,
   autoTrack: true,
   queueSize: 50,
@@ -123,9 +125,11 @@ You can still use the singleton API if you prefer:
 import { init } from 'trackkit';
 
 init({
-  provider: 'umami',
-  site: 'abc-123',
-  host: 'https://analytics.example.com',
+  provider: {
+    name: 'umami',
+    site: 'abc-123',
+    host: 'https://analytics.example.com',
+  },
 });
 ```
 
@@ -341,22 +345,21 @@ TRACKKIT_HOST=https://plausible.example.com
 
 ### GA4
 
-* **Required:** `measurementId` (programmatic) or `MEASUREMENT_ID` (env/runtime).
-* Host defaults to GA’s standard endpoints.
+* **Required:** `site` (or `measurementId`) inside the provider object.
+* Host defaults to GA's standard endpoints.
 
 Example:
 
 ```sh
 TRACKKIT_PROVIDER=ga4
-TRACKKIT_MEASUREMENT_ID=G-XXXXXXX
+TRACKKIT_SITE=G-XXXXXXX
 ```
 
 Programmatic:
 
 ```ts
 createAnalytics({
-  provider: 'ga4',
-  measurementId: 'G-XXXXXXX',
+  provider: { name: 'ga4', site: 'G-XXXXXXX' },
 });
 ```
 

@@ -30,3 +30,5 @@ export {
 
 // Types
 export * from './types';
+export type { ConsentStoredState } from './consent/types';
+export type { DiagnosticsSnapshot } from './facade/diagnostics';

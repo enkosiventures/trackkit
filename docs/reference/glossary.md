@@ -21,7 +21,7 @@ The internal object that coordinates configuration, queues, consent, and provide
 The preferred integration style. Calling `createAnalytics(opts)` returns an `AnalyticsInstance` that wraps a single facade:
 
 ```ts
-const analytics = createAnalytics({ provider: 'umami', site: 'my-site' });
+const analytics = createAnalytics({ provider: { name: 'umami', site: 'my-site' } });
 ```
 
 Instances are easier to reason about in modern apps (SSR, multi-tenant, tests) because they avoid global state.
@@ -32,7 +32,7 @@ Instances are easier to reason about in modern apps (SSR, multi-tenant, tests) b
 A convenience style that exposes global helpers like `init`, `track`, and `pageview`:
 
 ```ts
-init({ provider: 'umami', site: 'my-site' });
+init({ provider: { name: 'umami', site: 'my-site' } });
 track('signup_completed');
 ```
 
@@ -131,7 +131,7 @@ Diagnostics are intended for debugging, tooling, and dashboards, not for applica
 A provider-agnostic identifier field accepted by Trackkit configuration:
 
 ```ts
-createAnalytics({ provider: 'umami', site: 'my-site-id' });
+createAnalytics({ provider: { name: 'umami', site: 'my-site-id' } });
 ```
 
 Internally, `site` is mapped to the provider-specific field:

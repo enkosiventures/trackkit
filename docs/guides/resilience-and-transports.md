@@ -54,12 +54,14 @@ Other HTTP statuses are treated as permanent failures and are **not** retried.
 
 ### Customising retries
 
-You can override retry options in your config (see your `InitOptions` / `FacadeOptions`):
+You can override retry options in your config (see your `AnalyticsOptions`):
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'umami',
-  site: '…',
+  provider: {
+    name: 'umami',
+    site: '…',
+  },
   retry: {
     maxAttempts: 5,
     initialDelay: 500,
@@ -123,8 +125,7 @@ If a blocker is detected, Trackkit chooses a fallback based on `resilience.fallb
 
 ```ts
 const analytics = createAnalytics({
-  provider: 'plausible',
-  site: 'yourdomain.com',
+  provider: { name: 'plausible', site: 'yourdomain.com' },
   resilience: {
     detectBlockers: true,
     fallbackStrategy: 'smart',
