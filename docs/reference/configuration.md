@@ -157,7 +157,7 @@ Some options are **only** expected to be set programmatically (not via env):
 * `dispatcher.performance`
 * detailed `consent` configuration
 
-These all live under the `dispatcher` key in `AnalyticsOptions`. The shapes are defined in TypeScript; use your editor's IntelliSense (or the source files) as the canonical reference.
+The dispatcher-related options above live under the `dispatcher` key in `AnalyticsOptions`, while detailed `consent` configuration is defined at the top level of `AnalyticsOptions`. The shapes are defined in TypeScript; use your editor's IntelliSense (or the source files) as the canonical reference.
 
 ### Retry
 
