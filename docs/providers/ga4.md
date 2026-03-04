@@ -46,9 +46,6 @@ const analytics = createAnalytics({
 
     /* Auth (Optional but recommended for reliability) */
     apiSecret: 'YOUR_API_SECRET',          // Generated in GA4 Admin > Data Streams > API Secrets
-
-    /* Metadata */
-    defaultProps: { appVersion: '2.3.1' }, // merged into GA4 params
   },
 
   /* Features */
@@ -182,7 +179,7 @@ Enable `debug: true` to see:
 ## Best Practices
 
 1. Ensure a compliant consent flow.
-2. Use `defaultProps` for application metadata.
+2. Use custom event props for application metadata (e.g. `track('event', { appVersion: '2.3.1' })`).
 3. Keep GA4 event names aligned with recommended GA4 semantics.
 4. Consider using a proxy if you want full first-party deployment.
 

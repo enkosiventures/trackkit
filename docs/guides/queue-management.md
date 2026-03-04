@@ -1,6 +1,6 @@
 # Queue Management
 
-Trackkit buffers events when it’s *not safe* to send yet, then replays them in order once conditions are met.
+Trackkit buffers events when it's *not safe* to send yet, then replays them in order once conditions are met.
 
 > **Want to see queue management in action?**
 >
@@ -138,24 +138,45 @@ const analytics = createAnalytics({ debug: true });
 const diagnostics = analytics.getDiagnostics();
 /*
 {
-  id: 'AF_xxx',
-  hasProvider: true,
-  providerReady: true,
-  queueState: { ... },
-  facadeQueueSize: 0,
-  ssrQueueSize: 0,
-  totalQueueSize: 0,
-  initializing: false,
-  provider: 'umami',
-  consent: 'granted',
-  debug: true,
-  lastSentUrl: '/current',
-  lastPlannedUrl: '/current'
+  timestamp: 1709553600000,
+  instanceId: 'AF_xxx',
+  config: {
+    autoTrack: true,
+    debug: true,
+    queueSize: 50,
+    trackLocalhost: true,
+    // ... other resolved config flags
+  },
+  consent: {
+    status: 'granted',
+  },
+  dispatcher: {
+    transportMode: 'smart',
+    batching: { enabled: false, ... },
+    resilience: { detectBlockers: false, fallbackStrategy: 'proxy', ... },
+    connection: { monitor: false, offlineStorage: false, ... },
+  },
+  provider: {
+    key: 'umami',
+    state: 'ready',
+    events: 5,
+    history: [  <state transitions> ],
+  },
+  queue: {
+    totalBuffered: 0,
+    ssrQueueBuffered: 0,
+    facadeQueueBuffered: 0,
+    capacity: 50,
+  },
+  urls: {
+    lastPlanned: '/current',
+    lastSent: '/current',
+  },
 }
 */
 ```
 
-You can safely read `facadeQueueSize`, `ssrQueueSize`, and `totalQueueSize` to understand what’s currently buffered.
+You can safely read `queue.facadeQueueBuffered`, `queue.ssrQueueBuffered`, and `queue.totalBuffered` to understand what's currently buffered.
 
 
 ## SSR Flow

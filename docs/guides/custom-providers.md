@@ -105,7 +105,7 @@ export interface MyProviderOptions {
 }
 ```
 
-These options will later be merged into the main `InitOptions` via `providerOptions` or a dedicated `myProvider` block (depending on how you design it). Keep them minimal and explicit.
+These options will later be passed through the `provider` field in `AnalyticsOptions` when you configure your analytics instance. Keep them minimal and explicit.
 
 
 ## Step 2 – Implement the adapter
@@ -251,19 +251,17 @@ Once the provider is wired into the registry and the type union:
 import { createAnalytics } from 'trackkit';
 
 const analytics = createAnalytics({
-  provider: 'myprovider',
-  site: '…', // if you need it
-  // or preferably a dedicated options block based on your types:
-  providerOptions: {
-    myprovider: {
-      apiKey: '…',
-      endpoint: 'https://api.example-analytics.com',
-    }
-  }
+  provider: {
+    name: 'myprovider',
+    site: '…', // if you need it
+    // Provider-specific options are passed through the provider object:
+    apiKey: '…',
+    endpoint: 'https://api.example-analytics.com',
+  },
 });
 ```
 
-Match this to however you’ve wired provider-specific options into your `InitOptions`; use the existing Umami / Plausible / GA4 implementations as authoritative examples.
+Match this to however you've wired provider-specific options into your `AnalyticsOptions`; use the existing Umami / Plausible / GA4 implementations as authoritative examples.
 
 
 ## Diagnostics & Snapshots
