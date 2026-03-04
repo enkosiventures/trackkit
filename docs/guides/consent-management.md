@@ -143,7 +143,9 @@ import {
 ### 1. Explicit banner (GDPR-style)
 
 ```ts
-const analytics = ({ consent: { initial: 'pending', requireExplicit: true } });
+const analytics = createAnalytics({
+  consent: { initialStatus: 'pending', requireExplicit: true },
+});
 
 if (getConsent()?.status === 'pending') showBanner();
 
@@ -154,8 +156,8 @@ reject.onclick = () => denyConsent();
 ### 2. Implicit grant on first interaction (opt-out)
 
 ```ts
-const analytics = ({
-  consent: { initial: 'pending', requireExplicit: false },
+const analytics = createAnalytics({
+  consent: { initialStatus: 'pending', requireExplicit: false },
 });
 // First analytics event after user interacts can auto-promote to 'granted'.
 // (Never auto-promotes if requireExplicit is true.)
@@ -164,8 +166,8 @@ const analytics = ({
 ### 3. Policy version bumps (force re-consent)
 
 ```ts
-const analytics = ({
-  consent: { policyVersion: '2024-10-01', initial: 'pending' },
+const analytics = createAnalytics({
+  consent: { policyVersion: '2024-10-01', initialStatus: 'pending' },
 });
 // If stored policyVersion differs, consent resets to 'pending'.
 ```
@@ -238,15 +240,15 @@ If your CMP provides granular categories, gate calls accordingly and keep Trackk
 
 * **Unit/integration tests:** simulate each initial state and verify queue/flush/drop:
 
-  * `initial: 'pending'` → queue, then `grantConsent()` → flush
-  * `initial: 'denied'` with/without `allowEssentialOnDenied` → drop/allow essential
+  * `initialStatus: 'pending'` → queue, then `grantConsent()` → flush
+  * `initialStatus: 'denied'` with/without `allowEssentialOnDenied` → drop/allow essential
   * `policyVersion` bump → stored consent invalidated → back to `pending`
 * Use small `await Promise.resolve()` (or a short `setTimeout(0)`) to let async flushes complete.
 
 
 ## Best Practices
 
-1. **Default to explicit consent** unless your legal basis differs (`requireExplicit: true`, `initial: 'pending'`).
+1. **Default to explicit consent** unless your legal basis differs (`requireExplicit: true`, `initialStatus: 'pending'`).
 2. **Version your policy** and rotate `policyVersion` when language meaningfully changes.
 3. **Don’t rely on auto-promotion** if you need an auditable explicit signal.
 4. **Load extras after grant** (pixels, replayers) via `onConsentChange`.

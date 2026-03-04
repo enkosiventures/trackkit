@@ -233,9 +233,9 @@ Returns the underlying facade instance used by the singleton.
 
 This is primarily for introspection and advanced integrations. The type is intentionally loose; prefer `getDiagnostics()` for read-only state.
 
-#### `flushIfReady(): Promise<void>`
+#### `flushIfReady(): Promise<number>`
 
-If the provider is initialised, flush any queued events immediately.
+If the provider is initialised, flush any queued events immediately. Returns the number of events flushed.
 
 No-op if not ready.
 
@@ -349,7 +349,7 @@ export async function getServerSideProps(ctx) {
 }
 ```
 
-#### `pageview(path?: string | { path?: string; title?: string; referrer?: string }): void`
+#### `pageview(url?: string): void`
 
 Record a SSR pageview event.
 
@@ -362,7 +362,7 @@ export async function getServerSideProps(ctx) {
 }
 ```
 
-#### `identify(userId: string, traits?: Record<string, unknown>): void`
+#### `identify(userId: string | null): void`
 
 Record a SSR identify event, if you wish to associate the pageview with a user ID at render time.
 
@@ -401,11 +401,11 @@ Return the number of events currently buffered in the SSR queue.
 
 Used by diagnostics and advanced monitoring.
 
-#### `enqueueSSREvent(event: QueuedEvent): void`
+#### `enqueueSSREvent(type: EventType, args: unknown[], category: ConsentCategory, pageContext?: PageContext): void`
 
-Low-level API: push a raw queued event into the SSR queue.
+Low-level API: push a raw event into the SSR queue.
 
-Most users should prefer the higher-level `track`, `pageview`, and `identify` SSR helpers.
+Most users should prefer the higher-level `ssrTrack`, `ssrPageview`, and `ssrIdentify` helpers.
 `enqueueSSREvent` exists for custom integrations, migrations, or when bridging from a legacy analytics system.
 
 
@@ -413,7 +413,7 @@ Most users should prefer the higher-level `track`, `pageview`, and `identify` SS
 
 Although not a separate module, it’s worth highlighting how errors are surfaced.
 
-### `onError` option (InitOptions)
+### `onError` option (AnalyticsOptions)
 
 You can provide a global error handler:
 

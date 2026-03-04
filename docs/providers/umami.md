@@ -44,9 +44,6 @@ const analytics = createAnalytics({
 
     // Endpoint
     host: 'https://analytics.example.com',       // Required for self-hosted instances
-
-    // Metadata
-    defaultProps: { appVersion: '2.3.1' },       // Merged into every event
   },
 
   // Features

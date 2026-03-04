@@ -151,17 +151,17 @@ Both APIs flow through the same normalisation / validation path.
 
 Some options are **only** expected to be set programmatically (not via env):
 
-* `retry`
-* `resilience`
-* `connection`
-* `performance`
+* `dispatcher.resilience.retry`
+* `dispatcher.resilience` (adblocker detection, fallback strategy, proxy)
+* `dispatcher.connection`
+* `dispatcher.performance`
 * detailed `consent` configuration
 
-These shapes are defined in TypeScript; use your editor’s IntelliSense (or the source files) as the canonical reference.
+These all live under the `dispatcher` key in `AnalyticsOptions`. The shapes are defined in TypeScript; use your editor's IntelliSense (or the source files) as the canonical reference.
 
 ### Retry
 
-Controls backoff and retry for network dispatch.
+Controls backoff and retry for network dispatch. Retry options are nested under `dispatcher.resilience.retry`.
 
 Defaults (from `RETRY_DEFAULTS`):
 
@@ -181,23 +181,30 @@ Override with:
 ```ts
 const analytics = createAnalytics({
   // ...
-  retry: {
-    maxAttempts: 5,
-    initialDelay: 500,
-    maxDelay: 60000,
+  dispatcher: {
+    resilience: {
+      retry: {
+        maxAttempts: 5,
+        initialDelay: 500,
+        maxDelay: 60000,
+      },
+    },
   },
 });
 ```
 
 ### Resilience & transports
 
-Controls adblocker detection and transport fallback. Defaults (from `RESILIENCE_DEFAULTS`):
+Controls adblocker detection and transport fallback. These options live under `dispatcher.resilience`.
+
+Defaults (from `RESILIENCE_DEFAULTS`):
 
 ```ts
 resilience: {
   detectBlockers: false,
-  fallbackStrategy: 'proxy', // 'proxy' | 'beacon' | 'none'
+  fallbackStrategy: 'proxy', // 'proxy' | 'beacon'
   proxy: undefined,
+  retry: { /* see above */ },
 }
 ```
 
@@ -206,13 +213,15 @@ Example with a first-party proxy:
 ```ts
 const analytics = createAnalytics({
   // ...
-  resilience: {
-    detectBlockers: true,
-    fallbackStrategy: 'proxy',
-    proxy: {
-      proxyUrl: '/api/trackkit-proxy',
-      token: process.env.TRACKKIT_PROXY_TOKEN,
-      headers: { 'X-Trackkit-Source': 'web' },
+  dispatcher: {
+    resilience: {
+      detectBlockers: true,
+      fallbackStrategy: 'proxy',
+      proxy: {
+        proxyUrl: '/api/trackkit-proxy',
+        token: process.env.TRACKKIT_PROXY_TOKEN,
+        headers: { 'X-Trackkit-Source': 'web' },
+      },
     },
   },
 });
@@ -222,7 +231,7 @@ See `docs/guides/resilience-and-transports.md` for the full story.
 
 ### Connection & offline
 
-Controls how Trackkit interprets connection health and, if you wire it, how you use offline storage.
+Controls how Trackkit interprets connection health and, if you wire it, how you use offline storage. These options live under `dispatcher.connection`.
 
 Defaults (from `CONNECTION_DEFAULTS`):
 
@@ -241,11 +250,13 @@ Example:
 ```ts
 const analytics = createAnalytics({
   // ...
-  connection: {
-    monitor: true,
-    offlineStorage: true,
-    syncInterval: 15000,
-    slowThreshold: 5000,
+  dispatcher: {
+    connection: {
+      monitor: true,
+      offlineStorage: true,
+      syncInterval: 15000,
+      slowThreshold: 5000,
+    },
   },
 });
 ```
@@ -254,7 +265,7 @@ The actual connection state / offline behaviour is driven by `ConnectionMonitor`
 
 ### Performance tracking
 
-Controls the lightweight `PerformanceTracker`.
+Controls the lightweight `PerformanceTracker`. These options live under `dispatcher.performance`.
 
 Defaults (from `PERFORMANCE_DEFAULTS`):
 
@@ -270,8 +281,10 @@ Example:
 ```ts
 const analytics = createAnalytics({
   // ...
-  performance: {
-    enabled: true,
+  dispatcher: {
+    performance: {
+      enabled: true,
+    },
   },
 });
 ```
