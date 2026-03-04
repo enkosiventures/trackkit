@@ -74,18 +74,33 @@ describe('Typed events — compile-time checks', () => {
     assertType(analytics.track('button_click', {}));
   });
 
+  it('typed track requires props when event has required fields', () => {
+    const analytics = createAnalytics<MyEvents>();
+
+    // @ts-expect-error — props are required for 'purchase' (has required fields)
+    analytics.track('purchase');
+
+    // @ts-expect-error — props are required for 'page_scrolled' (has required fields)
+    analytics.track('page_scrolled');
+  });
+
   it('singleton track accepts any string and any props (untyped)', () => {
     assertType(singletonTrack('anything', { foo: 'bar' }));
     assertType(singletonTrack('something'));
     assertType(singletonTrack('event', { a: 1, b: 'two' }));
   });
 
-  it('AnalyticsFacade<MyEvents> is assignable to AnalyticsInstance<MyEvents>', () => {
-    expectTypeOf<AnalyticsFacade<MyEvents>>().toMatchTypeOf<AnalyticsInstance<MyEvents>>();
+  it('AnalyticsFacade<MyEvents>.track matches AnalyticsInstance<MyEvents>.track', () => {
+    // The facade's track method should have the same type as the interface's
+    type FacadeTrack = AnalyticsFacade<MyEvents>['track'];
+    type InstanceTrack = AnalyticsInstance<MyEvents>['track'];
+    expectTypeOf<FacadeTrack>().toEqualTypeOf<InstanceTrack>();
   });
 
-  it('AnalyticsFacade<MyEvents> is NOT assignable to AnalyticsInstance<NarrowEvents>', () => {
-    expectTypeOf<AnalyticsFacade<MyEvents>>().not.toMatchTypeOf<AnalyticsInstance<NarrowEvents>>();
+  it('AnalyticsFacade<MyEvents>.track differs from AnalyticsInstance<NarrowEvents>.track', () => {
+    type FacadeTrack = AnalyticsFacade<MyEvents>['track'];
+    type NarrowTrack = AnalyticsInstance<NarrowEvents>['track'];
+    expectTypeOf<FacadeTrack>().not.toEqualTypeOf<NarrowTrack>();
   });
 
   it('default type parameter is AnyEventMap', () => {

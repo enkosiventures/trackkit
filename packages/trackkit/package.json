@@ -63,6 +63,7 @@
     "lint": "eslint src test --fix",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:typecheck": "vitest --typecheck --run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",

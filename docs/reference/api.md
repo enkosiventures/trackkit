@@ -82,7 +82,7 @@ analytics.track('signup_completed', { plan: 'pro' });
 * `AnalyticsOptions` configures provider, queue, consent, resilience, etc.
   See the Configuration guide for full fields.
 
-#### `init(opts: AnalyticsOptions): void`
+#### `init(opts?: AnalyticsOptions): AnalyticsFacade`
 
 Singleton API. Initialises the **global** analytics facade.
 
@@ -122,7 +122,7 @@ Record a custom event.
 track('signup_completed', { plan: 'pro', source: 'landing' });
 ```
 
-When using typed events via `createAnalytics<MyEvents>`, `eventName` and `props` are type-checked.
+When using typed events via `createAnalytics<MyEvents>`, `eventName` and `props` are type-checked. Props are **required** when the event map declares required fields, and optional when all fields are optional (or when no event map is provided).
 
 #### `pageview(url?: string): void`
 

@@ -211,7 +211,12 @@ export class AnalyticsFacade<E extends EventMap = AnyEventMap> {
 
   // === Public API (compat with README & legacy singleton) ===
 
-  track<K extends string & keyof E>(name: K, props?: E[K], category = DEFAULT_CATEGORY) {
+  track<K extends string & keyof E>(
+    ...args: {} extends E[K]
+      ? [name: K, props?: E[K], category?: ConsentCategory]
+      : [name: K, props: E[K], category?: ConsentCategory]
+  ): void {
+    const [name, props, category = DEFAULT_CATEGORY] = args;
     this.execute({ type: 'track', args: [name, props as Props], category });
   }
 

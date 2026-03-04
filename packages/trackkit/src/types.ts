@@ -511,8 +511,9 @@ export interface AnalyticsInstance<E extends EventMap = AnyEventMap> {
    * Track a custom event.
    *
    * When `E` is a concrete event map, both `name` and `props` are
-   * type-checked against it. When `E` is the default {@link AnyEventMap},
-   * any string name and any props are accepted.
+   * type-checked against it. Props are **required** when the event map
+   * declares required fields, and optional when all fields are optional
+   * (or when using the default {@link AnyEventMap}).
    *
    * @typeParam K - Inferred from the event name literal.
    * @param name - Event name (must be a key of `E`).
@@ -520,7 +521,11 @@ export interface AnalyticsInstance<E extends EventMap = AnyEventMap> {
    * @param category - Optional consent category; defaults to `'analytics'`
    *   in most setups. See {@link ConsentCategory}.
    */
-  track<K extends string & keyof E>(name: K, props?: E[K], category?: ConsentCategory): void;
+  track<K extends string & keyof E>(
+    ...args: {} extends E[K]
+      ? [name: K, props?: E[K], category?: ConsentCategory]
+      : [name: K, props: E[K], category?: ConsentCategory]
+  ): void;
 
   /**
    * Track a page view using the current page context.
