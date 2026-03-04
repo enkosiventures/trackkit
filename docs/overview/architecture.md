@@ -59,11 +59,11 @@ The facade is the only layer that users call. It owns:
 
 ---
 
-### Configuration (`src/config/schema.ts`, `src/util/env.ts`)
+### Configuration (`src/facade/config.ts`, `src/util/env.ts`)
 
 Configuration is schema-driven:
 
-* `config/schema.ts` defines the shape of `InitOptions` and how defaults are applied.
+* `facade/config.ts` defines how `AnalyticsOptions` are merged and how defaults are applied.
 * `util/env.ts` reads build-time env (`TRACKKIT_*`, `VITE_TRACKKIT_*`, etc.) and runtime overrides (`window.__TRACKKIT_ENV__`, meta tags).
 
 The merge order (simplified):
