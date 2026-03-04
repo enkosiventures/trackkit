@@ -20,7 +20,7 @@ export default defineConfig({
       '**/e2e/**',
     ],
     typecheck: {
-      enabled: false,
+      enabled: true,
       include: ['test/**/*.test-d.ts'],
     },
     coverage: {
