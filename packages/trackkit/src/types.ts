@@ -46,6 +46,36 @@ export type AnalyticsMode = 'singleton' | 'factory';
 export type Props = Record<string, unknown>;
 
 /**
+ * A mapping from event names to their expected property shapes.
+ *
+ * Define your own event map to get compile-time checking of `track()` calls:
+ *
+ * ```ts
+ * type MyEvents = {
+ *   signup_completed: { plan: 'free' | 'pro' };
+ *   purchase:         { amount: number; currency: string };
+ * };
+ *
+ * const analytics = createAnalytics<MyEvents>({ ... });
+ * analytics.track('signup_completed', { plan: 'pro' });   // ✅ compiles
+ * analytics.track('signup_completed', { plan: 'gold' });   // ❌ type error
+ * ```
+ *
+ * When no event map is supplied (the default), any string name and any
+ * props are accepted — identical to the pre-typed-events behaviour.
+ */
+export type EventMap = Record<string, Record<string, unknown>>;
+
+/**
+ * Convenience alias for the fully-open default event map.
+ *
+ * Equivalent to `Record<string, Record<string, unknown>>`.
+ * Used as the default type parameter so that unparameterised usage
+ * remains fully open.
+ */
+export type AnyEventMap = EventMap;
+
+/**
  * Supported high-level analytics operations.
  *
  * These map to facade methods and provider instance methods.
@@ -449,20 +479,53 @@ export interface ResolvedAnalyticsOptions {
  * Public analytics instance exposed by Trackkit.
  *
  * This is what callers interact with when using the facade API.
+ *
+ * The generic parameter `E` allows compile-time checking of `track()` calls
+ * against a user-defined event map. When omitted, all event names and props
+ * are accepted (fully open, same as pre-typed-events behaviour).
+ *
+ * @example
+ * ```ts
+ * type MyEvents = {
+ *   signup: { plan: 'free' | 'pro' };
+ *   purchase: { amount: number; currency: string };
+ * };
+ *
+ * // Typed — track() is checked against MyEvents
+ * const analytics: AnalyticsInstance<MyEvents> = createAnalytics<MyEvents>({ ... });
+ * analytics.track('signup', { plan: 'pro' });  // ✅
+ * analytics.track('typo');                      // ❌ type error
+ *
+ * // Untyped — any event name and any props accepted
+ * const open: AnalyticsInstance = createAnalytics({ ... });
+ * open.track('anything', { any: 'props' });     // ✅
+ * ```
+ *
+ * @typeParam E - Event map type. Defaults to {@link AnyEventMap} (fully open).
  */
-export interface AnalyticsInstance {
+export interface AnalyticsInstance<E extends EventMap = AnyEventMap> {
   /** Name of the active provider (e.g. `'ga4'`, `'plausible'`). */
   name: string;
 
   /**
    * Track a custom event.
    *
-   * @param name - Event name (e.g. `"button_click"`).
-   * @param props - Optional event properties (JSON-serialisable).
+   * When `E` is a concrete event map, both `name` and `props` are
+   * type-checked against it. Props are **required** when the event map
+   * declares required fields, and optional when all fields are optional
+   * (or when using the default {@link AnyEventMap}).
+   *
+   * @typeParam K - Inferred from the event name literal.
+   * @param name - Event name (must be a key of `E`).
+   * @param props - Event properties (must match `E[K]`).
    * @param category - Optional consent category; defaults to `'analytics'`
    *   in most setups. See {@link ConsentCategory}.
    */
-  track(name: string, props?: Props, category?: ConsentCategory): void;
+  track<K extends string & keyof E>(
+    ...args: {} extends E[K]
+      ? [name: K, props?: E[K], category?: ConsentCategory]
+      : [name: K, props: E[K], category?: ConsentCategory]
+  ): void;
 
   /**
    * Track a page view using the current page context.

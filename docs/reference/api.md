@@ -55,7 +55,7 @@ import type {
 
 ### Initialization
 
-#### `createAnalytics<E extends EventMap = EventMap>(opts?: AnalyticsOptions): AnalyticsInstance<E>`
+#### `createAnalytics<E extends EventMap = AnyEventMap>(opts?: AnalyticsOptions): AnalyticsInstance<E>`
 
 Factory API. Creates a **new analytics instance**.
 
@@ -82,7 +82,7 @@ analytics.track('signup_completed', { plan: 'pro' });
 * `AnalyticsOptions` configures provider, queue, consent, resilience, etc.
   See the Configuration guide for full fields.
 
-#### `init(opts: InitOptions): void`
+#### `init(opts?: AnalyticsOptions): AnalyticsFacade`
 
 Singleton API. Initialises the **global** analytics facade.
 
@@ -122,7 +122,7 @@ Record a custom event.
 track('signup_completed', { plan: 'pro', source: 'landing' });
 ```
 
-When using typed events via `createAnalytics<MyEvents>`, `eventName` and `props` are type-checked.
+When using typed events via `createAnalytics<MyEvents>`, `eventName` and `props` are type-checked. Props are **required** when the event map declares required fields, and optional when all fields are optional (or when no event map is provided).
 
 #### `pageview(url?: string): void`
 
@@ -233,9 +233,9 @@ Returns the underlying facade instance used by the singleton.
 
 This is primarily for introspection and advanced integrations. The type is intentionally loose; prefer `getDiagnostics()` for read-only state.
 
-#### `flushIfReady(): Promise<void>`
+#### `flushIfReady(): Promise<number>`
 
-If the provider is initialised, flush any queued events immediately.
+If the provider is initialised, flush any queued events immediately. Returns the number of events flushed.
 
 No-op if not ready.
 
@@ -289,12 +289,12 @@ String union of supported provider keys, e.g.:
 
 #### `EventMap` / `AnyEventMap`
 
-See Typed Events above.
+* `EventMap`: `Record<string, Record<string, unknown>>` — a mapping from event names to their expected property shapes. Define your own event map to get compile-time checking of `track()` calls via `createAnalytics<E>()`.
+* `AnyEventMap`: convenience alias for the fully-open default map. When no type parameter is supplied, `AnyEventMap` is used and all event names and props are accepted.
 
-* `EventMap`: `Record<string, Record<string, unknown>>`
-* `AnyEventMap`: alias used as the default map.
+> **Note:** The singleton API (`init` / `track` / `pageview`) does not support typed events. Use the factory API (`createAnalytics<E>()`) for compile-time event checking.
 
-#### `AnalyticsInstance<E extends EventMap = EventMap>`
+#### `AnalyticsInstance<E extends EventMap = AnyEventMap>`
 
 The shape of an analytics instance returned by `createAnalytics<E>()`.
 Primarily used by TypeScript consumers for typed `track()`.
@@ -349,7 +349,7 @@ export async function getServerSideProps(ctx) {
 }
 ```
 
-#### `pageview(path?: string | { path?: string; title?: string; referrer?: string }): void`
+#### `pageview(url?: string): void`
 
 Record a SSR pageview event.
 
@@ -362,7 +362,7 @@ export async function getServerSideProps(ctx) {
 }
 ```
 
-#### `identify(userId: string, traits?: Record<string, unknown>): void`
+#### `identify(userId: string | null): void`
 
 Record a SSR identify event, if you wish to associate the pageview with a user ID at render time.
 
@@ -401,11 +401,11 @@ Return the number of events currently buffered in the SSR queue.
 
 Used by diagnostics and advanced monitoring.
 
-#### `enqueueSSREvent(event: QueuedEvent): void`
+#### `enqueueSSREvent(type: EventType, args: unknown[], category: ConsentCategory, pageContext?: PageContext): void`
 
-Low-level API: push a raw queued event into the SSR queue.
+Low-level API: push a raw event into the SSR queue.
 
-Most users should prefer the higher-level `track`, `pageview`, and `identify` SSR helpers.
+Most users should prefer the higher-level `ssrTrack`, `ssrPageview`, and `ssrIdentify` helpers.
 `enqueueSSREvent` exists for custom integrations, migrations, or when bridging from a legacy analytics system.
 
 
@@ -413,7 +413,7 @@ Most users should prefer the higher-level `track`, `pageview`, and `identify` SS
 
 Although not a separate module, it’s worth highlighting how errors are surfaced.
 
-### `onError` option (InitOptions)
+### `onError` option (AnalyticsOptions)
 
 You can provide a global error handler:
 
