@@ -5,7 +5,6 @@ import { applyBatchingDefaults, applyResilienceDefaults } from '../../../src/fac
 import { DEFAULT_BUST_CACHE, DEFAULT_HEADERS, DEFAULT_TRANSPORT_MODE } from '../../../src/constants';
 import { getId } from '../../../src/util';
 
-const sleep = (ms = 0) => new Promise(res => setTimeout(res, ms));
 
 class SpyTransport implements TransportsMod.Transport {
   // shape compatible with Transport
