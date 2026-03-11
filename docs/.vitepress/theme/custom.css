@@ -1,0 +1,30 @@
+/**
+ * Trackkit brand colour overrides for VitePress.
+ *
+ * Base brand colour: #3698bb (h:199° s:55% l:47%)
+ *
+ * Light-mode values are darkened so they meet WCAG AA contrast (≥4.5:1)
+ * when used as link / inline-code text on a white background.
+ * Dark-mode values are lightened to remain legible on dark surfaces.
+ */
+
+/* ── Light mode ─────────────────────────────────────────────── */
+:root {
+  --vp-c-brand-1: #1d7a9c;        /* links, active accents  – contrast 5.3:1 on white */
+  --vp-c-brand-2: #2a8fb4;        /* hover states           – contrast 4.5:1 on white */
+  --vp-c-brand-3: #3698bb;        /* button bg, soft badges – the core brand colour    */
+  --vp-c-brand-soft: rgba(54, 152, 187, 0.14);
+
+  /* Backward-compat alias used in TrackkitPlayground.vue hover rule (VP v0 remnant) */
+  --vp-c-brand-dark: var(--vp-c-brand-2);
+}
+
+/* ── Dark mode ──────────────────────────────────────────────── */
+.dark {
+  --vp-c-brand-1: #84cee0;        /* links on dark surfaces */
+  --vp-c-brand-2: #5cbdd5;        /* hover                  */
+  --vp-c-brand-3: #3698bb;        /* button bg              */
+  --vp-c-brand-soft: rgba(54, 152, 187, 0.16);
+
+  --vp-c-brand-dark: var(--vp-c-brand-2);
+}
