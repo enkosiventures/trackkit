@@ -1,3 +1,7 @@
+---
+title: "Trackkit Architecture: Event Pipeline, Consent Gating, and Provider Adapters"
+description: "How events flow through Trackkit — from policy gate and consent checks through queuing, provider dispatch, and transport selection."
+---
 # Architecture
 
 This page describes how Trackkit is structured internally and how events flow from your code to your analytics provider(s).

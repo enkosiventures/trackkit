@@ -1,3 +1,7 @@
+---
+title: "Provider State Management: Lifecycle and State Machine"
+description: "How Trackkit wraps each provider with a state machine for reliable lifecycle management — from idle through loading, ready, and error states."
+---
 # Provider State Management
 
 Trackkit wraps each provider with a small state machine for reliable lifecycle management.

@@ -1,3 +1,7 @@
+---
+title: "Choosing an Analytics Provider: Umami vs Plausible vs GA4"
+description: "Compare Umami, Plausible, and GA4 as Trackkit providers — feature differences, privacy tradeoffs, self-hosting options, and when to use each."
+---
 # Choosing an Analytics Provider
 
 Trackkit supports multiple analytics providers behind one stable API. This guide helps you pick the best fit for your product and constraints.

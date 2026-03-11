@@ -1,3 +1,7 @@
+---
+title: "GA4 Provider: Measurement Protocol Without gtag.js"
+description: "Configure Trackkit with Google Analytics 4 via the Measurement Protocol. No gtag.js script tag — lightweight client with consent gating and SPA support."
+---
 # Google Analytics 4 (GA4) Provider
 
 The GA4 adapter in Trackkit provides a lightweight client for GA4 without requiring the `gtag.js` snippet. It handles queueing, consent gating, SPA navigation, and stable event dispatch.

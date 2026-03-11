@@ -1,3 +1,7 @@
+---
+title: "Trackkit Quickstart: Install and Send Your First Event"
+description: "Install Trackkit, configure a provider, and start tracking pageviews and custom events in under 5 minutes. TypeScript-native with Umami, Plausible, and GA4 support."
+---
 # Quickstart
 
 Trackkit is a tiny, privacy-first analytics SDK with built-in adapters for **Umami**, **Plausible**, and **GA4**, plus a `noop` adapter for local development.

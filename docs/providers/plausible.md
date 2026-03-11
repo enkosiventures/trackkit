@@ -1,3 +1,7 @@
+---
+title: "Plausible Provider: Lightweight Privacy Analytics Adapter"
+description: "Configure Trackkit with Plausible — cloud or self-hosted. Lightweight, cookieless analytics with automatic pageview tracking and custom event support."
+---
 # Plausible Provider
 
 The Plausible provider sends analytics to Plausible Cloud or self-hosted servers.  

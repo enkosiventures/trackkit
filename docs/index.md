@@ -1,5 +1,7 @@
 ---
 layout: home
+title: 'Trackkit: Privacy-First Analytics SDK'
+description: 'Open-source TypeScript analytics SDK with built-in consent management, SSR support, and adapters for Umami, Plausible, and GA4. No script tags required.'
 
 hero:
   name: Trackkit

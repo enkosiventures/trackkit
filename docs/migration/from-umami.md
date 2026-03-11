@@ -1,3 +1,7 @@
+---
+title: "Migrate from Umami Script Tag to Trackkit"
+description: "Step-by-step guide to replacing the Umami script tag with Trackkit — keep your existing dashboard, gain consent management and SSR support."
+---
 # Migrating from Umami Script
 
 This guide is for sites using the **Umami script tag** (cloud or self-hosted) that want to replace it with Trackkit’s Umami adapter.

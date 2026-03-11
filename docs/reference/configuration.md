@@ -1,3 +1,7 @@
+---
+title: "Trackkit Configuration: Options, Environment Variables, and Runtime Injection"
+description: "Full configuration reference for Trackkit — programmatic options, TRACKKIT_* env variables, runtime injection via meta tags and window globals."
+---
 # Configuration
 
 Trackkit can be configured via:
