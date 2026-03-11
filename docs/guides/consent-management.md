@@ -1,3 +1,7 @@
+---
+title: "Consent Management: Lightweight CMP Integration"
+description: "Trackkit's built-in consent layer gates analytics reliably. Learn how to configure consent states, wire a CMP or banner, and handle SSR hydration."
+---
 # Consent Management
 
 Trackkit ships with a lightweight consent layer designed to gate analytics reliably while staying out of your way. It works in browsers, supports SSR hydration, and plays nicely with your own CMP or banner.

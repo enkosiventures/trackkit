@@ -1,3 +1,7 @@
+---
+title: "Analytics Resilience: Proxy Transport, Adblocker Detection, and Retry"
+description: "How Trackkit handles hostile browser environments — adblocker fallbacks, beacon vs fetch transport, first-party proxy mode, and retry with backoff."
+---
 # Resilience & Transports
 
 Trackkit is designed to survive real-world conditions:

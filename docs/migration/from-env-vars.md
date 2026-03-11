@@ -1,3 +1,7 @@
+---
+title: "Migrate from Hard-Coded Config to Environment Variables"
+description: "Move analytics credentials and host URLs from source code to environment variables using Trackkit TRACKKIT_* env var convention."
+---
 # Migrating from Hard-Coded Config to Env-Based Setup
 
 If your current analytics setup inlines credentials and host URLs in code, you can migrate to Trackkit’s environment-driven configuration to:

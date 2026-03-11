@@ -1,3 +1,7 @@
+---
+title: "Next.js SSR Analytics with GA4: Trackkit Example"
+description: "Server-side pageview tracking in Next.js with GA4, SSR queue hydration, and client-side event dispatch — all through Trackkit."
+---
 # Next.js SSR + GA4 Example
 
 This example demonstrates how to use Trackkit in a **server-rendered app (Next.js)** where:

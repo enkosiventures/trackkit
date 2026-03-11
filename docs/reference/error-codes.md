@@ -1,3 +1,7 @@
+---
+title: "Trackkit Error Codes Reference"
+description: "Complete list of Trackkit error codes with explanations — queue overflow, provider failures, consent violations, and transport errors."
+---
 # Error Codes
 
 Trackkit surfaces typed `AnalyticsError` objects via your `onError` callback.

@@ -1,3 +1,7 @@
+---
+title: "SSR Analytics: Queue-Only Server Events and Client Hydration"
+description: "Track server-side pageviews without initializing providers on the server. Serialize the SSR queue into HTML and hydrate on the client exactly once."
+---
 # Server-Side Rendering (SSR)
 
 Trackkit supports SSR in a strictly queue-only mode.  

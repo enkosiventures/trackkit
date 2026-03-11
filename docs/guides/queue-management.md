@@ -1,3 +1,7 @@
+---
+title: "Queue Management: Buffering, Overflow, and Replay"
+description: "How Trackkit buffers events when the provider or consent isn't ready, then replays them in order once conditions are met."
+---
 # Queue Management
 
 Trackkit buffers events when it's *not safe* to send yet, then replays them in order once conditions are met.

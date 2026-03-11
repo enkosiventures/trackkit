@@ -1,3 +1,7 @@
+---
+title: "Migrate from gtag.js to Trackkit GA4 Provider"
+description: "Replace the GA4 gtag.js snippet with Trackkit — no script tags, consent-aware event handling, and Measurement Protocol transport."
+---
 # Migrating from Google Analytics 4 (gtag.js)
 
 This guide is for teams currently using the **GA4 script snippet** and the global `gtag()` function who want to move to **Trackkit’s GA4 provider**.

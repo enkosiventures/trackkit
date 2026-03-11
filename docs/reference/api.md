@@ -1,3 +1,7 @@
+---
+title: "Trackkit API Reference: track, pageview, identify, and Consent Methods"
+description: "Complete public API surface for Trackkit — instance and singleton methods for tracking, consent management, diagnostics, and SSR."
+---
 # Public API Overview
 
 This page documents the public API surface of the Trackkit JavaScript SDK.

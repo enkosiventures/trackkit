@@ -1,3 +1,7 @@
+---
+title: "Consent-Gated Analytics: GDPR-Friendly Event Handling"
+description: "Configure pending, granted, and denied consent states. Separate essential from analytics events. Wire your CMP to Trackkit's consent API."
+---
 # Consent & Privacy
 
 Trackkit buffers analytics events until consent allows sending (if your policy requires it).

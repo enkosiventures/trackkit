@@ -1,3 +1,7 @@
+---
+title: "Trackkit Glossary: Analytics and SDK Terminology"
+description: "Definitions of key terms used throughout the Trackkit documentation — consent states, queue semantics, transport modes, and provider concepts."
+---
 
 # Glossary
 

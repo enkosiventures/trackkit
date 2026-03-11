@@ -140,6 +140,7 @@ vite.config.ts.timestamp-*
 
 # Misc
 .audit
+.content
 *.DS_Store
 deadcode-report.md
 docs/reference/sdk/
