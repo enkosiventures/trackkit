@@ -59,7 +59,7 @@ import type {
 
 ### Initialization
 
-#### `createAnalytics<E extends EventMap = AnyEventMap>(opts?: AnalyticsOptions): AnalyticsInstance<E>`
+#### `createAnalytics<E extends EventMap = AnyEventMap>(opts?: AnalyticsOptions): AnalyticsFacade<E>`
 
 Factory API. Creates a **new analytics instance**.
 
