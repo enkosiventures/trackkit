@@ -1,6 +1,6 @@
 import Document, { Html, Head, Main, NextScript } from 'next/document';
 import type { DocumentProps, DocumentContext } from 'next/document';
-import { getSSRQueue } from 'trackkit/ssr';
+import { getSSRQueue, serializeSSRQueue } from 'trackkit/ssr';
 
 type Props = DocumentProps & {
   initialQueueState?: any[];
@@ -27,11 +27,11 @@ class MyDocument extends Document<Props> {
           
           {/* 2. Inject using the CORRECT global variable expected by Trackkit */}
           {initialQueueState && initialQueueState.length > 0 && (
-            <script
+            <div
               id="trackkit-ssr"
               dangerouslySetInnerHTML={{
-                // MUST be __TRACKKIT_SSR_QUEUE__ to match the SDK hydration logic
-                __html: `window.__TRACKKIT_SSR_QUEUE__=${JSON.stringify(initialQueueState)}`,
+                // serializeSSRQueue escapes </script> breakouts and other XSS vectors
+                __html: serializeSSRQueue(initialQueueState),
               }}
             />
           )}

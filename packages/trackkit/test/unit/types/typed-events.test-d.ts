@@ -5,7 +5,7 @@
  * the generic parameter on `createAnalytics<E>()` correctly constrains
  * `track()` calls at the type level.
  *
- * Run with: `pnpm vitest typecheck`
+ * Run with: `pnpm test:typecheck`
  */
 import { describe, it, expectTypeOf, assertType } from 'vitest';
 import { createAnalytics } from '../../../src/factory';
