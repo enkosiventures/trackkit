@@ -1,3 +1,7 @@
+---
+title: "Trackkit FAQ: Consent, SSR, GDPR, Providers, and Delivery"
+description: "Answers to common questions about Trackkit's consent model, SSR behavior, GDPR support, provider compatibility, and event delivery guarantees."
+---
 # FAQ
 
 Common questions about how Trackkit works, when to use it, and what it does *not* do.

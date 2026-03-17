@@ -1,3 +1,7 @@
+---
+title: "Trackkit Provider Reference: Umami, Plausible, GA4, and Noop"
+description: "Provider-specific configuration, supported features, and behavioral differences for each built-in Trackkit adapter."
+---
 # Provider Reference
 
 Configuration keys expected by each provider. This is a quick reference only.

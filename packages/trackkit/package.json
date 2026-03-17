@@ -5,11 +5,20 @@
   "keywords": [
     "analytics",
     "tracking",
+    "privacy",
+    "consent",
+    "gdpr",
     "umami",
     "plausible",
-    "google-analytics"
+    "ga4",
+    "google-analytics",
+    "measurement-protocol",
+    "ssr",
+    "typescript",
+    "cookieless",
+    "provider-agnostic"
   ],
-  "homepage": "https://github.com/enkosiventures/trackkit",
+  "homepage": "https://enkosiventures.github.io/trackkit/",
   "bugs": "https://github.com/enkosiventures/trackkit/issues",
   "repository": {
     "type": "git",

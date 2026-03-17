@@ -1,3 +1,7 @@
+---
+title: "Connection and Offline Behaviour"
+description: "How Trackkit detects connectivity changes and handles offline scenarios — automatic event buffering, reconnection flushing, and background sync."
+---
 # Connection & Offline Behaviour
 
 Trackkit includes lightweight primitives for:

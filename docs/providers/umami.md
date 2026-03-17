@@ -1,3 +1,7 @@
+---
+title: "Umami Provider: Cookieless Analytics Adapter"
+description: "Configure Trackkit with Umami — self-hosted or cloud. Cookieless by default, privacy-friendly, with auto pageview tracking and custom events."
+---
 # Umami Provider
 
 The Umami adapter sends events to a self-hosted or cloud Umami instance.  

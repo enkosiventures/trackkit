@@ -1,3 +1,7 @@
+---
+title: "Trackkit Integration Examples: React SPA and Next.js SSR"
+description: "Complete working examples showing Trackkit with Umami in a React SPA and GA4 in a server-rendered Next.js app."
+---
 # Examples
 
 Trackkit includes two complete working example applications. Each demonstrates a distinct integration pattern and highlights specific architectural considerations.

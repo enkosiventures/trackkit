@@ -1,3 +1,7 @@
+---
+title: "React SPA Analytics with Umami: Trackkit Example"
+description: "Full example of Trackkit in a client-side React app — auto pageviews, custom events, consent toggling, and Umami as the analytics provider."
+---
 # React SPA + Umami Example
 
 This example demonstrates **Trackkit in a client-only Single Page Application**, using:

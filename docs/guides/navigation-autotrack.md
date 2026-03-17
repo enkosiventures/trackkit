@@ -1,3 +1,7 @@
+---
+title: "Navigation and Autotrack: Automatic SPA Pageview Tracking"
+description: "Automatically track pageviews in single-page applications. Trackkit listens for pushState and popstate to send pageviews without manual calls."
+---
 # Navigation & Autotrack
 
 For SPAs, Trackkit can automatically send pageviews when the URL changes.

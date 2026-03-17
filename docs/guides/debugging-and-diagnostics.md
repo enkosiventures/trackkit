@@ -1,3 +1,7 @@
+---
+title: "Debugging and Diagnostics: Inspect Queue, Provider, and Consent State"
+description: "Use Trackkit's diagnostics API to inspect queued events, provider state, consent status, and transport activity during development."
+---
 # Debugging & Diagnostics
 
 

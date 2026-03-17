@@ -1,3 +1,7 @@
+---
+title: "Migrate from Plausible Script Tag to Trackkit"
+description: "Step-by-step guide to replacing the Plausible script tag with Trackkit — keep your existing dashboard, add consent gating and queue-first event handling."
+---
 # Migrating from Plausible Script
 
 This guide is for sites currently using the **Plausible script tag** and global `plausible()` function who want to move to Trackkit’s Plausible adapter.

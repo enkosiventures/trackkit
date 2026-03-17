@@ -1,3 +1,7 @@
+---
+title: "Content Security Policy (CSP) Configuration for Analytics"
+description: "Configure CSP connect-src directives for Trackkit providers. No script-src changes needed — all data is sent via fetch, not injected script tags."
+---
 # Content Security Policy (CSP)
 
 CSP rules depend on the provider.

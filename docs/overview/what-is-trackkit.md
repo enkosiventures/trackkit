@@ -1,3 +1,7 @@
+---
+title: "Trackkit: Privacy-First Analytics SDK for Web Apps"
+description: "Open-source TypeScript SDK that wraps Umami, Plausible, and GA4 with built-in consent management, SSR support, and queue-first event handling."
+---
 # What is Trackkit?
 
 Trackkit is a tiny, privacy-first analytics SDK designed for modern apps:

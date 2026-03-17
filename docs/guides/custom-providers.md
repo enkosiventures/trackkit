@@ -1,3 +1,7 @@
+---
+title: "Building a Custom Analytics Provider Adapter"
+description: "Implement the Trackkit adapter interface to connect any analytics backend. Covers pageview, track, identify, and diagnostics hooks."
+---
 # Custom Providers & Adapters
 
 Trackkit ships with adapters for **Umami**, **Plausible**, **GA4**, and a `noop` provider for local development.

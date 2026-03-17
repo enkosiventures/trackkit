@@ -1,3 +1,7 @@
+---
+title: "Performance Tracking: Measure Network Requests and Provider Latency"
+description: "Use Trackkit's PerformanceTracker to measure Web Vitals, network request timing, and provider initialization latency."
+---
 # Performance Tracking
 
 Trackkit includes a lightweight **PerformanceTracker** that can measure:
