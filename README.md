@@ -5,25 +5,30 @@
 [![bundle size](https://img.shields.io/bundlephobia/minzip/trackkit)](https://bundlephobia.com/package/trackkit)
 ![types](https://img.shields.io/npm/types/trackkit)
 
-Trackkit is a lightweight, provider-agnostic analytics SDK with a single facade for Umami, Plausible, GA4 (Measurement Protocol only), and custom adapters.  
+Trackkit is a lightweight, provider-agnostic analytics SDK with a single facade for Umami, Plausible, and GA4 (Measurement Protocol).  
 This repository hosts the full SDK source, development tooling, documentation, tests, and release pipeline.
 
-**SSR-aware • MV3-safe • No remote scripts • <20 kB core (brotli)**
+**SSR-aware • CSP-friendly • No remote scripts • Tree-shakeable**
 
-- **Zero remote scripts** — CSP-friendly and safe for MV3 and strict environments.  
-- **Consent-aware** — EU-style consent flows with event gating + queueing.  
-- **SSR hydration** — collect server events and replay once on the client.  
-- **Multi-provider** — Umami/Plausible baseline with optional GA4 layer.  
-- **Typed DX** — clean facade API, strong TypeScript types, great developer tooling.  
+### What happens when you call `analytics.track()`
 
-## Why Trackkit?
+Every call flows through the same runtime pipeline — you never need to think about timing, readiness, or consent yourself:
 
-* **Privacy-first**: cookieless by default for Umami & Plausible; consent-aware for GA4.
-* **No remote scripts**: CSP-friendly, safe for MV3 extensions, workers, and strict sites.
-* **Small & fast**: tree-shakeable core; adapters load lazily.
-* **Multi-provider**: run Umami/Plausible for everyone and layer GA4 for consented users.
-* **SSR aware**: queue on the server, hydrate and replay on the client.
-* **DX matters**: typed API, debug logs, queue inspection, provider state machine.
+1. **Lazy-load** the provider adapter (only the one you configure is bundled).
+2. **Queue events** while the provider or consent isn't ready yet.
+3. **Respect consent**, domain rules, DNT, and localhost settings before anything is sent.
+4. **Flush** the queue through PolicyGate → Consent → Provider → Transport.
+
+This means you can call `track()` at any point — during SSR, before the provider script has loaded, or before a user has responded to a consent banner — and Trackkit will do the right thing.
+
+### Why Trackkit?
+
+* **Privacy-first** — cookieless by default for Umami & Plausible; consent-aware for GA4.
+* **No remote scripts** — CSP-friendly, no injected `<script>` tags; safe for strict environments.
+* **Small & fast** — tree-shakeable core; only the adapter you use is bundled.
+* **Multi-provider** — run Umami/Plausible for everyone and layer GA4 for consented users.
+* **SSR aware** — queue on the server, hydrate and replay on the client.
+* **Typed DX** — conditional tuple types, debug logs, queue inspection, provider state machine.
 
 ## Documentation
 
@@ -33,16 +38,6 @@ Visit Trackkit's **[full documentation site](https://enkosiventures.github.io/tr
 - [Multiple complete example applications](https://enkosiventures.github.io/trackkit/examples/overview)
 
 To run the documentation site locally, run `pnpm docs:dev` and open [`http://localhost:5173`](http://localhost:5173).
-
-## Packages in this monorepo
-
-| Package                   | Path                                 | Status      | Purpose                                                       |
-| ------------------------- | ------------------------------------ | ----------- | ------------------------------------------------------------- |
-| **Core SDK**              | `packages/trackkit`                  | available   | Provider-agnostic runtime + built-ins (Umami, Plausible, GA4) |
-| React wrapper             | `packages/trackkit-react`            | planned     | `<AnalyticsProvider />`, hooks                                |
-| Vue wrapper               | `packages/trackkit-vue`              | planned     | Plugin + composables                                          |
-| Plugin API                | `packages/trackkit-plugin-api`       | planned     | Adapter interface & dev helpers                               |
-| Example plugin            | `packages/trackkit-plugin-amplitude` | planned     | Amplitude adapter (opt-in)                                    |
 
 This repo uses **pnpm workspaces**. All commands below are run from the repository root.
 
@@ -94,14 +89,6 @@ track('signup_submitted', { plan: 'starter' });
 ```
 
 Internally, both forms hit the same core sdk.
-
-### Gating & Flow
-
-Trackkit sends events only after passing:
-
-**PolicyGate → Consent → Provider readiness → Queue/Offline → Transport**
-
-Every mechanism (SSR, offline, resilience, performance) is downstream of these gates.
 
 ### Consent (EU-friendly defaults)
 
@@ -159,9 +146,9 @@ Trackkit queues events during server rendering and hydrates them on the client. 
 
 See the **[Server-Side Rendering](https://enkosiventures.github.io/trackkit/guides/ssr)** guide for full semantics.
 
-### CSP / MV3
+### CSP
 
-Add the providers you use to `connect-src`. Example:
+Trackkit sends all data via `fetch` — no injected `<script>` tags. Add the providers you use to `connect-src`:
 
 ```jsonc
 "connect-src": [

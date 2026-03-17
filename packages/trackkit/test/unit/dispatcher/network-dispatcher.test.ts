@@ -5,7 +5,6 @@ import { applyBatchingDefaults, applyResilienceDefaults } from '../../../src/fac
 import { DEFAULT_BUST_CACHE, DEFAULT_HEADERS, DEFAULT_TRANSPORT_MODE } from '../../../src/constants';
 import { getId } from '../../../src/util';
 
-const sleep = (ms = 0) => new Promise(res => setTimeout(res, ms));
 
 class SpyTransport implements TransportsMod.Transport {
   // shape compatible with Transport
@@ -246,7 +245,7 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
       batching: applyBatchingDefaults({
         enabled: true,
         maxSize: 2,
-        maxWait: 10,
+        maxWait: 60_000, // large value so the timer never fires during the test
         concurrency: 2,
       }),
     });
@@ -260,11 +259,12 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
     // this enqueue triggers split+flush of the first two
     await nd.send({ url: 'https://api.test/collect', body: { x: 3 } });
 
-    // allow macrotask queue to run the batch send
-    await sleep(0);
-    await sleep(0);
-
-    expect(t.send.mock.calls.length).toBe(2);
+    // the split batch sends asynchronously through several hops
+    // (acquireSlot → handleBatch → dispatchWithRetry → transport.send per event),
+    // so use vi.waitFor instead of a fixed number of sleep(0) ticks.
+    await vi.waitFor(() => {
+      expect(t.send.mock.calls.length).toBe(2);
+    });
     const firstBodies = t.send.mock.calls.slice(0, 2).map(([payload]) => payload.body);
     expect(firstBodies).toEqual([{ x: 1 }, { x: 2 }]);
 
@@ -277,7 +277,7 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
       batching: applyBatchingDefaults({
         enabled: true,
         maxSize: 2,
-        maxWait: 10,
+        maxWait: 60_000, // large value so the timer never fires during the test
         concurrency: 2,
       }),
     });
@@ -286,11 +286,11 @@ describe('NetworkDispatcher (provider-side, per-event sends)', () => {
     await nd.send({ url: 'https://api.test/collect', body: { x: 2 } });
     await nd.send({ url: 'https://api.test/collect', body: { x: 3 } });
 
-    // let the split run
-    await sleep(0);
-    await sleep(0);
-
-    expect(t.send.mock.calls.length).toBe(2);
+    // the split batch sends asynchronously through several promise hops;
+    // poll until the two events from the first batch have been dispatched.
+    await vi.waitFor(() => {
+      expect(t.send.mock.calls.length).toBe(2);
+    });
     const batch1 = t.send.mock.calls.slice(0, 2).map(([payload]) => payload.body);
     expect(batch1).toEqual([{ x: 1 }, { x: 2 }]);
 

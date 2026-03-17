@@ -10,6 +10,9 @@ hero:
       text: Get Started
       link: /overview/what-is-trackkit
     - theme: alt
+      text: Download Now
+      link: https://www.npmjs.com/package/trackkit
+    - theme: alt
       text: View on GitHub
       link: https://github.com/enkosiventures/trackkit
 
