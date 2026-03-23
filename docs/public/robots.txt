@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://enkosiventures.github.io/trackkit/sitemap.xml
+Sitemap: https://trackkit.enkosiventures.com/sitemap.xml

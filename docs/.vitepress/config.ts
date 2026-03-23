@@ -1,7 +1,7 @@
 import { sidebar } from './sidebar';
 import { resolve } from 'node:path'
 
-const siteUrl = 'https://enkosiventures.github.io/trackkit'
+const siteUrl = 'https://trackkit.enkosiventures.com'
 const siteDescription = 'Privacy-first analytics SDK for modern web apps. Queue-first runtime with consent gating, SSR support, and adapters for Umami, Plausible, and GA4.'
 
 export default {
@@ -9,7 +9,7 @@ export default {
   titleTemplate: ':title | Trackkit',
   description: siteDescription,
 
-  base: '/trackkit/',
+  base: '/',
 
   cleanUrls: true,
   lastUpdated: true,

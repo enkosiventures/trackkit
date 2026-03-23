@@ -32,10 +32,10 @@ This means you can call `track()` at any point — during SSR, before the provid
 
 ## Documentation
 
-Visit Trackkit's **[full documentation site](https://enkosiventures.github.io/trackkit/)** for:
-- [Quick start instructions](https://enkosiventures.github.io/trackkit/overview/quickstart)
-- [Comprehensive guides](https://enkosiventures.github.io/trackkit/guides/choosing-provider)
-- [Multiple complete example applications](https://enkosiventures.github.io/trackkit/examples/overview)
+Visit Trackkit's **[full documentation site](https://trackkit.enkosiventures.com/)** for:
+- [Quick start instructions](https://trackkit.enkosiventures.com/overview/quickstart)
+- [Comprehensive guides](https://trackkit.enkosiventures.com/guides/choosing-provider)
+- [Multiple complete example applications](https://trackkit.enkosiventures.com/examples/overview)
 
 To run the documentation site locally, run `pnpm docs:dev` and open [`http://localhost:5173`](http://localhost:5173).
 
@@ -64,7 +64,7 @@ analytics.pageview();
 analytics.track('signup_submitted', { plan: 'starter' });
 ```
 
-> Trackkit supports a unified `site` identifier for all providers; see the **[Configuration](https://enkosiventures.github.io/trackkit/reference/configuration#programmatic-init-recommended)** reference.
+> Trackkit supports a unified `site` identifier for all providers; see the **[Configuration](https://trackkit.enkosiventures.com/reference/configuration#programmatic-init-recommended)** reference.
 
 ### Instances vs singleton helpers
 
@@ -110,7 +110,7 @@ analytics.grantConsent(); // or denyConsent();
 
 **Trackkit is consent-aware:** events are queued until consent and provider readiness allow them to be sent, and non-essential analytics follow your configured policy. [All built-in providers](/guides/choosing-provider) allow for consent management.
 
-For full behaviour, see the **[Consent & Privacy](https://enkosiventures.github.io/trackkit/guides/consent-and-privacy)** guide.
+For full behaviour, see the **[Consent & Privacy](https://trackkit.enkosiventures.com/guides/consent-and-privacy)** guide.
 
 ### Environment variables
 
@@ -124,7 +124,7 @@ Trackkit reads build-time/public env vars (with common bundler prefixes):
 | `TRACKKIT_QUEUE_SIZE` | max buffered events (default: 50)                            |
 | `TRACKKIT_DEBUG`      | `true`/`false`                                               |
 
-For runtime injection and SSR-safe config, see the **[Configuration](https://enkosiventures.github.io/trackkit/reference/configuration)** reference.
+For runtime injection and SSR-safe config, see the **[Configuration](https://trackkit.enkosiventures.com/reference/configuration)** reference.
 
 **Bundlers:**
 
@@ -138,13 +138,13 @@ For Next.js, prefer runtime injection or a small custom loader that passes value
 
 Trackkit supports multiple providers.
 
-See the **[Choosing a Provider](https://enkosiventures.github.io/trackkit/guides/choosing-provider#running-multiple-providers)** guide for more information.
+See the **[Choosing a Provider](https://trackkit.enkosiventures.com/guides/choosing-provider#running-multiple-providers)** guide for more information.
 
 ### SSR
 
 Trackkit queues events during server rendering and hydrates them on the client. Server-side calls must use the SSR API (trackkit/ssr); client code hydrates automatically.
 
-See the **[Server-Side Rendering](https://enkosiventures.github.io/trackkit/guides/ssr)** guide for full semantics.
+See the **[Server-Side Rendering](https://trackkit.enkosiventures.com/guides/ssr)** guide for full semantics.
 
 ### CSP
 

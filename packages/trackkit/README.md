@@ -10,7 +10,7 @@ Trackkit provides a single, typed API for sending analytics events to:
 
 It requires **no remote scripts**, supports **SSR hydration**, **consent gating**, **queue-first delivery**, and **CSP-friendly transports**.
 
-**[View the full documentation site here.](https://enkosiventures.github.io/trackkit/)**
+**[View the full documentation site here.](https://trackkit.enkosiventures.com/)**
 
 ## At a glance
 
@@ -46,7 +46,7 @@ analytics.pageview();
 analytics.track('signup_submitted', { plan: 'starter' });
 ```
 
-For full documentation, see the **Quickstart**, detailed guides, API reference, and example applications on the **[Trackkit docs site](https://enkosiventures.github.io/trackkit)**.
+For full documentation, see the **Quickstart**, detailed guides, API reference, and example applications on the **[Trackkit docs site](https://trackkit.enkosiventures.com)**.
 
 ## TypeScript niceties
 
@@ -91,7 +91,7 @@ export function render() {
 SSR events are serialised into the page and hydrated into the client runtime
 queue exactly once.
 
-See the **[full SSR documentation](https://enkosiventures.github.io/trackkit/guides/ssr)** for complete guidance.
+See the **[full SSR documentation](https://trackkit.enkosiventures.com/guides/ssr)** for complete guidance.
 
 ## Built-in Provider specifics
 
@@ -101,15 +101,15 @@ See the **[full SSR documentation](https://enkosiventures.github.io/trackkit/gui
 
 All providers follow Trackkit’s gating rules (**PolicyGate → Consent → Provider** readiness). Provider-specific behaviour applies after that.
 
-See the **[Provider Guides](https://enkosiventures.github.io/trackkit/providers/umami)** for complete details.
+See the **[Provider Guides](https://trackkit.enkosiventures.com/providers/umami)** for complete details.
 
 ## Migrating from existing tracking snippets
 
 Trackkit provides comprehensive migration guides for:
 
-* **[GA4 (from gtag.js)](https://enkosiventures.github.io/trackkit/migration/from-ga4)**
-* **[Plausible script](https://enkosiventures.github.io/trackkit/migration/from-plausible)**
-* **[Umami script](https://enkosiventures.github.io/trackkit/migration/from-umami)**
+* **[GA4 (from gtag.js)](https://trackkit.enkosiventures.com/migration/from-ga4)**
+* **[Plausible script](https://trackkit.enkosiventures.com/migration/from-plausible)**
+* **[Umami script](https://trackkit.enkosiventures.com/migration/from-umami)**
 
 ## License
 

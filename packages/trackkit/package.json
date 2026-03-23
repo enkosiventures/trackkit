@@ -18,7 +18,7 @@
     "cookieless",
     "provider-agnostic"
   ],
-  "homepage": "https://enkosiventures.github.io/trackkit/",
+  "homepage": "https://trackkit.enkosiventures.com/",
   "bugs": "https://github.com/enkosiventures/trackkit/issues",
   "repository": {
     "type": "git",
