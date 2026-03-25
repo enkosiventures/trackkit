@@ -47,7 +47,7 @@ export default {
       alias: [
         // top-level API
         { find: 'trackkit', replacement: resolve(__dirname, '../../packages/trackkit/src/index.ts') },
-        // (optional) subpath imports like 'trackkit/providers/...'
+        // (optional) subpath imports like 'trackkit/guides/...'
         { find: /^trackkit\/(.*)$/, replacement: resolve(__dirname, '../../packages/trackkit/src/$1') },
       ],
     },

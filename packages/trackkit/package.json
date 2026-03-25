@@ -1,7 +1,7 @@
 {
   "name": "trackkit",
-  "version": "0.0.1",
-  "description": "Lightweight, provider-agnostic analytics SDK",
+  "version": "0.1.0",
+  "description": "Privacy-first, provider-agnostic analytics SDK with consent management, SSR support, and typed events",
   "keywords": [
     "analytics",
     "tracking",
@@ -18,7 +18,7 @@
     "cookieless",
     "provider-agnostic"
   ],
-  "homepage": "https://trackkit.enkosiventures.com/",
+  "homepage": "https://trackkit.dev",
   "bugs": "https://github.com/enkosiventures/trackkit/issues",
   "repository": {
     "type": "git",
@@ -26,7 +26,7 @@
     "directory": "packages/trackkit"
   },
   "license": "MIT",
-  "author": "Enkosi Ventures <enkosiventures@gmail.com>",
+  "author": "Enkosi Ventures <trackkit@enkosiventures.com>",
   "sideEffects": false,
   "type": "module",
   "exports": {

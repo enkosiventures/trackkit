@@ -6,9 +6,8 @@
 ![types](https://img.shields.io/npm/types/trackkit)
 
 Trackkit is a lightweight, provider-agnostic analytics SDK with a single facade for Umami, Plausible, and GA4 (Measurement Protocol).  
-This repository hosts the full SDK source, development tooling, documentation, tests, and release pipeline.
 
-**SSR-aware • CSP-friendly • No remote scripts • Tree-shakeable**
+**SSR-aware • CSP-friendly • Consent-gated • No remote scripts**
 
 ### What happens when you call `analytics.track()`
 
@@ -68,7 +67,7 @@ analytics.track('signup_submitted', { plan: 'starter' });
 
 ### Instances vs singleton helpers
 
-The example above use the **instance API**.
+The example above uses the **instance API**.
 
 Most apps should prefer **instances**:
 
@@ -208,8 +207,7 @@ pnpm docs:build     # generate static build (docs/.vitepress/dist)
 pnpm docs:preview   # preview the production build
 ```
 
-The documentation site is deployed via GitHub Actions using
-`upload-pages-artifact` → `deploy-pages`.
+The documentation site is deployed via Cloudflare Pages.
 
 ## Release workflow
 

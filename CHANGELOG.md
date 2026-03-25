@@ -8,7 +8,9 @@ During the **0.x beta**, breaking changes may occur between minor versions and w
 
 ---
 
-## [Unreleased]
+## [0.1.0] - 2026-03-24
+
+First public beta release.
 
 ### Added
 

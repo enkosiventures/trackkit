@@ -23,15 +23,15 @@ export const sidebar: DefaultTheme.Sidebar = {
         { text: 'Providers', items: [
           { text: 'Choosing a Provider', link: '/guides/choosing-provider' },
           { text: 'Built-in Providers', collapsed: true, items: [
-            { text: 'Umami', link: '/providers/umami' },
-            { text: 'Plausible', link: '/providers/plausible' },
-            { text: 'GA4', link: '/providers/ga4' }
+            { text: 'Umami', link: '/guides/providers/umami' },
+            { text: 'Plausible', link: '/guides/providers/plausible' },
+            { text: 'GA4', link: '/guides/providers/ga4' }
           ] },
           { text: 'Migrating to Trackkit', collapsed: true, items: [
-            { text: 'From Umami', link: '/migration/from-umami' },
-            { text: 'From Plausible', link: '/migration/from-plausible' },
-            { text: 'From GA4', link: '/migration/from-ga4' },
-            { text: 'From Env Vars', link: '/migration/from-env-vars' }
+            { text: 'From Umami', link: '/guides/migration/from-umami' },
+            { text: 'From Plausible', link: '/guides/migration/from-plausible' },
+            { text: 'From GA4', link: '/guides/migration/from-ga4' },
+            { text: 'From Env Vars', link: '/guides/migration/from-env-vars' }
           ] },
           { text: 'Custom Providers', link: '/guides/custom-providers' }
         ]},

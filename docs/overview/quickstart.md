@@ -233,8 +233,8 @@ const analytics = createAnalytics({
   - [Consent & Privacy](/guides/consent-and-privacy)
   - [Queue Management](/guides/queue-management)
 - Explore guides for different providers:
-  - [Umami](/providers/umami)
-  - [Plausible](/providers/plausible)
-  - [Google Analytics 4](/providers/ga4)
+  - [Umami](/guides/providers/umami)
+  - [Plausible](/guides/providers/plausible)
+  - [Google Analytics 4](/guides/providers/ga4)
 - See full SSR semantics: [SSR Guide](/guides/ssr)
 - Typed events API details: [API Reference](/reference/api)

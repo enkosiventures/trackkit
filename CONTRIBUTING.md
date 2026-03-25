@@ -199,9 +199,9 @@ Key rules:
 
 Update:
 
-* `/docs/providers/*.md`
+* `/docs/guides/providers/*.md`
 * `/docs/guides/csp.md` if CSP requirements change
-* `/docs/migration/from-*.md` if migration semantics change
+* `/docs/guides/migration/from-*.md` if migration semantics change
 
 ---
 
